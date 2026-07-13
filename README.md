@@ -2,6 +2,8 @@
 
 面向中文用户的 AI 私人旅行管家：极简填写 → 真实 AI 规划 → 确定性质量校验 → 持久化攻略 → 单日调整与一次撤销 → 只读链接分享。
 
+公网 Beta：[https://wandernote-beryl.vercel.app](https://wandernote-beryl.vercel.app)
+
 ## 技术栈
 
 Next.js 16 App Router、React 19、TypeScript、Tailwind CSS 4、Zod 4、OpenAI Responses API、Neon PostgreSQL、Drizzle ORM、pnpm。

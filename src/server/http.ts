@@ -34,8 +34,11 @@ export function apiError(error: unknown) {
 
 function redactDiagnostic(message: string) {
   return message
+    .replace(/\nparams:[\s\S]*/i, "\nparams:[REDACTED]")
+    .replace(/Connection string:[^\n]*/gi, "Connection string: [REDACTED]")
     .replace(/postgres(?:ql)?:\/\/\S+/gi, "[DATABASE_URL_REDACTED]")
     .replace(/sk-[A-Za-z0-9_-]{12,}/g, "[API_KEY_REDACTED]")
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi, "[UUID_REDACTED]")
     .replace(/[A-Za-z0-9_-]{40,}/g, "[TOKEN_REDACTED]")
     .slice(0, 300);
 }

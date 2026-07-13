@@ -7,7 +7,11 @@
 - 生成、读取、单日修改、一次撤销、最近攻略、只读分享和反馈改为数据库流程。
 - 增加匿名安全 Cookie、每日限额、并发锁、请求大小限制、AI 总开关和可选 Beta 访问码。
 - 选择 Vercel 同步方案：Node.js Fluid Compute Hobby 300 秒上限覆盖当前任务；接口设置 120 秒。
-- 待 Neon DATABASE_URL 后执行真实迁移/API 集成测试；待账号授权后创建 GitHub 仓库并部署。
+- 完成 Neon 迁移和真实持久化测试，代码已推送至 `Evan-The-One/wandernote` 并由 Vercel 自动部署。
+- 公网 Beta 地址为 `https://wandernote-beryl.vercel.app`；关闭 Vercel 登录保护后，未登录访客可以访问。
+- 生产验收：真实 AI 生成 22 秒，单日修改 14 秒；刷新持久化、匿名创建者权限、分享只读、反馈保存和撤销恢复均通过。
+- 部署时发现 `neon-http` 不支持交互式事务，改为普通查询使用 HTTP、原子写入使用按请求创建并关闭的 Neon WebSocket 事务连接。
+- 初次 Vercel `DATABASE_URL` 导入错误；修正过程中连接串曾出现在工具输出，已立即轮换 Neon 密码并更新 Vercel，旧凭据已失效。
 
 ## 2026-07-11 · V0.1 第一阶段
 
