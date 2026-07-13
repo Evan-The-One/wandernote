@@ -53,7 +53,7 @@
 
 ### 优先需求
 
-最多3项：`great_food | photogenic | less_walking | avoid_crowds | hidden_gems | must_see | family_friendly | hotel_experience | nightlife | value_for_money | culture | nature`。
+最多3项：`great_food | photogenic | less_walking | avoid_crowds | hidden_gems | must_see | family_friendly | hotel_experience | nightlife | late_start | culture | nature`。历史数据中的`value_for_money`继续兼容读取，但新表单使用`late_start`（晚起下午逛）。
 
 ## TripPlan
 

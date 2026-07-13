@@ -1,6 +1,7 @@
 import { SectionHeading } from "@/components/section-heading";
 import { BetaAccessGate } from "@/features/beta/beta-access-gate";
 import { TripForm } from "@/features/trip-input/trip-form";
+import { HangzhouSamplePreview } from "@/features/trip-plan/hangzhou-sample-preview";
 
 export default function Home() {
   return <main>
@@ -10,9 +11,10 @@ export default function Home() {
       <div className="page-shell relative">
         <div className="mb-6 max-w-3xl">
           <span className="inline-flex rounded-full border border-[#245b46]/15 bg-white/70 px-3 py-1.5 text-sm font-semibold text-[#245b46]">AI 私人旅行管家</span>
-          <h1 className="mt-4 text-3xl font-bold tracking-[-.04em] sm:text-5xl">只需3步，<span className="text-[#245b46]">一键直接出发</span></h1>
+          <h1 className="mt-4 text-3xl font-bold tracking-[-.04em] sm:text-5xl"><span className="block sm:inline">不用查攻略，只需3步</span><span className="mt-1 block text-[#245b46] sm:mt-0 sm:inline">，一键定制专属旅行</span></h1>
         </div>
         <BetaAccessGate><TripForm /></BetaAccessGate>
+        <HangzhouSamplePreview />
       </div>
     </section>
     <section className="page-shell py-16 sm:py-20">

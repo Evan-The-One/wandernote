@@ -3,7 +3,7 @@ import { z } from "zod";
 export const travelStyleSchema = z.enum(["fast_paced", "slow", "lazy", "food", "romantic", "family"]);
 export const prioritySchema = z.enum([
   "great_food", "photogenic", "less_walking", "avoid_crowds", "hidden_gems", "must_see",
-  "family_friendly", "hotel_experience", "nightlife", "value_for_money", "culture", "nature",
+  "family_friendly", "hotel_experience", "nightlife", "value_for_money", "late_start", "culture", "nature",
 ]);
 export const transportPreferenceSchema = z.enum(["mixed", "public_transport", "taxi", "walking", "driving"]);
 

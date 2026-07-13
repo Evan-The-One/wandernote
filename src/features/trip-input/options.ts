@@ -14,7 +14,7 @@ export const priorityOptions: { value: TripInput["priorities"][number]; label: s
   { value: "less_walking", label: "少走路", icon: "🛋️" }, { value: "avoid_crowds", label: "不排队", icon: "🌿" },
   { value: "hidden_gems", label: "小众安静", icon: "🪴" }, { value: "must_see", label: "经典必去", icon: "📍" },
   { value: "family_friendly", label: "带孩子方便", icon: "🎈" }, { value: "hotel_experience", label: "住宿体验", icon: "🏨" },
-  { value: "nightlife", label: "夜生活", icon: "🌙" }, { value: "value_for_money", label: "性价比", icon: "💰" },
+  { value: "nightlife", label: "夜生活", icon: "🌙" }, { value: "late_start", label: "晚起下午逛", icon: "" },
   { value: "culture", label: "文化体验", icon: "🏛️" }, { value: "nature", label: "自然风景", icon: "⛰️" },
 ];
 
