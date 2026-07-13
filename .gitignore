@@ -3,6 +3,7 @@ node_modules
 .vercel
 .turbo
 coverage
+*.tsbuildinfo
 .env*
 !.env.example
 *.log
