@@ -24,6 +24,18 @@ export function apiError(error: unknown) {
   if (error instanceof HttpError) return Response.json({ error: { code: error.code, message: error.message } }, { status: error.status });
   const message = error instanceof Error ? error.message : "服务暂时不可用，请稍后重试";
   const isConfig = message.includes("尚未配置") || message.includes("DATABASE_URL");
-  console.error("api_request_failed", JSON.stringify({ name: error instanceof Error ? error.name : "Unknown", config: isConfig }));
+  console.error("api_request_failed", JSON.stringify({
+    name: error instanceof Error ? error.name : "Unknown",
+    config: isConfig,
+    detail: redactDiagnostic(message),
+  }));
   return Response.json({ error: { code: isConfig ? "SERVICE_NOT_CONFIGURED" : "INTERNAL_ERROR", message: isConfig ? message : "服务暂时不可用，请稍后重试" } }, { status: isConfig ? 503 : 500 });
+}
+
+function redactDiagnostic(message: string) {
+  return message
+    .replace(/postgres(?:ql)?:\/\/\S+/gi, "[DATABASE_URL_REDACTED]")
+    .replace(/sk-[A-Za-z0-9_-]{12,}/g, "[API_KEY_REDACTED]")
+    .replace(/[A-Za-z0-9_-]{40,}/g, "[TOKEN_REDACTED]")
+    .slice(0, 300);
 }
