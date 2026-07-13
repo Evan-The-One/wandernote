@@ -1,7 +1,6 @@
 import { SectionHeading } from "@/components/section-heading";
 import { BetaAccessGate } from "@/features/beta/beta-access-gate";
 import { TripForm } from "@/features/trip-input/trip-form";
-import { BrandMark } from "@/components/brand-mark";
 
 export default function Home() {
   return <main>
@@ -9,13 +8,11 @@ export default function Home() {
       <div className="absolute -right-24 top-8 h-80 w-80 rounded-full bg-[#dbe9d7] blur-3xl" />
       <div className="absolute -left-24 bottom-0 h-64 w-64 rounded-full bg-[#f3d9ad] blur-3xl" />
       <div className="page-shell relative">
-        <div className="mb-8 max-w-3xl">
-          <BrandMark size="compact" />
-          <span className="mt-4 inline-flex rounded-full border border-[#245b46]/15 bg-white/70 px-3 py-1.5 text-sm font-semibold text-[#245b46]">AI 私人旅行管家</span>
-          <h1 className="mt-5 text-4xl font-bold tracking-[-.04em] sm:text-6xl">不用查攻略，<span className="text-[#245b46]">一键直接出发。</span></h1>
-          <p className="mt-4 text-lg text-[#5d6862]">只选目的地、天数和玩法，剩下的交给一键出发。</p>
+        <div className="mb-6 max-w-3xl">
+          <span className="inline-flex rounded-full border border-[#245b46]/15 bg-white/70 px-3 py-1.5 text-sm font-semibold text-[#245b46]">AI 私人旅行管家</span>
+          <h1 className="mt-4 text-3xl font-bold tracking-[-.04em] sm:text-5xl">只需3步，<span className="text-[#245b46]">一键直接出发</span></h1>
         </div>
-        <BetaAccessGate><TripForm home /></BetaAccessGate>
+        <BetaAccessGate><TripForm /></BetaAccessGate>
       </div>
     </section>
     <section className="page-shell py-16 sm:py-20">
