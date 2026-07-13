@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BrandMark } from "@/components/brand-mark";
 import "./globals.css";
 
 const productionUrl = process.env.NEXT_PUBLIC_APP_URL
@@ -20,9 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <header className="border-b border-black/5 bg-[#f7f8f3]/90 backdrop-blur">
           <div className="page-shell flex h-16 items-center justify-between">
-            <Link href="/" className="focus-ring rounded-lg text-lg font-bold tracking-tight">
-              一键出发 <span className="text-[#e0933d]">↗</span>
-            </Link>
+            <BrandMark href="/" />
             <Link href="/#plan" className="focus-ring rounded-full bg-[#245b46] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4938]">
               帮我安排
             </Link>
