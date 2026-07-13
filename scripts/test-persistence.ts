@@ -20,12 +20,18 @@ if (!process.env.DATABASE_URL) {
   console.log("Live database tests pending: DATABASE_URL is not configured.");
 } else {
   const { getDatabase } = await import("../src/server/database/client");
+  const { withDatabaseTransaction } = await import("../src/server/database/client");
   const { feedback, generationJobs, trips, visitors } = await import("../src/server/database/schema");
   const db = getDatabase();
   const sessionId = randomBytes(32).toString("base64url");
   const [visitor] = await db.insert(visitors).values({ sessionId }).returning({ id: visitors.id });
   try {
     const [trip] = await db.insert(trips).values({ visitorId: visitor.id, inputJson: input }).returning({ id: trips.id, version: trips.version });
+    const transactionMarker = `tx-${randomBytes(8).toString("hex")}`;
+    await withDatabaseTransaction(async (tx) => {
+      await tx.update(visitors).set({ sessionId: transactionMarker }).where(eq(visitors.id, visitor.id));
+      await tx.update(visitors).set({ sessionId }).where(eq(visitors.id, visitor.id));
+    });
     assert.match(trip.id, /^[0-9a-f-]{36}$/);
     await db.insert(feedback).values({ tripId: trip.id, visitorId: visitor.id, rating: "helpful", issueTagsJson: [] });
     await db.insert(generationJobs).values({ visitorId: visitor.id, tripId: trip.id, type: "full_generation", status: "running" });

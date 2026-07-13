@@ -1,5 +1,5 @@
 import { and, count, desc, eq, gte, isNull, sql } from "drizzle-orm";
-import { getDatabase } from "./client";
+import { getDatabase, withDatabaseTransaction } from "./client";
 import { dayRevisions, feedback, generationJobs, trips } from "./schema";
 import { dayPlanSchema, tripInputSchema, tripPlanSchema } from "@/schemas/trip";
 import type { DayPlan, TripInput, TripPlan } from "@/types/trip";
@@ -18,9 +18,8 @@ export async function assertDailyLimit(visitorId: string, type: "full_generation
 }
 
 export async function createTripAndJob(visitorId: string, input: TripInput) {
-  const db = getDatabase();
   try {
-    return await db.transaction(async (tx) => {
+    return await withDatabaseTransaction(async (tx) => {
       const [trip] = await tx.insert(trips).values({ visitorId, inputJson: input }).returning({ id: trips.id });
       const [job] = await tx.insert(generationJobs).values({ visitorId, tripId: trip.id, type: "full_generation", status: "running" }).returning({ id: generationJobs.id });
       return { tripId: trip.id, jobId: job.id };
@@ -32,16 +31,14 @@ export async function createTripAndJob(visitorId: string, input: TripInput) {
 }
 
 export async function completeTrip(tripId: string, jobId: string, plan: TripPlan, durationMs: number) {
-  const db = getDatabase();
-  await db.transaction(async (tx) => {
+  await withDatabaseTransaction(async (tx) => {
     await tx.update(trips).set({ status: "completed", currentPlanJson: plan, updatedAt: new Date() }).where(eq(trips.id, tripId));
     await tx.update(generationJobs).set({ status: "completed", durationMs, completedAt: new Date() }).where(eq(generationJobs.id, jobId));
   });
 }
 
 export async function failJob(tripId: string, jobId: string, code: string, durationMs: number) {
-  const db = getDatabase();
-  await db.transaction(async (tx) => {
+  await withDatabaseTransaction(async (tx) => {
     await tx.update(trips).set({ status: "failed", updatedAt: new Date() }).where(eq(trips.id, tripId));
     await tx.update(generationJobs).set({ status: "failed", durationMs, errorCode: code, completedAt: new Date() }).where(eq(generationJobs.id, jobId));
   });
@@ -80,8 +77,7 @@ export function replaceDayAndBudget(plan: TripPlan, updatedDay: DayPlan) {
 }
 
 export async function saveRevision(args: { tripId: string; visitorId: string; expectedVersion: number; instruction: string; previousDay: DayPlan; updatedDay: DayPlan; summary: string[]; updatedPlan: TripPlan; jobId: string; durationMs: number }) {
-  const db = getDatabase();
-  await db.transaction(async (tx) => {
+  await withDatabaseTransaction(async (tx) => {
     const [updated] = await tx.update(trips).set({ currentPlanJson: args.updatedPlan, version: sql`${trips.version} + 1`, updatedAt: new Date() }).where(and(eq(trips.id, args.tripId), eq(trips.visitorId, args.visitorId), eq(trips.version, args.expectedVersion))).returning({ version: trips.version });
     if (!updated) throw new HttpError(409, "攻略已在其他窗口更新，请刷新后重试", "VERSION_CONFLICT");
     await tx.insert(dayRevisions).values({ tripId: args.tripId, dayNumber: args.updatedDay.dayNumber, instruction: args.instruction, previousDayJson: args.previousDay, updatedDayJson: args.updatedDay, changeSummaryJson: args.summary, planVersion: updated.version });
@@ -90,8 +86,7 @@ export async function saveRevision(args: { tripId: string; visitorId: string; ex
 }
 
 export async function undoLatestRevision(tripId: string, visitorId: string, expectedVersion: number) {
-  const db = getDatabase();
-  return db.transaction(async (tx) => {
+  return withDatabaseTransaction(async (tx) => {
     const [trip] = await tx.select().from(trips).where(and(eq(trips.id, tripId), eq(trips.visitorId, visitorId), eq(trips.version, expectedVersion))).limit(1);
     if (!trip) throw new HttpError(409, "攻略已更新或你没有编辑权限，请刷新后重试", "VERSION_CONFLICT");
     const plan = tripPlanSchema.safeParse(trip.currentPlanJson);
