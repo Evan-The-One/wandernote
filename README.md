@@ -1,6 +1,6 @@
-# 漫游册 WanderNote
+# 一键出发
 
-面向中文用户的 AI 私人旅行管家：极简填写 → 真实 AI 规划 → 确定性质量校验 → 持久化攻略 → 单日调整与一次撤销 → 只读链接分享。
+不用查攻略，一键直接出发。面向中文用户的 AI 私人旅行管家：极简填写 → 真实 AI 规划 → 确定性质量校验 → 持久化计划 → 单日调整与一次撤销 → 只读链接分享。
 
 公网 Beta：[https://wandernote-beryl.vercel.app](https://wandernote-beryl.vercel.app)
 
@@ -49,6 +49,8 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 2. GitHub 仓库导入 Vercel，使用 Node.js Fluid Compute。
 3. 在 Vercel Project Settings 配置 `.env.example` 中的变量，不配置本机代理。
 4. `NEXT_PUBLIC_APP_URL` 设置为正式 HTTPS 地址，部署后执行手机端端到端验收。
+
+绑定自定义域名时只需在当前 Vercel 项目的 Domains 中添加域名并配置 DNS，不需要新建项目。把 `NEXT_PUBLIC_APP_URL` 更新为正式域名后重新部署，canonical 与 Open Graph 地址会自动使用它。中国大陆访问结论与区域方案见 [MAINLAND_ACCESS_AUDIT.md](./MAINLAND_ACCESS_AUDIT.md)。
 
 生成和单日修改路由显式设置 `maxDuration = 120` 秒。Vercel Hobby 当前 Fluid Compute 上限为 300 秒，足以保留现有 30–60 秒同步模型调用及全部质量校验。
 

@@ -9,6 +9,6 @@ export const persistedRevisionSchema = z.object({
 export const undoDaySchema = z.object({ version: z.number().int().positive() });
 export const feedbackSchema = z.object({
   rating: z.enum(["helpful", "usable", "not_helpful"]),
-  issueTags: z.array(z.enum(["too_full", "bad_route", "inaccurate_place", "bad_budget", "preference_mismatch", "other"])).max(6).default([]),
+  issueTags: z.array(z.enum(["too_full", "too_empty", "bad_route", "inaccurate_place", "bad_budget", "preference_mismatch", "other"])).max(6).default([]),
   comment: z.string().trim().max(300).nullable().default(null),
 });

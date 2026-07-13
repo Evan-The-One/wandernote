@@ -7,12 +7,16 @@ import { travelInspirations } from "./inspirations";
 import { tripInputSchema } from "@/schemas/trip";
 import type { TripInput } from "@/types/trip";
 import { migrateTripInput } from "@/schemas/migration";
+import { DestinationRecommender } from "./destination-recommender";
+
+const LEGACY_INPUT_KEY = "wandernote:demo-input";
+const INPUT_KEY = "yijianchufa:trip-input";
 
 const inputClass = "focus-ring mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-base shadow-sm placeholder:text-black/30";
 const selectedCard = "border-[#245b46] bg-[#eaf2ed] text-[#183b2e] shadow-sm";
 const plainCard = "border-black/8 bg-white hover:border-[#245b46]/40";
 
-export function TripForm() {
+export function TripForm({ home = false }: { home?: boolean }) {
   const router = useRouter();
   const minDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [destination, setDestination] = useState("");
@@ -37,7 +41,7 @@ export function TripForm() {
 
   useEffect(() => { queueMicrotask(() => {
     try {
-      const stored = migrateTripInput(JSON.parse(localStorage.getItem("wandernote:demo-input") || "null"));
+      const stored = migrateTripInput(JSON.parse(localStorage.getItem(INPUT_KEY) || localStorage.getItem(LEGACY_INPUT_KEY) || "null"));
       if (!stored) return;
       setDestination(stored.destination.city); setDays(stored.days); setStyle(stored.travelStyle);
       setDateType(stored.datePreference.type); setStartDate(stored.datePreference.startDate || ""); setApproximateText(stored.datePreference.approximateText || "");
@@ -67,7 +71,8 @@ export function TripForm() {
     } satisfies TripInput;
     const result = tripInputSchema.safeParse(input);
     if (!result.success) { setError(result.error.issues[0]?.message ?? "请检查填写内容"); return; }
-    window.localStorage.setItem("wandernote:demo-input", JSON.stringify(result.data));
+    window.localStorage.setItem(INPUT_KEY, JSON.stringify(result.data));
+    window.localStorage.setItem(LEGACY_INPUT_KEY, JSON.stringify(result.data));
     window.localStorage.removeItem("wandernote:generated-plan");
     window.localStorage.removeItem("wandernote:last-undo");
     router.push("/generating");
@@ -75,14 +80,15 @@ export function TripForm() {
 
   return <form onSubmit={submit} className="space-y-6">
     <section className="card rounded-[2rem] p-5 sm:p-8">
-      <div><span className="rounded-full bg-[#eaf2ed] px-3 py-1 text-xs font-bold text-[#245b46]">只需 3 项</span><h2 className="mt-4 text-2xl font-bold">快速开始规划</h2><p className="mt-2 text-sm text-[#707a74]">其他信息都可以跳过，之后再补充。</p></div>
+      <div><span className="rounded-full bg-[#eaf2ed] px-3 py-1 text-xs font-bold text-[#245b46]">只需 3 项</span><h2 className="mt-4 text-2xl font-bold">{home ? "这次想去哪儿？" : "快速安排这几天"}</h2><p className="mt-2 text-sm text-[#707a74]">其他信息都可以跳过，不会影响直接生成。</p></div>
 
-      <label className="mt-7 block font-semibold">目的地 <span className="text-[#c55e3d]">*</span><input required value={destination} onChange={(event) => setDestination(event.target.value)} className={inputClass} placeholder="例如：杭州" /></label>
+      <label className="mt-7 block font-semibold">你想去哪里？ <span className="text-[#c55e3d]">*</span><input required value={destination} onChange={(event) => setDestination(event.target.value)} className={inputClass} placeholder="例如：杭州" /></label>
       <div className="mt-4 rounded-2xl bg-[#f4f5f0] p-4"><p className="text-xs font-bold text-[#617068]">旅行灵感 · 固定示例</p><div className="mt-3 space-y-3">{travelInspirations.map((group) => <div key={group.category} className="flex items-center gap-2 overflow-x-auto"><span className="w-20 shrink-0 text-xs text-[#7b847e]">{group.category}</span>{group.cities.map((city) => <button key={city} type="button" onClick={() => setDestination(city)} className="focus-ring shrink-0 rounded-full border border-black/8 bg-white px-3 py-1.5 text-sm font-semibold hover:border-[#245b46]/40">{city}</button>)}</div>)}</div></div>
+      <DestinationRecommender days={days} departureCity={departureCity} onDepartureCity={setDepartureCity} onChoose={setDestination} />
 
-      <div className="mt-7"><p className="font-semibold">旅行天数 <span className="text-[#c55e3d]">*</span></p><div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-7">{dayOptions.map((value) => <button key={value} type="button" aria-pressed={days === value} onClick={() => setDays(value)} className={`focus-ring rounded-xl border px-2 py-3 font-bold transition ${days === value ? selectedCard : plainCard}`}>{value === 7 ? "7天" : `${value}天`}</button>)}</div></div>
+      <div className="mt-7"><p className="font-semibold">准备玩几天？ <span className="text-[#c55e3d]">*</span></p><div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-7">{dayOptions.map((value) => <button key={value} type="button" aria-pressed={days === value} onClick={() => setDays(value)} className={`focus-ring rounded-xl border px-2 py-3 font-bold transition ${days === value ? selectedCard : plainCard}`}>{value === 7 ? "7天" : `${value}天`}</button>)}</div></div>
 
-      <div className="mt-7"><p className="font-semibold">旅行风格 <span className="text-[#c55e3d]">*</span></p><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{travelStyles.map((item) => <button key={item.value} type="button" aria-pressed={style === item.value} onClick={() => setStyle(item.value)} className={`focus-ring rounded-2xl border p-4 text-left transition ${style === item.value ? selectedCard : plainCard}`}><span className="text-xl">{item.icon}</span><span className="ml-3 font-bold">{item.label}</span><p className="ml-9 mt-1 text-xs text-[#707a74]">{item.description}</p></button>)}</div></div>
+      <div className="mt-7"><p className="font-semibold">想怎么玩？ <span className="text-[#c55e3d]">*</span></p><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{travelStyles.map((item) => <button key={item.value} type="button" aria-pressed={style === item.value} onClick={() => setStyle(item.value)} className={`focus-ring rounded-2xl border p-4 text-left transition ${style === item.value ? selectedCard : plainCard}`}><span className="text-xl">{item.icon}</span><span className="ml-3 font-bold">{item.label}</span><p className="ml-9 mt-1 text-xs text-[#707a74]">{item.description}</p></button>)}</div></div>
     </section>
 
     <details className="card group rounded-[2rem] p-5 sm:p-8">
@@ -101,7 +107,7 @@ export function TripForm() {
     </details>
 
     {error && <p role="alert" className="rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</p>}
-    <div className="sticky bottom-3 z-10 rounded-[1.6rem] border border-black/5 bg-[#f7f8f3]/90 p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"><button className="focus-ring w-full rounded-full bg-[#245b46] px-8 py-4 text-lg font-bold text-white shadow-lg shadow-[#245b46]/15 hover:bg-[#1c4937]">生成我的旅行攻略 →</button></div>
+    <div className="sticky bottom-3 z-10 rounded-[1.6rem] border border-black/5 bg-[#f7f8f3]/90 p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"><button className="focus-ring w-full rounded-full bg-[#245b46] px-8 py-4 text-lg font-bold text-white shadow-lg shadow-[#245b46]/15 hover:bg-[#1c4937]">帮我安排这几天 →</button></div>
     <p className="text-center text-xs leading-5 text-[#778079]">AI规划不含实时天气、票价或营业数据，出发前请再次确认。</p>
   </form>;
 }
