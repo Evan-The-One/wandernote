@@ -1,0 +1,98 @@
+import type { TripInput } from "@/types/trip";
+import type { TripPlanQualityIssue } from "@/server/validation/trip-plan-quality";
+
+const styleGuides: Record<TripInput["travelStyle"], string> = {
+  fast_paced: "特种兵：可以增加主要活动，但必须完整预留用餐、休息和每一段交通时间。",
+  slow: "慢旅行：每天最多3个主要游玩活动，少安排、深体验，避免跨区赶路。",
+  lazy: "懒人旅行：每天最多3个主要游玩活动，减少步行、换乘、早起和跨区折返。",
+  food: "美食探索：用真实餐饮街区和当地菜系组织路线，不杜撰餐厅；仍要保持合理密度。",
+  romantic: "情侣浪漫：安排日落、夜景、散步或有氛围的明确地点，同时保留休息和交流时间。",
+  family: "亲子旅行：每天最多3个主要游玩活动，降低强度，安排午休、如厕、用餐和儿童参与体验。",
+};
+
+const priorityLabels: Record<TripInput["priorities"][number], string> = {
+  great_food: "吃得好", photogenic: "拍照出片", less_walking: "少走路", avoid_crowds: "减少排队",
+  hidden_gems: "小众安静", must_see: "经典必去", family_friendly: "带孩子方便", hotel_experience: "住宿体验",
+  nightlife: "夜生活", value_for_money: "性价比", culture: "文化体验", nature: "自然风景",
+};
+
+const budgetLabels: Record<TripInput["budget"]["mode"], string> = {
+  unrestricted: "暂不限制：不要输出精确总额、每日费用或活动费用，可不给金额或只给宽松区间",
+  economy: "尽量省钱：不要输出精确总额、每日费用或活动费用，可给合理区间并说明省钱策略",
+  moderate: "适中消费：不要输出精确总额、每日费用或活动费用，可给合理区间",
+  comfortable: "舒适优先：不要输出精确总额、每日费用或活动费用，可给合理区间",
+  custom: "自定义金额：必须严格遵守用户金额、总额/人均口径以及住宿和往返大交通包含项",
+};
+
+export const TRIP_PLANNER_SYSTEM_PROMPT = `你是私人旅行规划助手，不是旅游文章生成器。你的输出必须是一份可执行、可核对的中文城市旅行计划。
+
+【时间一致性】
+1. 活动时间不得重叠，durationMinutes必须等于endTime减startTime。
+2. 对任意相邻活动：下一活动startTime必须大于或等于上一活动endTime加transportToNext.durationMinutes。交通时间必须真实占用时间轴。
+3. 最后一个活动transportToNext必须为null；其他活动应给出到下一站的合理交通时间。
+4. 必须保留午餐。全天行程还要考虑晚餐、休息、入住和返程。
+
+【活动密度与路线】
+5. attraction、shopping、entertainment算主要游玩活动。slow、lazy、family每天最多3个主要游玩活动；餐饮、咖啡、酒店休息不计入此数量，但总时间仍须合理。
+5a. 如果用户选择less_walking，或补充要求明确包含“不想太累”“少走路”“轻松一点”，每天最多3个主要活动且estimatedWalkingKm不得超过6公里。
+6. 每天优先集中在1至2个相邻片区。family和lazy禁止无必要跨区折返。fast_paced可以增加活动，但不得挤占交通和用餐。
+7. 特殊日期（国庆、春节、五一、暑期周末等）仅在用户提供具体日期或大概节假日时应用：减少活动、增加排队和交通缓冲、提醒预约、集中同片区，并在dayTips给出同区域备选。
+8. 日期未确定时，day.date必须为null，不得虚构天气、节假日、人流或季节结论。
+
+【地点真实性】
+9. 每个核心活动name必须是明确、真实、可搜索的公开地点，或明确可搜索的真实街区。
+10. 禁止含糊占位表达，包括“某类场馆”“相关区域”“同类博物馆”“一类亲子空间”“熊猫主题参观”“某个景点”“待定”。无法确认时选择更保守但明确的知名公开地点。
+11. 不虚构具体餐厅、开放时间、门票、地址或实时信息。不确定餐厅时可以使用“明确真实街区 + 当地菜系”，但核心景点不能含糊。
+
+【预算一致性】
+12. 非custom预算：activity.estimatedCost和day.estimatedCost全部为null；budget.estimatedTotal、dailyCostTotal、unallocatedCost也必须为null；estimateType只能是range或none。可以提供estimatedRange，但不得伪装成精确承诺。
+13. custom预算：activity和day费用必须为数字；每日estimatedCost不得小于当日活动费用合计；dailyCostTotal必须等于每日费用合计；estimatedTotal减dailyCostTotal必须等于unallocatedCost，差额大于0时必须用unallocatedExplanation解释。
+14. custom预算必须原样保留userBudgetAmount、userBudgetScope、includesAccommodation、includesIntercityTransport。不得自行排除用户明确包含的项目。估算总额不得超过按用户口径计算的可用总预算。
+15. includedItems、excludedItems和notes必须明确估算包含与不包含的内容。
+
+【输出】
+16. 输出天数必须与输入一致，dayNumber从1连续递增。具体日期存在时逐日连续；否则date为null。
+17. 只输出符合指定Schema的JSON，不要输出Markdown、代码围栏、HTML或额外解释。
+18. 本版本没有实时天气、地图、营业时间、票价和预订数据，dataDisclaimer必须如实说明。`;
+
+function describeDate(input: TripInput) {
+  if (input.datePreference.type === "exact") return `已确定：${input.datePreference.startDate}`;
+  if (input.datePreference.type === "approximate") return `大概时间：${input.datePreference.approximateText}`;
+  return "未确定；所有day.date必须为null";
+}
+
+function describeBudget(input: TripInput) {
+  if (input.budget.mode !== "custom") return budgetLabels[input.budget.mode];
+  return `${input.budget.amount} CNY；口径=${input.budget.scope === "total" ? "总预算" : "人均预算"}；包含住宿=${input.budget.includesAccommodation ? "是" : "否"}；包含往返大交通=${input.budget.includesIntercityTransport ? "是" : "否"}`;
+}
+
+export function buildTripPlannerPrompt(input: TripInput) {
+  return `请规划以下旅行：
+
+主目的地：${input.destination.city}，${input.destination.country}（只规划这一主城市）
+旅行天数：${input.days}天
+出行时间：${describeDate(input)}
+同行人数：${input.travelers.adults}位成人，${input.travelers.children}位儿童
+旅行风格：${styleGuides[input.travelStyle]}
+优先需求：${input.priorities.length ? input.priorities.map((item) => priorityLabels[item]).join("、") : "未指定"}
+预算：${describeBudget(input)}
+出发城市：${input.departureCity || "未填写"}
+交通偏好：${input.transportPreference}
+周边一日游：${input.dayTripPreference ? "可以考虑，但只有明显提升体验且不破坏主城市路线时安排" : "不安排"}
+补充要求：${input.additionalRequirements || "无"}
+
+请生成完整TripPlan JSON。tripId="generated"，status="completed"，schemaVersion="0.2"。createdAt和updatedAt使用当前ISO 8601时间。预算对象mode必须等于"${input.budget.mode}"。`;
+}
+
+export function buildRepairPrompt(invalidOutput: string, issues: TripPlanQualityIssue[] | string) {
+  const details = typeof issues === "string" ? issues : JSON.stringify(issues, null, 2);
+  return `上一份TripPlan未通过确定性校验。只修复列出的结构、时间、地点和预算问题，不要改变用户需求，也不要引入新问题。
+
+校验错误：
+${details}
+
+待修复JSON：
+${invalidOutput.slice(0, 30000)}
+
+重新计算所有活动起止时间、交通间隔、每日费用和总预算关系。只返回修复后的完整JSON。`;
+}

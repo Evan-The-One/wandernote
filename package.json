@@ -1,0 +1,31 @@
+{
+  "name": "wandernest",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test:ai": "node scripts/test-ai-cases.mjs",
+    "test:revisions": "node scripts/test-day-revisions.mjs"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "4.3.2",
+    "next": "16.2.10",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "4.3.2",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@11.7.0"
+}
