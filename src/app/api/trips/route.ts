@@ -8,6 +8,14 @@ import { assertDailyLimit, completeTrip, createTripAndJob, failJob } from "@/ser
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
+async function databaseStage<T>(operation: () => Promise<T>) {
+  try { return await operation(); }
+  catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(500, "攻略暂时无法保存，请稍后重试", "DATABASE_ERROR");
+  }
+}
+
 export async function POST(request: Request) {
   const startedAt = performance.now();
   let created: { tripId: string; jobId: string } | null = null;
@@ -17,15 +25,15 @@ export async function POST(request: Request) {
     const processingStartedAt = performance.now();
     const input = tripInputSchema.safeParse(await readJsonBody(request));
     if (!input.success) throw new HttpError(400, input.error.issues[0]?.message || "旅行需求格式无效", "INVALID_TRIP_INPUT");
-    const { visitorId } = await ensureVisitor();
-    await assertDailyLimit(visitorId, "full_generation", serverConfig.fullGenerationDailyLimit);
-    created = await createTripAndJob(visitorId, input.data);
+    const { visitorId } = await databaseStage(() => ensureVisitor());
+    await databaseStage(() => assertDailyLimit(visitorId, "full_generation", serverConfig.fullGenerationDailyLimit));
+    created = await databaseStage(() => createTripAndJob(visitorId, input.data));
     const plan = await generateTripPlan(input.data, Math.round(performance.now() - processingStartedAt));
     const persistedPlan = { ...plan, tripId: created.tripId, status: "completed" as const, updatedAt: new Date().toISOString() };
-    await completeTrip(created.tripId, created.jobId, persistedPlan, Math.round(performance.now() - startedAt));
+    await databaseStage(() => completeTrip(created!.tripId, created!.jobId, persistedPlan, Math.round(performance.now() - startedAt)));
     return Response.json({ tripId: created.tripId }, { status: 201 });
   } catch (error) {
-    if (created) await failJob(created.tripId, created.jobId, error instanceof HttpError ? error.code : "AI_GENERATION_FAILED", Math.round(performance.now() - startedAt)).catch(() => undefined);
+    if (created) await failJob(created.tripId, created.jobId, error instanceof HttpError ? error.code : "UNKNOWN_ERROR", Math.round(performance.now() - startedAt)).catch(() => undefined);
     return apiError(error);
   }
 }

@@ -6,6 +6,10 @@ export class HttpError extends Error {
   constructor(public status: number, message: string, public code: string) { super(message); }
 }
 
+export type PublicErrorCode =
+  | "AI_DISABLED" | "DAILY_LIMIT_REACHED" | "OPENAI_AUTH_ERROR" | "OPENAI_QUOTA_ERROR"
+  | "OPENAI_TIMEOUT" | "DATABASE_ERROR" | "FUNCTION_TIMEOUT" | "VALIDATION_FAILED" | "UNKNOWN_ERROR";
+
 export async function readJsonBody(request: Request): Promise<unknown> {
   const declared = Number(request.headers.get("content-length") || 0);
   if (declared > MAX_REQUEST_BODY_BYTES) throw new HttpError(413, "请求内容过大，请精简补充要求后重试", "BODY_TOO_LARGE");
@@ -21,15 +25,21 @@ export function secureEqual(left: string, right: string) {
 }
 
 export function apiError(error: unknown) {
-  if (error instanceof HttpError) return Response.json({ error: { code: error.code, message: error.message } }, { status: error.status });
+  if (error instanceof HttpError) {
+    if (error.status >= 500 || error.code === "VALIDATION_FAILED") console.warn("api_request_rejected", JSON.stringify({ code: error.code, status: error.status }));
+    return Response.json({ error: { code: error.code, message: error.message } }, { status: error.status });
+  }
   const message = error instanceof Error ? error.message : "服务暂时不可用，请稍后重试";
-  const isConfig = message.includes("尚未配置") || message.includes("DATABASE_URL");
+  const isDatabase = /database|postgres|neon|connection|DATABASE_URL|数据库/i.test(`${error instanceof Error ? error.name : ""} ${message}`);
+  const isTimeout = /timeout|timed out|function.*time|执行时间/i.test(message);
+  const code: PublicErrorCode = isDatabase ? "DATABASE_ERROR" : isTimeout ? "FUNCTION_TIMEOUT" : "UNKNOWN_ERROR";
+  const publicMessage = isDatabase ? "攻略暂时无法保存，请稍后重试" : isTimeout ? "生成时间超过服务器限制，请直接重试" : "服务暂时不可用，请稍后重试";
   console.error("api_request_failed", JSON.stringify({
     name: error instanceof Error ? error.name : "Unknown",
-    config: isConfig,
+    code,
     detail: redactDiagnostic(message),
   }));
-  return Response.json({ error: { code: isConfig ? "SERVICE_NOT_CONFIGURED" : "INTERNAL_ERROR", message: isConfig ? message : "服务暂时不可用，请稍后重试" } }, { status: isConfig ? 503 : 500 });
+  return Response.json({ error: { code, message: publicMessage } }, { status: isTimeout ? 504 : 500 });
 }
 
 function redactDiagnostic(message: string) {

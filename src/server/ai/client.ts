@@ -3,13 +3,18 @@ import { tripPlanSchema } from "@/schemas/trip";
 import type { TripInput, TripPlan } from "@/types/trip";
 import { extractResponseText, parseJsonResponse } from "./json";
 import { buildRepairPrompt, buildTripPlannerPrompt, TRIP_PLANNER_SYSTEM_PROMPT } from "./prompt";
-import { validateTripPlanQuality } from "@/server/validation/trip-plan-quality";
+import { normalizeTripPlanForQuality, validateTripPlanQuality, type TripPlanQualityIssue } from "@/server/validation/trip-plan-quality";
+import { HttpError } from "@/server/http";
 
 const OPENAI_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5.4-mini";
 
-export class AiConfigurationError extends Error {}
-export class AiGenerationError extends Error {}
+export class AiConfigurationError extends HttpError {
+  constructor(message: string) { super(503, message, "OPENAI_AUTH_ERROR"); }
+}
+export class AiGenerationError extends HttpError {
+  constructor(message: string, code = "UNKNOWN_ERROR", status = 502) { super(status, message, code); }
+}
 
 export type AiGenerationMetrics = {
   inputProcessingMs: number;
@@ -58,18 +63,19 @@ export async function requestStructuredModel(input: string, schema: z.ZodType, s
     });
     const payload = await response.json() as Record<string, unknown>;
     if (!response.ok) {
-      const apiError = payload.error as { message?: string } | undefined;
-      throw new AiGenerationError(apiError?.message || `AI API 请求失败（${response.status}）`);
+      if (response.status === 401 || response.status === 403) throw new AiGenerationError("AI服务认证失败，请联系管理员", "OPENAI_AUTH_ERROR", 503);
+      if (response.status === 429) throw new AiGenerationError("AI服务额度或频率已达上限，请稍后重试", "OPENAI_QUOTA_ERROR", 503);
+      throw new AiGenerationError("AI服务暂时不可用，请稍后重试", "UNKNOWN_ERROR", 502);
     }
     return { raw: extractResponseText(payload), durationMs: Math.round(performance.now() - startedAt) };
   } catch (error) {
     if (error instanceof AiConfigurationError || error instanceof AiGenerationError) throw error;
-    if (error instanceof Error && error.name === "AbortError") throw new AiGenerationError("AI 生成超时，请稍后重试");
-    throw new AiGenerationError("无法连接 AI 服务，请稍后重试");
+    if (error instanceof Error && error.name === "AbortError") throw new AiGenerationError("AI生成超时，请稍后重试", "OPENAI_TIMEOUT", 504);
+    throw new AiGenerationError("无法连接AI服务，请稍后重试", "UNKNOWN_ERROR", 502);
   } finally { clearTimeout(timeout); }
 }
 
-function validatePlan(raw: string, input: TripInput, metrics: AiGenerationMetrics): TripPlan {
+function validatePlan(raw: string, input: TripInput, metrics: AiGenerationMetrics, normalize = false): TripPlan {
   const parseStartedAt = performance.now();
   const json = parseJsonResponse(raw);
   metrics.jsonParseMs += Math.round(performance.now() - parseStartedAt);
@@ -77,11 +83,18 @@ function validatePlan(raw: string, input: TripInput, metrics: AiGenerationMetric
   const parsed = tripPlanSchema.safeParse(json);
   metrics.zodValidationMs += Math.round(performance.now() - zodStartedAt);
   if (!parsed.success) throw parsed.error;
+  const candidate = normalize ? normalizeTripPlanForQuality(parsed.data, input) : parsed.data;
   const qualityStartedAt = performance.now();
-  const quality = validateTripPlanQuality(parsed.data, input);
+  const quality = validateTripPlanQuality(candidate, input);
   metrics.qualityValidationMs += Math.round(performance.now() - qualityStartedAt);
   if (!quality.valid) throw quality.issues;
-  return parsed.data;
+  return candidate;
+}
+
+function validationSummary(error: unknown) {
+  if (error instanceof z.ZodError) return error.issues.map((issue) => ({ code: "ZOD", path: issue.path.join(".") })).slice(0, 20);
+  if (Array.isArray(error)) return (error as TripPlanQualityIssue[]).map((issue) => ({ code: issue.code, path: issue.path })).slice(0, 20);
+  return [{ code: "UNKNOWN_VALIDATION", path: "unknown" }];
 }
 
 export async function generateTripPlan(input: TripInput, inputProcessingMs = 0): Promise<TripPlan> {
@@ -104,16 +117,16 @@ export async function generateTripPlan(input: TripInput, inputProcessingMs = 0):
     metrics.repairModelCallMs = repair.durationMs;
     const repairValidationStartedAt = performance.now();
     try {
-      const plan = validatePlan(repair.raw, input, metrics);
+      const plan = validatePlan(repair.raw, input, metrics, true);
       metrics.repairValidationMs = Math.round(performance.now() - repairValidationStartedAt);
       metrics.totalMs = Math.round(performance.now() - totalStartedAt) + inputProcessingMs;
       console.info("ai_generation_metrics", JSON.stringify({ days: input.days, style: input.travelStyle, ...metrics }));
       return plan;
-    } catch {
+    } catch (repairError) {
       metrics.repairValidationMs = Math.round(performance.now() - repairValidationStartedAt);
       metrics.totalMs = Math.round(performance.now() - totalStartedAt) + inputProcessingMs;
-      console.warn("ai_generation_metrics", JSON.stringify({ days: input.days, style: input.travelStyle, failed: true, ...metrics }));
-      throw new AiGenerationError("AI生成的攻略仍存在时间、地点或预算矛盾，请重新生成");
+      console.warn("ai_generation_metrics", JSON.stringify({ days: input.days, style: input.travelStyle, failed: true, validationIssues: validationSummary(repairError), ...metrics }));
+      throw new AiGenerationError("生成结果没有通过行程质量检查，请直接重试", "VALIDATION_FAILED", 422);
     }
   }
 }

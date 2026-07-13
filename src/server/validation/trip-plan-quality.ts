@@ -31,6 +31,60 @@ function addDays(date: string, offset: number) {
   return value.toISOString().slice(0, 10);
 }
 
+function timeFromMinutes(total: number) {
+  const bounded = Math.max(0, Math.min(total, 23 * 60 + 59));
+  return `${String(Math.floor(bounded / 60)).padStart(2, "0")}:${String(bounded % 60).padStart(2, "0")}`;
+}
+
+/** Corrects arithmetic fields deterministically; semantic quality rules remain unchanged. */
+export function normalizeTripPlanForQuality(plan: TripPlan, input: TripInput): TripPlan {
+  const days = plan.days.map((day, dayIndex) => {
+    let previousEnd = -1;
+    const activities = day.activities.map((activity, activityIndex) => {
+      const declaredDuration = Math.max(1, activity.durationMinutes);
+      let start = minutes(activity.startTime);
+      if (activityIndex > 0) {
+        const previousTransport = day.activities[activityIndex - 1]?.transportToNext?.durationMinutes ?? 0;
+        start = Math.max(start, previousEnd + previousTransport);
+      }
+      const originalDuration = minutes(activity.endTime) - minutes(activity.startTime);
+      const duration = originalDuration > 0 ? originalDuration : declaredDuration;
+      const end = start + duration;
+      previousEnd = end;
+      return {
+        ...activity,
+        startTime: timeFromMinutes(start),
+        endTime: timeFromMinutes(end),
+        durationMinutes: duration,
+        estimatedCost: input.budget.mode === "custom" ? activity.estimatedCost : null,
+        transportToNext: activityIndex === day.activities.length - 1 ? null : activity.transportToNext,
+      };
+    });
+    return {
+      ...day,
+      dayNumber: dayIndex + 1,
+      date: input.datePreference.type === "exact" ? addDays(input.datePreference.startDate!, dayIndex) : null,
+      estimatedCost: input.budget.mode === "custom" ? day.estimatedCost : null,
+      activities,
+    };
+  });
+  const budget = input.budget.mode === "custom" ? plan.budget : {
+    ...plan.budget,
+    mode: input.budget.mode,
+    estimateType: plan.budget.estimateType === "range" && plan.budget.estimatedRange ? "range" as const : "none" as const,
+    userBudgetAmount: null,
+    userBudgetScope: null,
+    includesAccommodation: null,
+    includesIntercityTransport: null,
+    estimatedTotal: null,
+    estimatedRange: plan.budget.estimateType === "range" ? plan.budget.estimatedRange : null,
+    dailyCostTotal: null,
+    unallocatedCost: null,
+    unallocatedExplanation: null,
+  };
+  return { ...plan, days, budget };
+}
+
 function issue(code: TripPlanQualityCode, path: string, message: string, expected?: string | number, actual?: string | number | null): TripPlanQualityIssue {
   return { code, path, message, ...(expected !== undefined ? { expected } : {}), ...(actual !== undefined ? { actual } : {}) };
 }

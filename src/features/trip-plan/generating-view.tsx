@@ -9,6 +9,17 @@ import type { TripInput } from "@/types/trip";
 import { priorityOptions, travelStyles } from "@/features/trip-input/options";
 
 const steps = ["正在理解你的旅行偏好", "正在规划每天的游玩区域", "正在检查时间和交通安排", "正在检查行程强度", "正在整理这几天的计划"];
+const errorMessages: Record<string, string> = {
+  AI_DISABLED: "当前暂停生成新计划，请稍后再试。",
+  DAILY_LIMIT_REACHED: "今天的生成次数已用完，请明天再来。",
+  OPENAI_AUTH_ERROR: "AI服务配置异常，管理员正在处理。",
+  OPENAI_QUOTA_ERROR: "AI服务额度暂时不足，请稍后再试。",
+  OPENAI_TIMEOUT: "AI这次思考时间过长，请直接重试。",
+  DATABASE_ERROR: "计划暂时无法保存，请稍后重试。",
+  FUNCTION_TIMEOUT: "生成时间超过服务器限制，请直接重试。",
+  VALIDATION_FAILED: "这次生成的路线没有通过质量检查，请直接重试。",
+  UNKNOWN_ERROR: "服务暂时不可用，请稍后重试。",
+};
 const stylePlanning: Record<TripInput["travelStyle"], string> = {
   fast_paced: "你选择了特种兵旅行，我们会提高路线效率，但仍保留交通和吃饭时间。",
   slow: "你选择了慢旅行，我们会少安排几个地方，留出更长的停留时间。",
@@ -43,8 +54,8 @@ export function GeneratingView() {
     async function generate() {
       try {
         const response = await fetch("/api/trips", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(validInput) });
-        const payload = await response.json() as { tripId?: string; error?: { message?: string } };
-        if (!response.ok) throw new Error(payload.error?.message || "生成失败，请稍后重试");
+        const payload = await response.json() as { tripId?: string; error?: { code?: string; message?: string } };
+        if (!response.ok) throw new Error(errorMessages[payload.error?.code || ""] || payload.error?.message || "生成失败，请稍后重试");
         if (!payload.tripId) throw new Error("攻略已生成，但没有返回访问地址");
         window.localStorage.removeItem("wandernote:last-undo");
         window.localStorage.setItem("wandernote:recent-trip-id", payload.tripId);
