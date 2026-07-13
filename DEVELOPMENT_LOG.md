@@ -1,5 +1,14 @@
 # Development Log
 
+## 2026-07-13 · 公网 Beta 基础
+
+- 建立安全 Git 基线，空白化环境变量示例并增加密钥扫描。
+- 选择 Neon PostgreSQL + Drizzle，新增五张数据表、JSONB、迁移与乐观锁。
+- 生成、读取、单日修改、一次撤销、最近攻略、只读分享和反馈改为数据库流程。
+- 增加匿名安全 Cookie、每日限额、并发锁、请求大小限制、AI 总开关和可选 Beta 访问码。
+- 选择 Vercel 同步方案：Node.js Fluid Compute Hobby 300 秒上限覆盖当前任务；接口设置 120 秒。
+- 待 Neon DATABASE_URL 后执行真实迁移/API 集成测试；待账号授权后创建 GitHub 仓库并部署。
+
 ## 2026-07-11 · V0.1 第一阶段
 
 ### 完成内容

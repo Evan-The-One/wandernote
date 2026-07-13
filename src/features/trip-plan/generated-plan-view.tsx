@@ -1,68 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { tripPlanSchema } from "@/schemas/trip";
-import { migrateTripInput } from "@/schemas/migration";
+import { useCallback, useEffect, useState } from "react";
+import { tripInputSchema, tripPlanSchema } from "@/schemas/trip";
 import type { DayPlan, TripInput, TripPlan } from "@/types/trip";
 import { TripPlanView } from "./trip-plan-view";
 import { DayRevisionPanel } from "@/features/day-revision/day-revision-panel";
+import { BetaFeedback } from "@/features/feedback/beta-feedback";
 
-type UndoSnapshot = { dayNumber: number; day: DayPlan; budget: TripPlan["budget"] };
+type TripPayload = { tripId: string; status: string; input: TripInput; plan: TripPlan | null; version: number; canEdit: boolean; canUndo: boolean; error?: { message?: string } };
 
-function parseUndo(raw: string | null): UndoSnapshot | null {
-  if (!raw) return null;
-  try {
-    const value = JSON.parse(raw) as UndoSnapshot;
-    return value?.day && typeof value.dayNumber === "number" && value.budget ? value : null;
-  } catch { return null; }
-}
-
-export function GeneratedPlanView() {
-  const [plan, setPlan] = useState<TripPlan | null>(null);
-  const [input, setInput] = useState<TripInput | null>(null);
-  const [missing, setMissing] = useState(false);
-  const [revisionDay, setRevisionDay] = useState<DayPlan | null>(null);
-  const [undo, setUndo] = useState<UndoSnapshot | null>(null);
-  const [notice, setNotice] = useState<string[] | undefined>();
-
-  useEffect(() => {
+export function GeneratedPlanView({ tripId }: { tripId: string }) {
+  const [data, setData] = useState<TripPayload | null>(null); const [error, setError] = useState("");
+  const [revisionDay, setRevisionDay] = useState<DayPlan | null>(null); const [notice, setNotice] = useState<string[] | undefined>(); const [undoing, setUndoing] = useState(false);
+  const load = useCallback(async () => {
     try {
-      const rawPlan = window.localStorage.getItem("wandernote:generated-plan");
-      const rawInput = window.localStorage.getItem("wandernote:demo-input");
-      const parsedPlan = rawPlan ? tripPlanSchema.safeParse(JSON.parse(rawPlan)) : null;
-      const parsedInput = rawInput ? migrateTripInput(JSON.parse(rawInput)) : null;
-      if (!parsedPlan?.success || !parsedInput) { queueMicrotask(() => setMissing(true)); return; }
-      const storedUndo = parseUndo(window.localStorage.getItem("wandernote:last-undo"));
-      queueMicrotask(() => { setPlan(parsedPlan.data); setInput(parsedInput); setUndo(storedUndo); });
-    } catch { queueMicrotask(() => setMissing(true)); }
-  }, []);
+      const response = await fetch(`/api/trips/${tripId}`, { cache: "no-store" }); const payload = await response.json() as TripPayload;
+      if (!response.ok) throw new Error(payload.error?.message || "无法读取这份攻略");
+      const input = tripInputSchema.parse(payload.input); const plan = payload.plan ? tripPlanSchema.parse(payload.plan) : null;
+      setData({ ...payload, input, plan });
+      if (plan) { localStorage.setItem(`wandernote:trip:${tripId}`, JSON.stringify({ input, plan, version: payload.version })); localStorage.setItem("wandernote:recent-trip-id", tripId); }
+    } catch (cause) {
+      try { const cached = JSON.parse(localStorage.getItem(`wandernote:trip:${tripId}`) || "null") as { input?: unknown; plan?: unknown; version?: number } | null; const input = tripInputSchema.safeParse(cached?.input); const plan = tripPlanSchema.safeParse(cached?.plan); if (input.success && plan.success) { setData({ tripId, status: "completed", input: input.data, plan: plan.data, version: cached?.version || 1, canEdit: false, canUndo: false }); setError("网络暂时不可用，当前显示浏览器缓存，只读模式下不会覆盖服务器数据。"); return; } } catch { /* ignore invalid cache */ }
+      setError(cause instanceof Error ? cause.message : "无法读取这份攻略");
+    }
+  }, [tripId]);
+  useEffect(() => { queueMicrotask(() => void load()); }, [load]);
 
-  function applyRevision(updatedDay: DayPlan, summary: string[]) {
-    if (!plan) return;
-    const previousDay = plan.days.find((day) => day.dayNumber === updatedDay.dayNumber);
-    if (!previousDay) return;
-    const snapshot: UndoSnapshot = { dayNumber: previousDay.dayNumber, day: previousDay, budget: plan.budget };
-    const updatedDailyTotal = plan.budget.dailyCostTotal !== null && previousDay.estimatedCost !== null && updatedDay.estimatedCost !== null
-      ? plan.budget.dailyCostTotal - previousDay.estimatedCost + updatedDay.estimatedCost : plan.budget.dailyCostTotal;
-    const updatedBudget = plan.budget.mode === "custom" && plan.budget.estimatedTotal !== null && updatedDailyTotal !== null
-      ? { ...plan.budget, dailyCostTotal: updatedDailyTotal, unallocatedCost: plan.budget.estimatedTotal - updatedDailyTotal, unallocatedExplanation: plan.budget.estimatedTotal - updatedDailyTotal > 0 ? "原计划机动预算与本次调整后释放的当天预算，用于住宿、交通或临时支出。" : null }
-      : plan.budget;
-    const updatedPlan = { ...plan, days: plan.days.map((day) => day.dayNumber === updatedDay.dayNumber ? updatedDay : day), budget: updatedBudget, updatedAt: new Date().toISOString() };
-    setPlan(updatedPlan); setUndo(snapshot); setNotice(summary); setRevisionDay(null);
-    window.localStorage.setItem("wandernote:generated-plan", JSON.stringify(updatedPlan));
-    window.localStorage.setItem("wandernote:last-undo", JSON.stringify(snapshot));
+  async function undo() {
+    if (!data?.plan) return; setUndoing(true);
+    try { const response = await fetch(`/api/trips/${tripId}/undo-day`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ version: data.version }) }); const payload = await response.json() as { plan?: unknown; version?: number; error?: { message?: string } }; if (!response.ok) throw new Error(payload.error?.message || "撤销失败"); const plan = tripPlanSchema.parse(payload.plan); setData({ ...data, plan, version: payload.version!, canUndo: false }); setNotice(["已恢复修改前的当天行程"]); localStorage.setItem(`wandernote:trip:${tripId}`, JSON.stringify({ input: data.input, plan, version: payload.version })); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "撤销失败"); } finally { setUndoing(false); }
   }
 
-  function undoRevision() {
-    if (!plan || !undo) return;
-    const restored = { ...plan, days: plan.days.map((day) => day.dayNumber === undo.dayNumber ? undo.day : day), budget: undo.budget, updatedAt: new Date().toISOString() };
-    setPlan(restored); setUndo(null); setNotice(["已恢复修改前的当天行程"]);
-    window.localStorage.setItem("wandernote:generated-plan", JSON.stringify(restored));
-    window.localStorage.removeItem("wandernote:last-undo");
-  }
-
-  if (missing) return <main className="page-shell flex min-h-[70vh] items-center justify-center"><div className="text-center"><h1 className="text-2xl font-bold">还没有生成攻略</h1><p className="mt-3 text-[#65706a]">先告诉旅行管家你的目的地和偏好。</p><Link href="/create" className="mt-6 inline-block rounded-full bg-[#245b46] px-6 py-3 font-semibold text-white">开始规划</Link></div></main>;
-  if (!plan || !input) return <main className="page-shell flex min-h-[70vh] items-center justify-center"><div className="h-9 w-9 animate-spin rounded-full border-4 border-[#245b46]/20 border-t-[#245b46]" /></main>;
-  return <><TripPlanView plan={plan} onReviseDay={setRevisionDay} notice={notice} canUndo={Boolean(undo)} onUndo={undoRevision} />{revisionDay && <DayRevisionPanel day={revisionDay} plan={plan} input={input} onClose={() => setRevisionDay(null)} onSuccess={applyRevision} />}</>;
+  if (!data) return <main className="page-shell flex min-h-[70vh] items-center justify-center"><div className="text-center">{error ? <><h1 className="text-2xl font-bold">暂时无法打开攻略</h1><p className="mt-3 text-[#65706a]">{error}</p><Link href="/create" className="mt-6 inline-block rounded-full bg-[#245b46] px-6 py-3 font-semibold text-white">重新规划</Link></> : <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#245b46]/20 border-t-[#245b46]" />}</div></main>;
+  if (!data.plan) return <main className="page-shell flex min-h-[70vh] items-center justify-center"><div className="text-center"><h1 className="text-2xl font-bold">攻略还在准备中</h1><p className="mt-3 text-[#65706a]">状态：{data.status}</p></div></main>;
+  return <>{error && <div className="page-shell mt-4 rounded-2xl bg-[#fff7e9] p-4 text-sm text-[#785f41]">{error}</div>}<TripPlanView plan={data.plan} onReviseDay={data.canEdit ? setRevisionDay : undefined} notice={notice} canUndo={data.canEdit && data.canUndo} onUndo={undoing ? undefined : undo} canEdit={data.canEdit} tripId={tripId} /><BetaFeedback tripId={tripId} />{revisionDay && <DayRevisionPanel tripId={tripId} day={revisionDay} version={data.version} onClose={() => setRevisionDay(null)} onSuccess={(plan, version, summary) => { setData({ ...data, plan, version, canUndo: true }); setNotice(summary); setRevisionDay(null); localStorage.setItem(`wandernote:trip:${tripId}`, JSON.stringify({ input: data.input, plan, version })); }} />}</>;
 }

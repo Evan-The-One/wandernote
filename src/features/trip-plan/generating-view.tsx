@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { tripInputSchema, tripPlanSchema } from "@/schemas/trip";
+import { tripInputSchema } from "@/schemas/trip";
 import { migrateTripInput } from "@/schemas/migration";
 
 const steps = ["正在理解你的旅行偏好", "正在规划每天的游玩区域", "正在检查时间和交通安排", "正在检查行程强度", "正在整理你的专属攻略"];
@@ -30,13 +30,13 @@ export function GeneratingView() {
     window.addEventListener("beforeunload", beforeUnload);
     async function generate() {
       try {
-        const response = await fetch("/api/trips/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(validInput) });
-        const payload = await response.json() as { data?: unknown; error?: { message?: string } };
+        const response = await fetch("/api/trips", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(validInput) });
+        const payload = await response.json() as { tripId?: string; error?: { message?: string } };
         if (!response.ok) throw new Error(payload.error?.message || "生成失败，请稍后重试");
-        const plan = tripPlanSchema.parse(payload.data);
-        window.localStorage.setItem("wandernote:generated-plan", JSON.stringify(plan));
+        if (!payload.tripId) throw new Error("攻略已生成，但没有返回访问地址");
         window.localStorage.removeItem("wandernote:last-undo");
-        router.replace("/trip");
+        window.localStorage.setItem("wandernote:recent-trip-id", payload.tripId);
+        router.replace(`/trip/${payload.tripId}`);
       } catch (cause) { setError(cause instanceof Error ? cause.message : "生成失败，请稍后重试"); }
       finally { window.clearInterval(interval); window.clearInterval(elapsedTimer); window.removeEventListener("beforeunload", beforeUnload); }
     }

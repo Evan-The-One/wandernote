@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { budgetModes, dayOptions, priorityOptions, transportOptions, travelStyles } from "./options";
 import { travelInspirations } from "./inspirations";
 import { tripInputSchema } from "@/schemas/trip";
 import type { TripInput } from "@/types/trip";
+import { migrateTripInput } from "@/schemas/migration";
 
 const inputClass = "focus-ring mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-base shadow-sm placeholder:text-black/30";
 const selectedCard = "border-[#245b46] bg-[#eaf2ed] text-[#183b2e] shadow-sm";
@@ -33,6 +34,20 @@ export function TripForm() {
   const [dayTrip, setDayTrip] = useState(false);
   const [requirements, setRequirements] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => { queueMicrotask(() => {
+    try {
+      const stored = migrateTripInput(JSON.parse(localStorage.getItem("wandernote:demo-input") || "null"));
+      if (!stored) return;
+      setDestination(stored.destination.city); setDays(stored.days); setStyle(stored.travelStyle);
+      setDateType(stored.datePreference.type); setStartDate(stored.datePreference.startDate || ""); setApproximateText(stored.datePreference.approximateText || "");
+      setBudgetMode(stored.budget.mode); if (stored.budget.amount) setBudgetAmount(stored.budget.amount); if (stored.budget.scope) setBudgetScope(stored.budget.scope);
+      if (stored.budget.includesAccommodation !== null) setIncludesAccommodation(stored.budget.includesAccommodation);
+      if (stored.budget.includesIntercityTransport !== null) setIncludesIntercity(stored.budget.includesIntercityTransport);
+      setPriorities(stored.priorities); setDepartureCity(stored.departureCity || ""); setAdults(stored.travelers.adults); setChildren(stored.travelers.children);
+      setTransport(stored.transportPreference); setDayTrip(stored.dayTripPreference); setRequirements(stored.additionalRequirements || "");
+    } catch { /* ignore invalid legacy cache */ }
+  }); }, []);
 
   function togglePriority(value: TripInput["priorities"][number]) {
     setError("");

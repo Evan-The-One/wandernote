@@ -1,5 +1,15 @@
 # V0.2 数据协议
 
+## PostgreSQL 持久化表
+
+- `visitors`：UUID、不可预测 session ID、创建/最近访问时间。
+- `trips`：UUID、所有者、状态、TripInput JSONB、TripPlan JSONB、version、时间戳。
+- `day_revisions`：目标天、短指令、修改前后 DayPlan、摘要、planVersion、撤销标记。
+- `generation_jobs`：生成类型、运行状态、耗时、非敏感错误码；用于限额和并发保护。
+- `feedback`：评分、问题标签 JSONB、可选短评。
+
+数据库不保存 API Key、代理配置、访问码原文或完整服务端请求日志。
+
 运行时代码以 `src/schemas/trip.ts` 为准。TypeScript类型由Zod Schema推导。
 
 ## TripInput
