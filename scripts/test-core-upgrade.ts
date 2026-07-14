@@ -11,6 +11,8 @@ const plan = tripPlanSchema.parse({ schemaVersion: "0.2", tripId: "test", status
 assert.equal(validateTripPlanQuality(plan, baseInput).valid, true);
 const sparse = { ...plan, days: [{ ...plan.days[0], activities: plan.days[0].activities.slice(0, 3).map((activity, index) => ({ ...activity, transportToNext: index === 2 ? null : activity.transportToNext })) }] };
 assert.equal(validateTripPlanQuality(sparse, baseInput).issues.some((item) => item.code === "MAIN_ACTIVITY_MINIMUM"), true);
+const crowded = { ...plan, days: [{ ...plan.days[0], activities: [...plan.days[0].activities, ...plan.days[0].activities.slice(0,3).map((activity,index)=>({ ...activity, id:`extra-${index}`, startTime:`${16+index*2}:00`, endTime:`${17+index*2}:30`, transportToNext:index===2?null:activity.transportToNext }))] }] };
+assert.equal(validateTripPlanQuality(crowded, baseInput).issues.some((item) => item.code === "MAIN_ACTIVITY_LIMIT"), true);
 const parents = tripInputSchema.parse({ ...baseInput, companionType: "parents", travelers: { adults: 1, children: 0, seniors: 2 } });
 assert.equal(validateTripPlanQuality(sparse, parents).issues.some((item) => item.code === "MAIN_ACTIVITY_MINIMUM"), false);
 console.log("Core upgrade contract tests passed (migration defaults, time rules, fast-paced density and exceptions).");
