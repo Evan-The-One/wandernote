@@ -6,6 +6,8 @@ export const prioritySchema = z.enum([
   "family_friendly", "hotel_experience", "nightlife", "value_for_money", "late_start", "culture", "nature",
 ]);
 export const transportPreferenceSchema = z.enum(["mixed", "public_transport", "taxi", "walking", "driving"]);
+export const companionTypeSchema = z.enum(["solo", "friends", "couple", "parents", "with_children", "extended_family"]);
+const halfHourTimeSchema = z.string().regex(/^([01]\d|2[0-3]):(00|30)$/, "请选择半小时刻度的时间").nullable();
 
 export const datePreferenceSchema = z.object({
   type: z.enum(["undecided", "approximate", "exact"]),
@@ -40,10 +42,17 @@ export const tripInputSchema = z.object({
   budget: budgetPreferenceSchema,
   priorities: z.array(prioritySchema).max(3, "最多选择三项优先需求").default([]),
   departureCity: z.string().trim().max(40).nullable().default(null),
-  travelers: z.object({ adults: z.number().int().min(1).max(8).default(1), children: z.number().int().min(0).max(7).default(0) }).default({ adults: 1, children: 0 }),
+  companionType: companionTypeSchema.default("solo"),
+  travelers: z.object({ adults: z.number().int().min(1).max(8).default(1), children: z.number().int().min(0).max(7).default(0), seniors: z.number().int().min(0).max(7).default(0) }).default({ adults: 1, children: 0, seniors: 0 }),
+  preferredWakeTime: halfHourTimeSchema.default(null),
+  preferredDepartureTime: halfHourTimeSchema.default(null),
   transportPreference: transportPreferenceSchema.default("mixed"),
   dayTripPreference: z.boolean().default(false),
   additionalRequirements: z.string().trim().max(300).nullable().default(null),
+}).superRefine((value, context) => {
+  if (!value.preferredWakeTime || !value.preferredDepartureTime) return;
+  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+  if (minutes(value.preferredDepartureTime) < minutes(value.preferredWakeTime) + 30) context.addIssue({ code: "custom", path: ["preferredDepartureTime"], message: "出发时间建议至少比起床时间晚30分钟" });
 });
 
 export const transportSchema = z.object({

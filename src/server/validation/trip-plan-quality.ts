@@ -5,7 +5,7 @@ export type TripPlanQualityCode =
   | "ACTIVITY_DURATION" | "TIME_OVERLAP" | "TRANSPORT_GAP" | "LAST_TRANSPORT"
   | "DAY_COST_MISSING" | "ACTIVITY_COST_MISSING" | "DAY_COST_UNDERCOUNT" | "BUDGET_MODE"
   | "BUDGET_PRECISION" | "BUDGET_LIMIT" | "BUDGET_RECONCILIATION" | "BUDGET_EXPLANATION"
-  | "FUZZY_PLACE" | "MAIN_ACTIVITY_LIMIT" | "WALKING_LIMIT";
+  | "FUZZY_PLACE" | "MAIN_ACTIVITY_LIMIT" | "MAIN_ACTIVITY_MINIMUM" | "WALKING_LIMIT" | "DEPARTURE_TIME";
 
 export type TripPlanQualityIssue = {
   code: TripPlanQualityCode;
@@ -94,6 +94,9 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
   const lowEffortRequested = ["lazy", "family"].includes(input.travelStyle)
     || input.priorities.includes("less_walking")
     || /不想太累|少走路|减少步行|轻松一点/.test(input.additionalRequirements ?? "");
+  const fastPacedException = ["parents", "with_children", "extended_family"].includes(input.companionType)
+    || Boolean(input.preferredDepartureTime && minutes(input.preferredDepartureTime) >= 10 * 60 + 30)
+    || /到达|返程|长途|老人|孩子|行动不便|晚出发/.test(input.additionalRequirements ?? "");
   if (plan.days.length !== input.days) issues.push(issue("DAY_COUNT", "days", "攻略天数必须与输入一致", input.days, plan.days.length));
 
   for (let index = 0; index < plan.days.length; index++) {
@@ -107,11 +110,15 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
     } else if (day.date !== null) issues.push(issue("DATE_UNEXPECTED", `${dayPath}.date`, "未提供具体日期时每日date必须为null", "null", day.date));
 
     const mainCount = day.activities.filter((activity) => mainActivityTypes.has(activity.type)).length;
-    if (["slow", "lazy", "family"].includes(input.travelStyle) && mainCount > 3) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "慢旅行、懒人和亲子每天最多3个主要活动", 3, mainCount));
+    if (input.travelStyle === "slow" && mainCount > 4) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "慢慢逛每天最多4个主要活动", 4, mainCount));
+    if (["lazy", "family"].includes(input.travelStyle) && mainCount > 3) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "轻松玩和历史亲子模式每天最多3个主要活动", 3, mainCount));
+    if (input.travelStyle === "fast_paced" && !fastPacedException && mainCount < 4) issues.push(issue("MAIN_ACTIVITY_MINIMUM", `${dayPath}.activities`, "特种兵普通完整游玩日不能只有两三个主要活动", 4, mainCount));
     if (lowEffortRequested && mainCount > 3) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "用户明确要求轻松或少走路时每天最多3个主要活动", 3, mainCount));
     if (lowEffortRequested && day.estimatedWalkingKm > 6) issues.push(issue("WALKING_LIMIT", `${dayPath}.estimatedWalkingKm`, "用户明确要求轻松或少走路时每日步行不得超过6公里", 6, day.estimatedWalkingKm));
 
     let activityCostTotal = 0;
+    const firstMain = day.activities.find((activity) => mainActivityTypes.has(activity.type));
+    if (input.preferredDepartureTime && firstMain && minutes(firstMain.startTime) < minutes(input.preferredDepartureTime)) issues.push(issue("DEPARTURE_TIME", `${dayPath}.activities`, "首个主要活动不得早于用户希望出门时间", input.preferredDepartureTime, firstMain.startTime));
     for (let activityIndex = 0; activityIndex < day.activities.length; activityIndex++) {
       const activity = day.activities[activityIndex];
       const activityPath = `${dayPath}.activities.${activityIndex}`;

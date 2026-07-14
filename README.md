@@ -2,7 +2,7 @@
 
 不用查攻略，一键直接出发。面向中文用户的 AI 私人旅行管家：极简填写 → 真实 AI 规划 → 确定性质量校验 → 持久化计划 → 单日调整与一次撤销 → 只读链接分享。
 
-公网 Beta：[https://wandernote-beryl.vercel.app](https://wandernote-beryl.vercel.app)
+公网 Beta：[https://www.yjchufa.com](https://www.yjchufa.com)
 
 ## 技术栈
 
@@ -30,6 +30,7 @@ FULL_GENERATION_DAILY_LIMIT=3
 DAY_REVISION_DAILY_LIMIT=10
 BETA_ACCESS_CODE=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+ADMIN_ACCESS_CODE=
 ```
 
 `NODE_USE_ENV_PROXY`、`HTTPS_PROXY`、`HTTP_PROXY` 只属于本机开发；需要时通过终端临时提供，禁止提交，也不要配置到生产环境。Key 不得使用 `NEXT_PUBLIC_` 前缀。
@@ -42,6 +43,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 - localStorage 仅用于表单、页面缓存和网络失败恢复，不再是权威数据源。
 - 生成/修改次数由环境变量控制；数据库局部唯一索引阻止同一访客并发完整生成，version 乐观锁阻止修改覆盖。
 - `AI_GENERATION_ENABLED=false` 在调用模型前拒绝请求。`BETA_ACCESS_CODE` 非空时启用服务端访问码验证。
+- `/admin/feedback` 使用独立的服务端 `ADMIN_ACCESS_CODE`、HTTP-only 管理 Cookie 和基础登录限流；访问码不得写入客户端、URL 或仓库。
 
 ## 部署（Vercel + Neon）
 
@@ -64,6 +66,7 @@ pnpm lint
 pnpm build
 pnpm db:check
 pnpm test:integration
+pnpm test:core-upgrade
 pnpm scan:secrets
 ```
 

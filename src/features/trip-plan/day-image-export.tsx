@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import QRCode from "qrcode";
 import type { DayPlan } from "@/types/trip";
 import { formatDisplayValue } from "./display-formatters";
 
@@ -16,7 +17,9 @@ function drawLines(ctx: CanvasRenderingContext2D, text: string, x: number, y: nu
   const lines = wrap(ctx, text, maxWidth).slice(0, maxLines); lines.forEach((line,index) => ctx.fillText(line, x, y + index * lineHeight)); return y + lines.length * lineHeight;
 }
 
-async function renderDayImage(day: DayPlan, destination: string, tripTitle: string) {
+function loadImage(source: string) { return new Promise<HTMLImageElement>((resolve, reject) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = reject; image.src = source; }); }
+
+async function renderDayImage(day: DayPlan, destination: string, tripTitle: string, tripId?: string) {
   await document.fonts?.ready;
   const height = Math.max(1500, 570 + day.activities.length * 235 + Math.max(1, day.dayTips.length) * 62);
   const canvas = document.createElement("canvas"); canvas.width = WIDTH; canvas.height = height;
@@ -41,16 +44,19 @@ async function renderDayImage(day: DayPlan, destination: string, tripTitle: stri
     y += 235;
   });
   ctx.fillStyle="#fff2dc";ctx.fillRect(64,y,952,Math.max(110,day.dayTips.length*55+70));ctx.fillStyle="#915b20";ctx.font=`700 25px ${FONT}`;ctx.fillText("今日提醒",92,y+42);ctx.font=`500 20px ${FONT}`;let tipY=y+82;day.dayTips.forEach((tip)=>{tipY=drawLines(ctx,`· ${tip}`,92,tipY,860,30,3)+12;});
-  ctx.fillStyle="#7b847e";ctx.font=`500 20px ${FONT}`;ctx.fillText("www.yjchufa.com",72,height-62);ctx.textAlign="right";ctx.fillText("出发前请再次确认开放时间与预约信息",1008,height-62);
+  const publicUrl = tripId ? `https://www.yjchufa.com/trip/${encodeURIComponent(tripId)}` : "https://www.yjchufa.com";
+  const qrDataUrl = await QRCode.toDataURL(publicUrl, { errorCorrectionLevel: "M", margin: 1, width: 148, color: { dark: "#204f3c", light: "#ffffff" } });
+  ctx.drawImage(await loadImage(qrDataUrl), 860, height - 190, 148, 148);
+  ctx.fillStyle="#7b847e";ctx.font=`500 20px ${FONT}`;ctx.textAlign="left";ctx.fillText("www.yjchufa.com",72,height-92);ctx.font=`500 17px ${FONT}`;ctx.fillText("扫码查看这份旅行计划",72,height-58);
   return new Promise<Blob>((resolve,reject)=>canvas.toBlob((blob)=>blob?resolve(blob):reject(new Error("图片生成失败")),"image/png"));
 }
 
-export function DayImageExport({ day, destination, tripTitle }: { day: DayPlan; destination: string; tripTitle: string }) {
+export function DayImageExport({ day, destination, tripTitle, tripId }: { day: DayPlan; destination: string; tripTitle: string; tripId?: string }) {
   const [status,setStatus]=useState<"idle"|"loading"|"success"|"error">("idle");
   function download(blob: Blob, filename: string) { const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000); }
   async function save() {
     if(status==="loading") return; setStatus("loading");
-    try { const blob=await renderDayImage(day,destination,tripTitle); const filename=`一键出发-${destination}-第${day.dayNumber}天.png`; const file=new File([blob],filename,{type:"image/png"});
+    try { const blob=await renderDayImage(day,destination,tripTitle,tripId); const filename=`一键出发-${destination}-第${day.dayNumber}天.png`; const file=new File([blob],filename,{type:"image/png"});
       if(navigator.share && navigator.canShare?.({files:[file]})){try {await navigator.share({files:[file],title:`${destination}第${day.dayNumber}天行程`});} catch(error) {if(error instanceof DOMException&&error.name==="AbortError"){setStatus("idle");return;}download(blob,filename);}}
       else download(blob,filename);
       setStatus("success"); window.setTimeout(()=>setStatus("idle"),3000);

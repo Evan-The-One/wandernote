@@ -28,6 +28,10 @@ export function buildDayRevisionPrompt(request: DayRevisionRequest) {
     constraints: {
       travelStyle: request.originalInput.travelStyle,
       priorities: request.originalInput.priorities,
+      companionType: request.originalInput.companionType,
+      travelers: request.originalInput.travelers,
+      preferredWakeTime: request.originalInput.preferredWakeTime,
+      preferredDepartureTime: request.originalInput.preferredDepartureTime,
       datePreference: request.originalInput.datePreference,
       budgetMode: request.originalInput.budget.mode,
       originalDayBudget: request.currentDay.estimatedCost,

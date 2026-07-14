@@ -1,21 +1,19 @@
 import type { TripInput } from "@/types/trip";
 
-export const travelStyles: { value: TripInput["travelStyle"]; label: string; icon: string; description: string }[] = [
-  { value: "fast_paced", label: "特种兵旅行", icon: "⚡", description: "多打卡、节奏紧凑" },
-  { value: "slow", label: "慢旅行", icon: "🍃", description: "少安排几个地方，深入体验" },
-  { value: "lazy", label: "懒人旅行", icon: "☁️", description: "少走路、少换乘、多休息" },
-  { value: "food", label: "美食探索", icon: "🥢", description: "围绕本地美食安排路线" },
-  { value: "romantic", label: "情侣旅行", icon: "", description: "氛围、拍照和约会体验优先" },
-  { value: "family", label: "亲子旅行", icon: "🎈", description: "控制强度，增加休息和便利性" },
+export const travelStyles: { value: TripInput["travelStyle"]; label: string; icon: "bolt" | "leaf" | "cloud"; description: string }[] = [
+  { value: "fast_paced", label: "特种兵", icon: "bolt", description: "早出晚归，精力拉满，多逛多打卡" },
+  { value: "slow", label: "慢慢逛", icon: "leaf", description: "不赶时间，每个地方多待一会儿" },
+  { value: "lazy", label: "轻松玩", icon: "cloud", description: "不早起，多休息，少走路，少换乘" },
 ];
 
-export const priorityOptions: { value: TripInput["priorities"][number]; label: string; icon: string }[] = [
-  { value: "great_food", label: "吃得好", icon: "🥢" }, { value: "photogenic", label: "拍照出片", icon: "📷" },
-  { value: "less_walking", label: "少走路", icon: "🛋️" }, { value: "avoid_crowds", label: "不排队", icon: "🌿" },
-  { value: "hidden_gems", label: "小众安静", icon: "🪴" }, { value: "must_see", label: "经典必去", icon: "📍" },
-  { value: "family_friendly", label: "带孩子方便", icon: "🎈" }, { value: "hotel_experience", label: "住宿体验", icon: "🏨" },
-  { value: "nightlife", label: "夜生活", icon: "🌙" }, { value: "late_start", label: "晚起下午逛", icon: "" },
-  { value: "culture", label: "文化体验", icon: "🏛️" }, { value: "nature", label: "自然风景", icon: "⛰️" },
+export const priorityOptions: { value: TripInput["priorities"][number]; label: string; icon: "food" | "camera" | "culture" | "nature" }[] = [
+  { value: "great_food", label: "吃点好的", icon: "food" }, { value: "photogenic", label: "拍照出片", icon: "camera" },
+  { value: "culture", label: "逛逛人文", icon: "culture" }, { value: "nature", label: "欣赏风景", icon: "nature" },
+];
+
+export const companionOptions: { value: TripInput["companionType"]; label: string }[] = [
+  { value: "solo", label: "一个人" }, { value: "friends", label: "朋友" }, { value: "couple", label: "情侣" },
+  { value: "parents", label: "父母" }, { value: "with_children", label: "带娃" }, { value: "extended_family", label: "一大家人" },
 ];
 
 export const budgetModes: { value: TripInput["budget"]["mode"]; label: string; description: string }[] = [
