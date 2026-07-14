@@ -45,6 +45,7 @@ export function TripForm() {
   const [dayTrip, setDayTrip] = useState(false);
   const [requirements, setRequirements] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => { queueMicrotask(() => {
     try {
@@ -67,6 +68,7 @@ export function TripForm() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (submitting) return;
     const customBudget = budgetMode === "custom";
     const input = {
       schemaVersion: "0.2",
@@ -77,12 +79,13 @@ export function TripForm() {
       dayTripPreference: dayTrip, additionalRequirements: requirements || null,
     } satisfies TripInput;
     const result = tripInputSchema.safeParse(input);
-    if (!result.success) { setError(result.error.issues[0]?.message ?? "请检查填写内容"); return; }
+    if (!result.success) { setError(result.error.issues[0]?.message ?? "请检查填写内容"); setSubmitting(false); return; }
+    setSubmitting(true); setError("");
     window.localStorage.setItem(INPUT_KEY, JSON.stringify(result.data));
     window.localStorage.setItem(LEGACY_INPUT_KEY, JSON.stringify(result.data));
     window.localStorage.removeItem("wandernote:generated-plan");
     window.localStorage.removeItem("wandernote:last-undo");
-    router.push("/generating");
+    window.setTimeout(() => router.push("/generating"), 80);
   }
 
   return <form onSubmit={submit} className="space-y-6">
@@ -96,8 +99,8 @@ export function TripForm() {
       <div className="mt-8"><p className={coreQuestionClass}>想怎么玩？ <span className="text-[#c55e3d]">*</span></p><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{travelStyles.map((item) => <button key={item.value} type="button" aria-pressed={style === item.value} onClick={() => setStyle(item.value)} className={`focus-ring rounded-2xl border p-4 text-left transition ${style === item.value ? selectedCard : plainCard}`}><span className="inline-flex h-6 w-6 items-center justify-center text-xl">{item.value === "romantic" ? <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-[#b76c68]"><path d="M20.8 5.8c-1.9-1.9-5-1.9-6.9 0L12 7.7l-1.9-1.9a4.88 4.88 0 0 0-6.9 6.9L12 21l8.8-8.3a4.88 4.88 0 0 0 0-6.9Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg> : item.icon}</span><span className="ml-3 font-bold">{item.label}</span><p className="ml-9 mt-1 text-xs text-[#707a74]">{item.description}</p></button>)}</div></div>
     </section>
 
-    <details className="card group rounded-[2rem] p-5 sm:p-8">
-      <summary className="focus-ring flex cursor-pointer list-none items-center justify-between rounded-xl"><div><h2 className="text-xl font-bold">补充更多需求，让攻略更懂你</h2><p className="mt-1 text-sm text-[#707a74]">全部选填，不影响直接生成</p></div><span className="text-2xl text-[#245b46] transition group-open:rotate-45">＋</span></summary>
+    <details className="card group rounded-[2rem] p-3 sm:p-4">
+      <summary className="focus-ring flex min-h-20 cursor-pointer list-none items-center justify-between gap-4 rounded-2xl border border-[#245b46]/12 bg-[#f4f7f2] px-4 py-3 shadow-sm transition hover:border-[#245b46]/25"><div><h2 className="text-lg font-bold group-open:hidden">补充更多需求，让攻略更懂你</h2><h2 className="hidden text-lg font-bold group-open:block">收起补充需求</h2><p className="mt-1 text-sm text-[#707a74]">日期、人数、预算等均可选填</p></div><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-6 w-6 shrink-0 text-[#245b46] transition-transform duration-200 group-open:rotate-180"><path d="m7 9 5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></summary>
       <div className="mt-8 space-y-9 border-t border-black/5 pt-8">
         <section><h3 className="font-bold">出行时间</h3><div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">{([['undecided','还没确定'],['approximate','大概时间'],['exact','已确定日期']] as const).map(([value,label]) => <button key={value} type="button" aria-pressed={dateType === value} onClick={() => setDateType(value)} className={`min-w-0 whitespace-nowrap rounded-xl border px-1.5 py-3 text-sm font-semibold sm:px-3 ${dateType === value ? selectedCard : plainCard}`}>{label}</button>)}</div>{dateType === "exact" && <label className="mt-4 block text-sm font-semibold">具体日期<input type="date" min={minDate} value={startDate} onChange={(event) => setStartDate(event.target.value)} className={inputClass} /></label>}{dateType === "approximate" && <label className="mt-4 block text-sm font-semibold">大概什么时候<input value={approximateText} onChange={(event) => setApproximateText(event.target.value)} className={inputClass} placeholder="例如：10月、秋天、国庆前后" /></label>}</section>
 
@@ -112,7 +115,7 @@ export function TripForm() {
     </details>
 
     {error && <p role="alert" className="rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</p>}
-    <div className="sticky bottom-3 z-10 rounded-[1.6rem] border border-black/5 bg-[#f7f8f3]/90 p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"><button className="focus-ring w-full whitespace-nowrap rounded-full bg-[#245b46] px-4 py-4 text-base font-bold text-white shadow-lg shadow-[#245b46]/15 hover:bg-[#1c4937] sm:px-8 sm:text-lg">一键生成我的定制旅行</button></div>
+    <div className="sticky bottom-3 z-10 rounded-[1.6rem] border border-black/5 bg-[#f7f8f3]/90 p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"><button type="submit" disabled={submitting} aria-live="polite" className="focus-ring flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#245b46] px-4 py-4 text-base font-bold text-white shadow-lg shadow-[#245b46]/15 transition active:scale-[.99] disabled:cursor-wait disabled:bg-[#3f7661] sm:px-8 sm:text-lg">{submitting && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}{submitting ? "正在准备你的旅行……" : "一键生成我的定制旅行"}</button></div>
     <BrandMark align="center" size="compact" className="flex justify-center opacity-80" />
     <p className="text-center text-xs leading-5 text-[#778079]">AI规划不含实时天气、票价或营业数据，出发前请再次确认。</p>
   </form>;

@@ -2,10 +2,10 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-export function BetaAccessGate({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<"loading" | "open" | "locked">("loading");
+export function BetaAccessGate({ children, initialOpen = false }: { children: React.ReactNode; initialOpen?: boolean }) {
+  const [state, setState] = useState<"loading" | "open" | "locked">(initialOpen ? "open" : "loading");
   const [code, setCode] = useState(""); const [error, setError] = useState(""); const [submitting, setSubmitting] = useState(false);
-  useEffect(() => { fetch("/api/beta-access").then((response) => response.json()).then((value: { enabled: boolean; authorized: boolean }) => setState(!value.enabled || value.authorized ? "open" : "locked")).catch(() => setState("open")); }, []);
+  useEffect(() => { if (initialOpen) return; fetch("/api/beta-access").then((response) => response.json()).then((value: { enabled: boolean; authorized: boolean }) => setState(!value.enabled || value.authorized ? "open" : "locked")).catch(() => setState("open")); }, [initialOpen]);
   async function submit(event: FormEvent) {
     event.preventDefault(); setSubmitting(true); setError("");
     try { const response = await fetch("/api/beta-access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) }); const payload = await response.json() as { error?: { message?: string } }; if (!response.ok) throw new Error(payload.error?.message || "访问码验证失败"); setState("open"); }

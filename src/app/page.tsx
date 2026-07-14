@@ -2,8 +2,11 @@ import { SectionHeading } from "@/components/section-heading";
 import { BetaAccessGate } from "@/features/beta/beta-access-gate";
 import { TripForm } from "@/features/trip-input/trip-form";
 import { HangzhouSamplePreview } from "@/features/trip-plan/hangzhou-sample-preview";
+import { hasBetaAccess } from "@/server/auth/visitor";
+import { serverConfig } from "@/server/config";
 
-export default function Home() {
+export default async function Home() {
+  const betaOpen = await hasBetaAccess(serverConfig.betaAccessCode);
   return <main>
     <section id="plan" className="relative overflow-hidden py-12 sm:py-20">
       <div className="absolute -right-24 top-8 h-80 w-80 rounded-full bg-[#dbe9d7] blur-3xl" />
@@ -13,7 +16,7 @@ export default function Home() {
           <span className="inline-flex rounded-full border border-[#245b46]/15 bg-white/70 px-3 py-1.5 text-sm font-semibold text-[#245b46]">AI 私人旅行管家</span>
           <h1 className="mt-4 text-3xl font-bold tracking-[-.04em] sm:text-5xl"><span className="block sm:inline">不用查攻略，只需3步</span><span className="mt-1 block text-[#245b46] sm:mt-0 sm:inline">，一键定制专属旅行</span></h1>
         </div>
-        <BetaAccessGate><TripForm /></BetaAccessGate>
+        <BetaAccessGate initialOpen={betaOpen}><TripForm /></BetaAccessGate>
         <HangzhouSamplePreview />
       </div>
     </section>

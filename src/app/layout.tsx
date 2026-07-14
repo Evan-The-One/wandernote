@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" data-scroll-behavior="smooth">
       <body>
         <header className="border-b border-black/5 bg-[#f7f8f3]/90 backdrop-blur">
           <div className="page-shell flex h-16 items-center justify-between">

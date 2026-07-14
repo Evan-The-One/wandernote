@@ -8,8 +8,9 @@ import { migrateTripInput } from "@/schemas/migration";
 import type { TripInput } from "@/types/trip";
 import { priorityOptions, travelStyles } from "@/features/trip-input/options";
 import { BrandMark } from "@/components/brand-mark";
+import { PlanningProgress } from "@/components/planning-progress";
 
-const steps = ["正在理解你的旅行偏好", "正在规划每天的游玩区域", "正在检查时间和交通安排", "正在检查行程强度", "正在整理这几天的计划"];
+const steps = ["正在理解你的旅行偏好", "正在安排每天的游玩区域", "正在调整交通与行程节奏", "正在检查强度和预算", "正在整理你的专属旅行计划"];
 const errorMessages: Record<string, string> = {
   AI_DISABLED: "当前暂停生成新计划，请稍后再试。",
   DAILY_LIMIT_REACHED: "今天的生成次数已用完，请明天再来。",
@@ -18,7 +19,7 @@ const errorMessages: Record<string, string> = {
   OPENAI_TIMEOUT: "AI这次思考时间过长，请直接重试。",
   DATABASE_ERROR: "计划暂时无法保存，请稍后重试。",
   FUNCTION_TIMEOUT: "生成时间超过服务器限制，请直接重试。",
-  VALIDATION_FAILED: "这次生成的路线没有通过质量检查，请直接重试。",
+  VALIDATION_FAILED: "这次行程没有通过我们的质量检查，换个玩法再试一次吧。",
   UNKNOWN_ERROR: "服务暂时不可用，请稍后重试。",
 };
 const stylePlanning: Record<TripInput["travelStyle"], string> = {
@@ -33,8 +34,6 @@ const stylePlanning: Record<TripInput["travelStyle"], string> = {
 export function GeneratingView() {
   const router = useRouter();
   const started = useRef(false);
-  const [step, setStep] = useState(0);
-  const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
   const [summary, setSummary] = useState<TripInput | null>(null);
@@ -48,8 +47,6 @@ export function GeneratingView() {
     if (!input?.success) { queueMicrotask(() => setError("没有找到有效的旅行需求，请返回重新填写。")); return; }
     const validInput = input.data;
     queueMicrotask(() => setSummary(validInput));
-    const interval = window.setInterval(() => setStep((current) => Math.min(current + 1, steps.length - 1)), 9000);
-    const elapsedTimer = window.setInterval(() => setSeconds((current) => current + 1), 1000);
     const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); };
     window.addEventListener("beforeunload", beforeUnload);
     async function generate() {
@@ -62,17 +59,17 @@ export function GeneratingView() {
         window.localStorage.setItem("wandernote:recent-trip-id", payload.tripId);
         router.replace(`/trip/${payload.tripId}`);
       } catch (cause) { setError(cause instanceof Error ? cause.message : "生成失败，请稍后重试"); }
-      finally { window.clearInterval(interval); window.clearInterval(elapsedTimer); window.removeEventListener("beforeunload", beforeUnload); }
+      finally { window.removeEventListener("beforeunload", beforeUnload); }
     }
     void generate();
-    return () => { window.clearInterval(interval); window.clearInterval(elapsedTimer); window.removeEventListener("beforeunload", beforeUnload); };
+    return () => { window.removeEventListener("beforeunload", beforeUnload); };
   }, [router, retryKey]);
 
-  function retry() { started.current = false; setError(""); setStep(0); setSeconds(0); setRetryKey((value) => value + 1); }
+  function retry() { started.current = false; setError(""); setRetryKey((value) => value + 1); }
 
-  if (error) return <main className="page-shell flex min-h-[75vh] items-center justify-center py-12"><div className="card w-full max-w-lg rounded-3xl p-8 text-center"><BrandMark align="center" size="compact" /><div className="mx-auto mt-6 grid h-14 w-14 place-items-center rounded-full bg-[#fbe9e5] text-[#a34838]" aria-hidden="true"><svg viewBox="0 0 24 24" className="h-7 w-7 fill-none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 7.5v6M12 17h.01" /></svg></div><h1 className="mt-4 text-2xl font-bold">这次没有安排成功</h1><p className="mt-3 leading-7 text-[#65706a]">{error}</p><div className="mt-7 flex flex-wrap justify-center gap-3"><Link href="/#plan" className="rounded-full border border-black/10 px-5 py-3 font-semibold">返回修改</Link><button onClick={retry} className="rounded-full bg-[#245b46] px-5 py-3 font-semibold text-white">换个玩法重新安排</button></div></div></main>;
+  if (error) return <main className="page-shell flex min-h-[75vh] items-center justify-center py-12"><div className="card w-full max-w-lg rounded-3xl p-8 text-center"><BrandMark align="center" size="compact" /><div className="mx-auto mt-6 grid h-14 w-14 place-items-center rounded-full bg-[#fbe9e5] text-[#a34838]" aria-hidden="true"><svg viewBox="0 0 24 24" className="h-7 w-7 fill-none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 7.5v6M12 17h.01" /></svg></div><h1 className="mt-4 text-2xl font-bold">这次没有安排成功</h1><p className="mt-3 leading-7 text-[#65706a]">{error}</p><div className="mt-7 flex flex-wrap justify-center gap-3"><Link href="/#plan" className="rounded-full border border-black/10 px-5 py-3 font-semibold">返回修改</Link><button onClick={retry} className="rounded-full bg-[#245b46] px-5 py-3 font-semibold text-white">使用原条件重新生成</button></div></div></main>;
 
   const styleLabel = travelStyles.find((item) => item.value === summary?.travelStyle)?.label;
   const priorityLabels = summary?.priorities.map((value) => priorityOptions.find((item) => item.value === value)?.label).filter(Boolean) || [];
-  return <main className="page-shell flex min-h-[75vh] items-center justify-center py-12"><div className="w-full max-w-xl text-center"><BrandMark align="center" size="compact" /><div className="mx-auto mt-8 grid h-20 w-20 place-items-center rounded-full bg-[#e3eee7]"><div className="h-9 w-9 animate-spin rounded-full border-4 border-[#245b46]/20 border-t-[#245b46]" /></div><h1 className="mt-6 text-3xl font-bold">正在为你安排这几天</h1><p className="mt-3 text-sm font-semibold text-[#245b46]">已等待 {seconds} 秒</p>{summary && <div className="mt-6 rounded-2xl bg-white p-4 text-left shadow-sm"><div className="flex flex-wrap gap-2 text-sm font-bold"><span>{summary.destination.city}</span><span className="text-[#a0a6a2]">·</span><span>{summary.days}天</span><span className="text-[#a0a6a2]">·</span><span>{styleLabel}</span>{priorityLabels.length > 0 && <><span className="text-[#a0a6a2]">·</span><span>{priorityLabels.join("、")}</span></>}</div><p className="mt-3 text-sm leading-6 text-[#65706a]">{stylePlanning[summary.travelStyle]}</p></div>}<div className="mt-7 space-y-2 text-left">{steps.map((label, index) => <div key={label} className={`flex items-center gap-3 rounded-2xl border p-3.5 transition ${index <= step ? "border-[#245b46]/20 bg-white text-[#24332c]" : "border-transparent text-[#a0a6a2]"}`}><span className={`grid h-6 w-6 place-items-center rounded-full text-xs font-bold ${index < step ? "bg-[#245b46] text-white" : index === step ? "bg-[#dfece4] text-[#245b46]" : "bg-black/5"}`}>{index < step ? "✓" : index + 1}</span><span className="font-semibold">{label}</span></div>)}</div><p className="mt-6 text-xs leading-5 text-[#828a85]">这些是等待提示，不代表服务端实时执行进度。请保持页面开启，离开可能中断本次生成。</p></div></main>;
+  return <main className="page-shell flex min-h-[75vh] items-center justify-center py-12"><div className="w-full max-w-xl text-center"><BrandMark align="center" size="compact" /><div className="mx-auto mt-8 h-16 w-40" aria-hidden="true"><svg viewBox="0 0 160 64" fill="none" className="h-full w-full text-[#9ebdab]"><path d="M8 45c25-34 46 13 72-14s44 17 72-13" stroke="currentColor" strokeWidth="2" strokeDasharray="4 6" strokeLinecap="round" /><circle cx="8" cy="45" r="5" fill="#d9913f" /><circle cx="80" cy="31" r="5" fill="#dce9e1" stroke="#245b46" /><circle cx="152" cy="18" r="5" fill="#dce9e1" stroke="#245b46" /></svg></div><h1 className="mt-5 text-3xl font-bold">正在为你安排这几天</h1><p className="mt-3 text-sm leading-6 text-[#65706a]">通常需要约 30～60 秒，<br className="sm:hidden" />复杂行程可能稍久，请稍等一下。</p>{summary && <div className="mt-6 rounded-2xl bg-white p-4 text-left shadow-sm"><div className="flex flex-wrap gap-2 text-sm font-bold"><span>{summary.destination.city}</span><span className="text-[#a0a6a2]">·</span><span>{summary.days}天</span><span className="text-[#a0a6a2]">·</span><span>{styleLabel}</span>{priorityLabels.length > 0 && <><span className="text-[#a0a6a2]">·</span><span>{priorityLabels.join("、")}</span></>}</div><p className="mt-3 text-sm leading-6 text-[#65706a]">{stylePlanning[summary.travelStyle]}</p></div>}<PlanningProgress steps={steps} intervalMs={8000} /><p className="mt-6 text-xs leading-5 text-[#828a85]">页面提示用于展示规划过程，实际完成时间以生成结果为准。</p></div></main>;
 }
