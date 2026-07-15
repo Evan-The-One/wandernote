@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 import "./globals.css";
+import { PageTracker } from "@/features/analytics/page-tracker";
 
 const productionUrl = process.env.NEXT_PUBLIC_APP_URL
   || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://wandernote-beryl.vercel.app");
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="zh-CN" data-scroll-behavior="smooth">
       <body>
+        <PageTracker />
         <header className="border-b border-black/5 bg-[#f7f8f3]/90 backdrop-blur">
           <div className="page-shell flex h-16 items-center justify-between">
             <BrandMark href="/" />

@@ -8,7 +8,7 @@ import { tripInputSchema } from "@/schemas/trip";
 import type { TripInput } from "@/types/trip";
 import { migrateTripInput } from "@/schemas/migration";
 import { DestinationRecommender } from "./destination-recommender";
-import { BrandMark } from "@/components/brand-mark";
+import { trackEvent } from "@/features/analytics/client";
 
 const LEGACY_INPUT_KEY = "wandernote:demo-input";
 const INPUT_KEY = "yijianchufa:trip-input";
@@ -104,6 +104,7 @@ export function TripForm() {
     const result = tripInputSchema.safeParse(input);
     if (!result.success) { setError(result.error.issues[0]?.message ?? "请检查填写内容"); setSubmitting(false); return; }
     setSubmitting(true); setError("");
+    trackEvent("generate_clicked", { pageName:"home", metadata:{ style:result.data.travelStyle, days:result.data.days } });
     window.localStorage.setItem(INPUT_KEY, JSON.stringify(result.data));
     window.localStorage.setItem(LEGACY_INPUT_KEY, JSON.stringify(result.data));
     window.localStorage.removeItem("wandernote:generated-plan");
@@ -119,7 +120,7 @@ export function TripForm() {
 
       <div className="mt-8"><p className={coreQuestionClass}>准备玩几天？ <span className="text-[#c55e3d]">*</span></p><div className="mt-3 grid grid-cols-4 gap-1.5 sm:gap-2">{[1, 2, 3].map((value) => <button key={value} type="button" aria-pressed={!customDaysOpen && days === value} onClick={() => { setDays(value); setCustomDaysOpen(false); }} className={`focus-ring min-w-0 rounded-xl border px-1 py-3 font-bold transition ${!customDaysOpen && days === value ? selectedCard : plainCard}`}>{value}天</button>)}<button type="button" aria-pressed={customDaysOpen} onClick={() => { setCustomDaysOpen(true); if (days <= 3) setDays(4); }} className={`focus-ring min-w-0 rounded-xl border px-1 py-3 font-bold transition ${customDaysOpen ? selectedCard : plainCard}`}>{customDaysOpen ? `${days}天` : "自定义"}</button></div>{customDaysOpen && <label className="mt-3 block text-sm font-semibold">自定义天数（1～7天）<input type="number" inputMode="numeric" min="1" max="7" value={days} onChange={(event) => setDays(Math.min(7, Math.max(1, Number(event.target.value) || 1)))} className={`${inputClass} max-w-40`} /></label>}</div>
 
-      <div className="mt-8"><p className={coreQuestionClass}>第三步，选一种喜欢的玩法 <span className="text-[#c55e3d]">*</span></p><div className="mt-3 space-y-3 rounded-[1.6rem] border border-black/8 bg-[#f7f8f4] p-3 sm:p-4"><section className="rounded-2xl bg-white p-3 shadow-sm"><h3 className="font-bold">想怎么玩？</h3><p className="mt-1 text-xs text-[#707a74]">选择整体旅行节奏</p><div className="mt-3 grid gap-2 sm:grid-cols-3">{travelStyles.map((item) => <button key={item.value} type="button" aria-pressed={style === item.value} onClick={() => setStyle(item.value)} className={`focus-ring rounded-2xl border p-3 text-left transition ${style === item.value ? selectedCard : plainCard}`}><span className="inline-flex text-[#b98638]"><ChoiceIcon name={item.icon} /></span><span className="ml-2 font-bold">{item.label}</span><p className="mt-2 text-xs leading-5 text-[#707a74]">{item.description}</p></button>)}</div></section><section className="rounded-2xl bg-white p-3 shadow-sm"><div className="flex items-end justify-between"><div><h3 className="font-bold">这次更想要什么？</h3><p className="mt-1 text-xs text-[#707a74]">最多选2项，也可以不选</p></div><span className="text-sm font-bold text-[#245b46]">{priorities.length}/2</span></div><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{priorityOptions.map((item) => <button key={item.value} type="button" aria-pressed={priorities.includes(item.value)} onClick={() => togglePriority(item.value)} className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold ${priorities.includes(item.value) ? selectedCard : plainCard}`}><span className="mr-2 inline-flex align-[-5px] text-[#b98638]"><ChoiceIcon name={item.icon} /></span>{item.label}</button>)}</div></section></div></div>
+      <div className="mt-8"><p className={coreQuestionClass}>第三步，选一种喜欢的玩法 <span className="text-[#c55e3d]">*</span></p><div className="mt-4 space-y-6"><section><h3 className="font-bold">想怎么玩？</h3><p className="mt-1 text-xs text-[#707a74]">选择整体旅行节奏</p><div className="mt-3 grid gap-2 sm:grid-cols-3">{travelStyles.map((item) => <button key={item.value} type="button" aria-pressed={style === item.value} onClick={() => setStyle(item.value)} className={`focus-ring rounded-2xl border p-3 text-left transition ${style === item.value ? selectedCard : plainCard}`}><span className="inline-flex text-[#b98638]"><ChoiceIcon name={item.icon} /></span><span className="ml-2 font-bold">{item.label}</span><p className="mt-2 text-xs leading-5 text-[#707a74]">{item.description}</p></button>)}</div></section><section className="border-t border-black/5 pt-6"><div className="flex items-end justify-between"><div><h3 className="font-bold">这次更想要什么？</h3><p className="mt-1 text-xs text-[#707a74]">最多选2项，也可以不选</p></div><span className="text-sm font-bold text-[#245b46]">{priorities.length}/2</span></div><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{priorityOptions.map((item) => <button key={item.value} type="button" aria-pressed={priorities.includes(item.value)} onClick={() => togglePriority(item.value)} className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold ${priorities.includes(item.value) ? selectedCard : plainCard}`}><span className="mr-2 inline-flex align-[-5px] text-[#b98638]"><ChoiceIcon name={item.icon} /></span>{item.label}</button>)}</div></section></div></div>
     </section>
 
     <details className="card group rounded-[2rem] p-3 sm:p-4">
@@ -140,7 +141,6 @@ export function TripForm() {
 
     {error && <p role="alert" className="rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</p>}
     <div className="sticky bottom-3 z-10 rounded-[1.6rem] border border-black/5 bg-[#f7f8f3]/90 p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"><button type="submit" disabled={submitting} aria-live="polite" className="focus-ring flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#245b46] px-4 py-4 text-base font-bold text-white shadow-lg shadow-[#245b46]/15 transition active:scale-[.99] disabled:cursor-wait disabled:bg-[#3f7661] sm:px-8 sm:text-lg">{submitting && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}{submitting ? "正在准备你的旅行……" : "一键生成我的定制旅行"}</button></div>
-    <BrandMark align="center" size="compact" className="flex justify-center opacity-80" />
     <p className="text-center text-xs leading-5 text-[#778079]">AI规划不含实时天气、票价或营业数据，出发前请再次确认。</p>
   </form>;
 }

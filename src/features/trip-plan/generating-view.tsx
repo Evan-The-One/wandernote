@@ -20,6 +20,9 @@ const errorMessages: Record<string, string> = {
   DATABASE_ERROR: "计划暂时无法保存，请稍后重试。",
   FUNCTION_TIMEOUT: "生成时间超过服务器限制，请直接重试。",
   VALIDATION_FAILED: "这次行程没有通过我们的质量检查，换个玩法再试一次吧。",
+  JSON_PARSE_FAILED: "这次行程没有顺利生成，已为你保留全部条件，可以直接再试一次。",
+  SCHEMA_VALIDATION_FAILED: "这次行程没有顺利生成，已为你保留全部条件，可以直接再试一次。",
+  QUALITY_VALIDATION_FAILED: "这次行程没有顺利生成，已为你保留全部条件，可以直接再试一次。",
   UNKNOWN_ERROR: "服务暂时不可用，请稍后重试。",
 };
 const stylePlanning: Record<TripInput["travelStyle"], string> = {

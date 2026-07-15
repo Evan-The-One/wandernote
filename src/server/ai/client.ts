@@ -25,6 +25,7 @@ export type AiGenerationMetrics = {
   repairModelCallMs: number;
   repairValidationMs: number;
   repairUsed: boolean;
+  providerRetryCount: number;
   totalMs: number;
 };
 
@@ -75,6 +76,8 @@ export async function requestStructuredModel(input: string, schema: z.ZodType, s
   } finally { clearTimeout(timeout); }
 }
 
+async function requestWithProviderRetry(input:string,schema:z.ZodType,schemaName:string,instructions:string,metrics:AiGenerationMetrics){try{return await requestStructuredModel(input,schema,schemaName,instructions);}catch(error){if(!(error instanceof AiGenerationError)||!["OPENAI_QUOTA_ERROR","UNKNOWN_ERROR"].includes(error.code))throw error;metrics.providerRetryCount+=1;await new Promise(resolve=>setTimeout(resolve,750));return requestStructuredModel(input,schema,schemaName,instructions);}}
+
 function validatePlan(raw: string, input: TripInput, metrics: AiGenerationMetrics, normalize = false): TripPlan {
   const parseStartedAt = performance.now();
   const json = parseJsonResponse(raw);
@@ -99,8 +102,8 @@ function validationSummary(error: unknown) {
 
 export async function generateTripPlan(input: TripInput, inputProcessingMs = 0): Promise<TripPlan> {
   const totalStartedAt = performance.now();
-  const metrics: AiGenerationMetrics = { inputProcessingMs, firstModelCallMs: 0, jsonParseMs: 0, zodValidationMs: 0, qualityValidationMs: 0, repairModelCallMs: 0, repairValidationMs: 0, repairUsed: false, totalMs: 0 };
-  const first = await requestStructuredModel(buildTripPlannerPrompt(input), tripPlanSchema, "trip_plan", TRIP_PLANNER_SYSTEM_PROMPT);
+  const metrics: AiGenerationMetrics = { inputProcessingMs, firstModelCallMs: 0, jsonParseMs: 0, zodValidationMs: 0, qualityValidationMs: 0, repairModelCallMs: 0, repairValidationMs: 0, repairUsed: false, providerRetryCount:0, totalMs: 0 };
+  const first = await requestWithProviderRetry(buildTripPlannerPrompt(input), tripPlanSchema, "trip_plan", TRIP_PLANNER_SYSTEM_PROMPT,metrics);
   metrics.firstModelCallMs = first.durationMs;
   try {
     const plan = validatePlan(first.raw, input, metrics);
@@ -113,7 +116,7 @@ export async function generateTripPlan(input: TripInput, inputProcessingMs = 0):
       ? firstError.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ")
       : Array.isArray(firstError) ? firstError
       : firstError instanceof Error ? firstError.message : "未知结构错误";
-    const repair = await requestStructuredModel(buildRepairPrompt(first.raw, issues), tripPlanSchema, "trip_plan_repair", TRIP_PLANNER_SYSTEM_PROMPT);
+    const repair = await requestWithProviderRetry(buildRepairPrompt(first.raw, issues), tripPlanSchema, "trip_plan_repair", TRIP_PLANNER_SYSTEM_PROMPT,metrics);
     metrics.repairModelCallMs = repair.durationMs;
     const repairValidationStartedAt = performance.now();
     try {
@@ -126,7 +129,8 @@ export async function generateTripPlan(input: TripInput, inputProcessingMs = 0):
       metrics.repairValidationMs = Math.round(performance.now() - repairValidationStartedAt);
       metrics.totalMs = Math.round(performance.now() - totalStartedAt) + inputProcessingMs;
       console.warn("ai_generation_metrics", JSON.stringify({ days: input.days, style: input.travelStyle, failed: true, validationIssues: validationSummary(repairError), ...metrics }));
-      throw new AiGenerationError("生成结果没有通过行程质量检查，请直接重试", "VALIDATION_FAILED", 422);
+      const code = repairError instanceof z.ZodError ? "SCHEMA_VALIDATION_FAILED" : Array.isArray(repairError) ? "QUALITY_VALIDATION_FAILED" : /JSON|解析/.test(String(repairError)) ? "JSON_PARSE_FAILED" : "VALIDATION_FAILED";
+      throw new AiGenerationError("这次行程没有顺利生成，已为你保留全部条件，可以直接再试一次。", code, 422);
     }
   }
 }

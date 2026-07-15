@@ -4,6 +4,7 @@ import { TripForm } from "@/features/trip-input/trip-form";
 import { HangzhouSamplePreview } from "@/features/trip-plan/hangzhou-sample-preview";
 import { hasBetaAccess } from "@/server/auth/visitor";
 import { serverConfig } from "@/server/config";
+import { BrandMark } from "@/components/brand-mark";
 
 export default async function Home() {
   const betaOpen = await hasBetaAccess(serverConfig.betaAccessCode);
@@ -14,7 +15,7 @@ export default async function Home() {
       <div className="page-shell relative">
         <div className="mb-6 max-w-3xl">
           <span className="inline-flex rounded-full border border-[#245b46]/15 bg-white/70 px-3 py-1.5 text-sm font-semibold text-[#245b46]">AI 私人旅行管家</span>
-          <h1 className="mt-4 text-3xl font-bold tracking-[-.04em] sm:text-5xl"><span className="block sm:inline">不用查攻略，只需3步</span><span className="mt-1 block text-[#245b46] sm:mt-0 sm:inline">，一键定制专属旅行</span></h1>
+          <h1 className="mt-4 text-3xl font-bold tracking-[-.04em] sm:text-5xl"><span className="block sm:inline">不用查攻略，只需3步</span><span className="mt-1 block text-[#245b46] sm:ml-2 sm:mt-0 sm:inline">一键定制专属旅行</span></h1>
         </div>
         <BetaAccessGate initialOpen={betaOpen}><TripForm /></BetaAccessGate>
         <HangzhouSamplePreview />
@@ -28,5 +29,6 @@ export default async function Home() {
         ["03", "一句话就能改", "哪天不满意，只调整当天，其他日期保持不变。"],
       ].map(([number,title,body]) => <article key={number} className="card rounded-3xl p-7"><span className="text-sm font-bold text-[#d48a35]">{number}</span><h3 className="mt-8 text-xl font-bold">{title}</h3><p className="mt-3 leading-7 text-[#65706a]">{body}</p></article>)}</div>
     </section>
+    <footer className="page-shell border-t border-black/5 py-10"><BrandMark size="compact" /><p className="mt-3 text-xs text-[#7b847e]">www.yjchufa.com</p></footer>
   </main>;
 }

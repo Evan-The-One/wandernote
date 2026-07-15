@@ -1,0 +1,9 @@
+"use client";
+import type { DayPlan } from "@/types/trip";
+const mainTypes = new Set(["attraction", "shopping", "entertainment"]);
+const method = { walk: "步行", public_transport: "公共交通", taxi: "打车", mixed: "组合交通" } as const;
+export function DayRoute({ day }: { day: Pick<DayPlan,"dayNumber"|"activities"> }) {
+  const nodes = day.activities.filter((activity) => mainTypes.has(activity.type)).slice(0,6); if (nodes.length < 2) return null;
+  const areas = [...new Set(nodes.map((node) => node.area))].slice(0,2);
+  return <section className="mb-7 rounded-2xl bg-[#eef4ef] p-4" aria-label={`第${day.dayNumber}天路线顺序`}><div className="flex items-center justify-between gap-3"><h3 className="text-sm font-bold text-[#245b46]">今天怎么走</h3><span className="text-[11px] text-[#78827c]">路线顺序 · 非比例地图</span></div><div className="mt-4 space-y-1">{nodes.map((node,index) => { const transport = index < nodes.length - 1 ? node.transportToNext : null; return <div key={node.id}><button type="button" onClick={() => document.getElementById(`activity-${day.dayNumber}-${node.id}`)?.scrollIntoView({ behavior:"smooth", block:"center" })} className="flex w-full items-center gap-3 rounded-xl py-1 text-left"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 border-[#6e9b82] bg-white"><span className="h-2 w-2 rounded-full bg-[#245b46]" /></span><span className="min-w-0"><strong className="block truncate text-sm">{node.name}</strong><span className="text-xs text-[#707a74]">{node.area}</span></span></button>{transport && <div className="ml-3 flex h-8 items-center border-l border-dashed border-[#86aa96] pl-5 text-xs text-[#65706a]">{method[transport.method]}约{transport.durationMinutes}分钟</div>}</div>; })}</div><p className="mt-3 text-xs leading-5 text-[#65706a]">今天主要围绕{areas.join("、")}游玩，按顺序前进，尽量少走回头路。</p></section>;
+}

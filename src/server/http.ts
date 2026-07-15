@@ -8,7 +8,7 @@ export class HttpError extends Error {
 
 export type PublicErrorCode =
   | "AI_DISABLED" | "DAILY_LIMIT_REACHED" | "OPENAI_AUTH_ERROR" | "OPENAI_QUOTA_ERROR"
-  | "OPENAI_TIMEOUT" | "DATABASE_ERROR" | "FUNCTION_TIMEOUT" | "VALIDATION_FAILED" | "UNKNOWN_ERROR";
+  | "OPENAI_TIMEOUT" | "DATABASE_ERROR" | "FUNCTION_TIMEOUT" | "VALIDATION_FAILED" | "JSON_PARSE_FAILED" | "SCHEMA_VALIDATION_FAILED" | "QUALITY_VALIDATION_FAILED" | "UNKNOWN_ERROR";
 
 export async function readJsonBody(request: Request): Promise<unknown> {
   const declared = Number(request.headers.get("content-length") || 0);

@@ -59,3 +59,10 @@ export const feedback = pgTable("feedback", {
   comment: text("comment"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("feedback_trip_idx").on(table.tripId)]);
+
+export const analyticsEvents = pgTable("analytics_events", {
+  id: uuid("id").defaultRandom().primaryKey(), visitorId: uuid("visitor_id").notNull().references(() => visitors.id, { onDelete: "cascade" }),
+  eventName: text("event_name").notNull(), tripId: uuid("trip_id").references(() => trips.id, { onDelete: "set null" }), pageName: text("page_name"),
+  durationMs: integer("duration_ms"), status: text("status"), errorCategory: text("error_category"), metadata: jsonb("metadata").$type<Record<string,string|number|boolean|null>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("analytics_events_created_idx").on(table.createdAt), index("analytics_events_name_created_idx").on(table.eventName,table.createdAt)]);

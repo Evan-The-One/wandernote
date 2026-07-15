@@ -2,6 +2,8 @@
 
 不用查攻略，一键直接出发。面向中文用户的 AI 私人旅行管家：极简填写 → 真实 AI 规划 → 确定性质量校验 → 持久化计划 → 单日调整与一次撤销 → 只读链接分享。
 
+产品与界面决策遵循 [一键出发产品原则](./docs/product-principles.md)。
+
 公网 Beta：[https://www.yjchufa.com](https://www.yjchufa.com)
 
 ## 技术栈

@@ -4,6 +4,7 @@ import { useState } from "react";
 import QRCode from "qrcode";
 import type { DayPlan } from "@/types/trip";
 import { formatDisplayValue } from "./display-formatters";
+import { trackEvent } from "@/features/analytics/client";
 
 const WIDTH = 1080;
 const FONT = '"PingFang SC", "Microsoft YaHei", Arial, sans-serif';
@@ -21,7 +22,7 @@ function loadImage(source: string) { return new Promise<HTMLImageElement>((resol
 
 async function renderDayImage(day: DayPlan, destination: string, tripTitle: string, tripId?: string) {
   await document.fonts?.ready;
-  const height = Math.max(1500, 570 + day.activities.length * 235 + Math.max(1, day.dayTips.length) * 62);
+  const height = Math.max(1640, 710 + day.activities.length * 235 + Math.max(1, day.dayTips.length) * 62);
   const canvas = document.createElement("canvas"); canvas.width = WIDTH; canvas.height = height;
   const ctx = canvas.getContext("2d"); if (!ctx) throw new Error("当前浏览器无法生成图片");
   ctx.fillStyle = "#f7f8f3"; ctx.fillRect(0,0,WIDTH,height);
@@ -34,6 +35,7 @@ async function renderDayImage(day: DayPlan, destination: string, tripTitle: stri
   let y = 360;
   ctx.fillStyle = "#245b46"; ctx.font = `700 28px ${FONT}`; ctx.fillText(day.theme,72,y);
   ctx.fillStyle = "#65706a"; ctx.font = `500 22px ${FONT}`; ctx.fillText(`强度：${formatDisplayValue(day.intensity)}　步行约 ${day.estimatedWalkingKm} km`,72,y+48); y += 105;
+  const routeNames=day.activities.filter(activity=>["attraction","shopping","entertainment"].includes(activity.type)).slice(0,6).map(activity=>activity.name);if(routeNames.length>1){ctx.fillStyle="#eaf2ed";ctx.fillRect(64,y,952,110);ctx.fillStyle="#245b46";ctx.font=`700 22px ${FONT}`;ctx.fillText("今天怎么走",88,y+36);ctx.font=`500 18px ${FONT}`;drawLines(ctx,routeNames.join(" → "),88,y+72,880,26,2);y+=140;}
   day.activities.forEach((activity,index) => {
     ctx.fillStyle = "#e4ede7"; ctx.beginPath(); ctx.arc(92,y+24,18,0,Math.PI*2); ctx.fill();
     if (index < day.activities.length - 1) { ctx.strokeStyle="#cbdcd2";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(92,y+45);ctx.lineTo(92,y+205);ctx.stroke(); }
@@ -59,7 +61,7 @@ export function DayImageExport({ day, destination, tripTitle, tripId }: { day: D
     try { const blob=await renderDayImage(day,destination,tripTitle,tripId); const filename=`一键出发-${destination}-第${day.dayNumber}天.png`; const file=new File([blob],filename,{type:"image/png"});
       if(navigator.share && navigator.canShare?.({files:[file]})){try {await navigator.share({files:[file],title:`${destination}第${day.dayNumber}天行程`});} catch(error) {if(error instanceof DOMException&&error.name==="AbortError"){setStatus("idle");return;}download(blob,filename);}}
       else download(blob,filename);
-      setStatus("success"); window.setTimeout(()=>setStatus("idle"),3000);
+      setStatus("success"); trackEvent("day_image_saved",{pageName:"trip",tripId:tripId||null,metadata:{day:day.dayNumber}}); window.setTimeout(()=>setStatus("idle"),3000);
     } catch(error) { if(error instanceof DOMException && error.name==="AbortError"){setStatus("idle");return;} setStatus("error"); }
   }
   return <div className="text-right"><button type="button" onClick={save} disabled={status==="loading"} className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[#245b46] disabled:cursor-wait disabled:opacity-60">{status==="loading"?"正在生成图片……":"保存今日行程为图片"}</button>{status==="success"&&<p className="mt-2 text-xs font-semibold text-[#287057]">今日行程图片已准备好</p>}{status==="error"&&<p className="mt-2 text-xs font-semibold text-red-700">图片生成失败，请稍后重试</p>}</div>;
