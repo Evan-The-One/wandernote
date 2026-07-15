@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { tripInputSchema, tripPlanSchema } from "../src/schemas/trip";
 import { validateTripPlanQuality } from "../src/server/validation/trip-plan-quality";
 import { validateDayRevisionQuality } from "../src/server/validation/day-revision-quality";
+import { sanitizeUserFacingData } from "../src/lib/sanitize-user-facing-text";
 
 const baseInput = tripInputSchema.parse({ schemaVersion: "0.2", destination: { city: "杭州", country: "中国" }, days: 1, travelStyle: "fast_paced", datePreference: { type: "undecided", startDate: null, approximateText: null }, budget: { mode: "unrestricted", amount: null, scope: null, includesAccommodation: null, includesIntercityTransport: null, currency: "CNY" }, priorities: ["great_food", "culture"], departureCity: null, travelers: { adults: 1, children: 0 }, transportPreference: "mixed", dayTripPreference: false, additionalRequirements: null });
 assert.equal(baseInput.companionType, "solo"); assert.equal(baseInput.travelers.seniors, 0); assert.equal(baseInput.preferredDepartureTime, null);
@@ -21,4 +22,7 @@ const partialDay = { ...plan.days[0], activities:plan.days[0].activities.map((ac
 assert.equal(validateDayRevisionQuality({targetDayNumber:1,updatedDay:partialDay,changeSummary:["替换选中活动"]},partialRequest).valid,true);
 const tamperedDay = { ...partialDay, activities:partialDay.activities.map((activity)=>activity.id==="0"?{...activity,name:"未授权修改"}:activity) };
 assert.equal(validateDayRevisionQuality({targetDayNumber:1,updatedDay:tamperedDay,changeSummary:["错误修改"]},partialRequest).valid,false);
+const legacyLabel = `\u61d2\u4eba`;
+const sanitizedPlan = sanitizeUserFacingData({ title: `${legacyLabel}旅行`, summary: `适合${legacyLabel}的路线`, nested: [`${legacyLabel}模式`] });
+assert.equal(JSON.stringify(sanitizedPlan).includes(legacyLabel), false);
 console.log("Core upgrade contract tests passed (migration defaults, time rules, fast-paced density and exceptions).");

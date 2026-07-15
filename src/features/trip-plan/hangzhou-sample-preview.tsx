@@ -66,16 +66,7 @@ export function HangzhouSamplePreview() {
           </div>
         </header>
         <div className="p-5 sm:p-8">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-[#f4f6f1] p-4">
-              <p className="text-xs text-[#7b847e]">整体强度</p>
-              <p className="mt-2 font-semibold">{hangzhouSample.intensity}</p>
-            </div>
-            <div className="rounded-2xl bg-[#f4f6f1] p-4">
-              <p className="text-xs text-[#7b847e]">建议住宿</p>
-              <p className="mt-2 font-semibold">{hangzhouSample.stayArea}</p>
-            </div>
-          </div>
+          <DayRoute day={sampleRoute(hangzhouSample.days[0])} />
           {expanded && (
             <div className="mt-6 space-y-4 border-t pt-6">
               {hangzhouSample.days.map((day) => (

@@ -5,6 +5,7 @@ import { extractResponseText, parseJsonResponse } from "./json";
 import { buildRepairPrompt, buildTripPlannerPrompt, TRIP_PLANNER_SYSTEM_PROMPT } from "./prompt";
 import { normalizeTripPlanForQuality, validateTripPlanQuality, type TripPlanQualityIssue } from "@/server/validation/trip-plan-quality";
 import { HttpError } from "@/server/http";
+import { sanitizeUserFacingData } from "@/lib/sanitize-user-facing-text";
 
 const OPENAI_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5.4-mini";
@@ -86,7 +87,8 @@ function validatePlan(raw: string, input: TripInput, metrics: AiGenerationMetric
   const parsed = tripPlanSchema.safeParse(json);
   metrics.zodValidationMs += Math.round(performance.now() - zodStartedAt);
   if (!parsed.success) throw parsed.error;
-  const candidate = normalize ? normalizeTripPlanForQuality(parsed.data, input) : parsed.data;
+  const cleanPlan = sanitizeUserFacingData(parsed.data);
+  const candidate = normalize ? normalizeTripPlanForQuality(cleanPlan, input) : cleanPlan;
   const qualityStartedAt = performance.now();
   const quality = validateTripPlanQuality(candidate, input);
   metrics.qualityValidationMs += Math.round(performance.now() - qualityStartedAt);

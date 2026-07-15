@@ -22,5 +22,7 @@ export function formatDisplayValue(value: unknown, fallback = "按你的偏好�
 export function formatPriority(value: string) { return formatDisplayValue(value, "个性偏好"); }
 
 export function formatDisplayText(value: string) {
-  return Object.entries(displayLabels).reduce((text, [internal, label]) => text.replaceAll(internal, label), value);
+  const naturalChinese = sanitizeUserFacingText(value);
+  return Object.entries(displayLabels).reduce((text, [internal, label]) => text.replaceAll(internal, label), naturalChinese);
 }
+import { sanitizeUserFacingText } from "@/lib/sanitize-user-facing-text";

@@ -5,15 +5,17 @@ import { parseJsonResponse } from "./json";
 import { requestStructuredModel, AiGenerationError } from "./client";
 import { buildDayRevisionPrompt, buildDayRevisionRepairPrompt, DAY_REVISION_SYSTEM_PROMPT } from "./day-revision-prompt";
 import { validateDayRevisionQuality } from "@/server/validation/day-revision-quality";
+import { sanitizeUserFacingData } from "@/lib/sanitize-user-facing-text";
 
 export type DayRevisionMetrics = { firstModelCallMs: number; validationMs: number; repairModelCallMs: number; repairValidationMs: number; repairUsed: boolean; totalMs: number };
 
 function validate(raw: string, request: DayRevisionRequest): DayRevisionResponse {
   const parsed = dayRevisionResponseSchema.safeParse(parseJsonResponse(raw));
   if (!parsed.success) throw parsed.error;
-  const quality = validateDayRevisionQuality(parsed.data, request);
+  const cleanResult = sanitizeUserFacingData(parsed.data);
+  const quality = validateDayRevisionQuality(cleanResult, request);
   if (!quality.valid) throw quality.issues;
-  return parsed.data;
+  return cleanResult;
 }
 
 export async function reviseDay(request: DayRevisionRequest): Promise<DayRevisionResponse> {

@@ -35,7 +35,7 @@ async function renderDayImage(day: DayPlan, destination: string, tripTitle: stri
   let y = 360;
   ctx.fillStyle = "#245b46"; ctx.font = `700 28px ${FONT}`; ctx.fillText(day.theme,72,y);
   ctx.fillStyle = "#65706a"; ctx.font = `500 22px ${FONT}`; ctx.fillText(`强度：${formatDisplayValue(day.intensity)}　步行约 ${day.estimatedWalkingKm} km`,72,y+48); y += 105;
-  const routeNames=day.activities.filter(activity=>["attraction","shopping","entertainment"].includes(activity.type)).slice(0,6).map(activity=>activity.name);if(routeNames.length>1){ctx.fillStyle="#eaf2ed";ctx.fillRect(64,y,952,110);ctx.fillStyle="#245b46";ctx.font=`700 22px ${FONT}`;ctx.fillText("今天怎么走",88,y+36);ctx.font=`500 18px ${FONT}`;drawLines(ctx,routeNames.join(" → "),88,y+72,880,26,2);y+=140;}
+  const routeNames=day.activities.filter(activity=>["attraction","shopping","entertainment"].includes(activity.type)).slice(0,6).map(activity=>activity.name);if(routeNames.length>1){ctx.fillStyle="#eaf2ed";ctx.fillRect(64,y,952,82);ctx.fillStyle="#245b46";ctx.font=`500 18px ${FONT}`;drawLines(ctx,routeNames.join(" → "),88,y+48,880,26,2);y+=112;}
   day.activities.forEach((activity,index) => {
     ctx.fillStyle = "#e4ede7"; ctx.beginPath(); ctx.arc(92,y+24,18,0,Math.PI*2); ctx.fill();
     if (index < day.activities.length - 1) { ctx.strokeStyle="#cbdcd2";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(92,y+45);ctx.lineTo(92,y+205);ctx.stroke(); }

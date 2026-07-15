@@ -14,20 +14,20 @@ export function DestinationRecommender({
   departureCity,
   onDepartureCity,
   onChoose,
+  openRequest,
 }: {
   days: number;
   departureCity: string;
   onDepartureCity: (value: string) => void;
   onChoose: (city: string) => void;
+  openRequest?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [priorities, setPriorities] = useState<InspirationPriority[]>([]);
   const [range, setRange] = useState<TravelRange>("rail");
   useEffect(() => {
-    const handler = () => setOpen(true);
-    window.addEventListener("trip-open-recommender", handler);
-    return () => window.removeEventListener("trip-open-recommender", handler);
-  }, []);
+    if (openRequest) queueMicrotask(() => setOpen(true));
+  }, [openRequest]);
   const results = useMemo(
     () => recommendCities(priorities, range, days, departureCity),
     [priorities, range, days, departureCity],

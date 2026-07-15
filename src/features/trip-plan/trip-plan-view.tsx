@@ -10,10 +10,9 @@ import {
   formatPriority,
 } from "./display-formatters";
 import { DayImageExport } from "./day-image-export";
-import { DayRoute } from "./day-route";
+import { DayRoute, summarizeDayRoute } from "./day-route";
 import { trackEvent } from "@/features/analytics/client";
 
-const intensity = { easy: "轻松", moderate: "适中", intense: "充实" };
 const method = {
   walk: "步行",
   public_transport: "公共交通",
@@ -223,21 +222,6 @@ export function TripPlanView({
                   <h2 className="mt-2 text-2xl font-bold">{day.title}</h2>
                   <p className="mt-1 text-[#6f7973]">{day.theme}</p>
                 </div>
-                {onReviseDay && (
-                  <button
-                    onClick={() => onReviseDay(day)}
-                    className="rounded-full border bg-white px-4 py-2 text-sm font-semibold text-[#245b46]"
-                  >
-                    今天不满意？告诉我怎么改
-                  </button>
-                )}
-              </div>
-              <div className="mt-5 flex flex-wrap gap-4 text-xs font-semibold text-[#65706a]">
-                <span>强度：{intensity[day.intensity]}</span>
-                <span>步行约 {day.estimatedWalkingKm} km</span>
-                {day.estimatedCost !== null && (
-                  <span>预计 ¥{day.estimatedCost}</span>
-                )}
               </div>
             </header>
             <div className="p-5 sm:p-7">
@@ -276,6 +260,13 @@ export function TripPlanView({
                   </div>
                 </div>
               ))}
+              <div className="mt-5 space-y-1 border-t border-black/5 pt-4 text-sm leading-6 text-[#65706a]">
+                <p>{summarizeDayRoute(day).route}</p>
+                <p>
+                  {summarizeDayRoute(day).effort}
+                  {day.estimatedCost !== null ? `，预计 ¥${day.estimatedCost}` : ""}
+                </p>
+              </div>
               <div className="mt-4 flex justify-end">
                 <DayImageExport
                   day={day}
@@ -293,7 +284,19 @@ export function TripPlanView({
                 </ul>
               </div>
               {tripId && (
-                <DayFeedback tripId={tripId} dayNumber={day.dayNumber} />
+                <DayFeedback
+                  tripId={tripId}
+                  dayNumber={day.dayNumber}
+                  action={onReviseDay ? (
+                    <button
+                      type="button"
+                      onClick={() => onReviseDay(day)}
+                      className="min-h-11 rounded-full border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-[#245b46]"
+                    >
+                      调整这一天
+                    </button>
+                  ) : undefined}
+                />
               )}
             </div>
           </article>
