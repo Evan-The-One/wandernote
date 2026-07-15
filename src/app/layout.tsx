@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
+import { HeaderActions } from "@/components/header-actions";
 import "./globals.css";
 import { PageTracker } from "@/features/analytics/page-tracker";
 
@@ -24,9 +24,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <header className="border-b border-black/5 bg-[#f7f8f3]/90 backdrop-blur">
           <div className="page-shell flex h-16 items-center justify-between">
             <BrandMark href="/" />
-            <Link href="/#plan" className="focus-ring rounded-full bg-[#245b46] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4938]">
-              帮我安排
-            </Link>
+            <HeaderActions />
           </div>
         </header>
         {children}

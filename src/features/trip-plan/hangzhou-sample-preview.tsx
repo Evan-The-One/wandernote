@@ -4,5 +4,113 @@ import type { DayPlan } from "@/types/trip";
 import { hangzhouSample } from "./hangzhou-sample";
 import { DayRoute } from "./day-route";
 
-function sampleRoute(day: typeof hangzhouSample.days[number]): Pick<DayPlan,"dayNumber"|"activities"> { const names=day.route.split(" → "); return { dayNumber:day.day, activities:names.map((name,index)=>({ id:`sample-${day.day}-${index}`,type:"attraction" as const,startTime:"10:00",endTime:"11:00",name,area:day.area,reason:"示例路线",durationMinutes:60,estimatedCost:null,transportToNext:index===names.length-1?null:{method:day.transport,durationMinutes:day.transportMinutes[index]||15,description:"前往下一站"},tips:[],photoTips:[] })) }; }
-export function HangzhouSamplePreview(){const[expanded,setExpanded]=useState(false);function back(){document.getElementById("plan")?.scrollIntoView({behavior:"smooth"});setTimeout(()=>document.getElementById("trip-destination")?.focus({preventScroll:true}),450);}return <section className="mt-12 sm:mt-16" aria-labelledby="sample-title"><div className="mb-5"><span className="rounded-full bg-[#f0e4cd] px-3 py-1 text-xs font-bold text-[#8a5b24]">示例攻略</span><h2 id="sample-title" className="mt-3 text-2xl font-bold sm:text-3xl">看看生成后的旅行计划</h2><p className="mt-2 text-sm text-[#65706a]">杭州三日安排示例</p></div><div className="card overflow-hidden rounded-[2rem]"><header className="bg-[#204f3c] p-5 text-white sm:p-8"><p className="text-sm text-white/65">杭州 · 3天</p><h3 className="mt-2 text-2xl font-bold">{hangzhouSample.title}</h3><div className="mt-4 flex flex-wrap gap-3 text-sm text-white/80"><span>{hangzhouSample.style}</span><span>{hangzhouSample.priorities.join("、")}</span></div></header><div className="p-5 sm:p-8"><div className="grid grid-cols-2 gap-3"><div className="rounded-2xl bg-[#f4f6f1] p-4"><p className="text-xs text-[#7b847e]">整体强度</p><p className="mt-2 font-semibold">{hangzhouSample.intensity}</p></div><div className="rounded-2xl bg-[#f4f6f1] p-4"><p className="text-xs text-[#7b847e]">建议住宿</p><p className="mt-2 font-semibold">{hangzhouSample.stayArea}</p></div></div>{expanded&&<div className="mt-6 space-y-4 border-t pt-6">{hangzhouSample.days.map(day=><article key={day.day} className="rounded-2xl border border-black/7 p-4"><p className="text-xs font-bold text-[#287057]">DAY {day.day}</p><h4 className="mt-2 text-lg font-bold">{day.title}</h4><div className="mt-4"><DayRoute day={sampleRoute(day)}/></div><p className="text-sm leading-6 text-[#707a74]">{day.detail}</p></article>)}</div>}<button onClick={()=>setExpanded(value=>!value)} className="mt-6 w-full rounded-full border border-[#245b46]/20 px-5 py-3 text-sm font-bold text-[#245b46]">{expanded?"收起示例":"查看完整三日示例"}</button><button onClick={back} className="mt-3 w-full rounded-full bg-[#245b46] px-5 py-3 text-sm font-bold text-white">按这样的方式规划我的旅行</button></div></div></section>}
+function sampleRoute(
+  day: (typeof hangzhouSample.days)[number],
+): Pick<DayPlan, "dayNumber" | "activities"> {
+  const names = day.route.split(" → ");
+  return {
+    dayNumber: day.day,
+    activities: names.map((name, index) => ({
+      id: `sample-${day.day}-${index}`,
+      type: "attraction" as const,
+      startTime: "10:00",
+      endTime: "11:00",
+      name,
+      area: day.area,
+      reason: "示例路线",
+      durationMinutes: 60,
+      estimatedCost: null,
+      transportToNext:
+        index === names.length - 1
+          ? null
+          : {
+              method: day.transport,
+              durationMinutes: day.transportMinutes[index] || 15,
+              description: "前往下一站",
+            },
+      tips: [],
+      photoTips: [],
+    })),
+  };
+}
+export function HangzhouSamplePreview() {
+  const [expanded, setExpanded] = useState(false);
+  function back() {
+    document.getElementById("plan")?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(
+      () =>
+        document
+          .getElementById("trip-destination")
+          ?.focus({ preventScroll: true }),
+      450,
+    );
+  }
+  return (
+    <section id="sample-trip" className="mt-12 scroll-mt-24 sm:mt-16" aria-labelledby="sample-title">
+      <div className="mb-5">
+        <span className="rounded-full bg-[#f0e4cd] px-3 py-1 text-xs font-bold text-[#8a5b24]">
+          示例攻略
+        </span>
+        <h2 id="sample-title" className="mt-3 text-2xl font-bold sm:text-3xl">
+          看看生成后的旅行计划
+        </h2>
+        <p className="mt-2 text-sm text-[#65706a]">杭州三日安排示例</p>
+      </div>
+      <div className="card overflow-hidden rounded-[2rem]">
+        <header className="bg-[#204f3c] p-5 text-white sm:p-8">
+          <p className="text-sm text-white/65">杭州 · 3天</p>
+          <h3 className="mt-2 text-2xl font-bold">{hangzhouSample.title}</h3>
+          <div className="mt-4 flex flex-wrap gap-3 text-sm text-white/80">
+            <span>{hangzhouSample.style}</span>
+            <span>{hangzhouSample.priorities.join("、")}</span>
+          </div>
+        </header>
+        <div className="p-5 sm:p-8">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-[#f4f6f1] p-4">
+              <p className="text-xs text-[#7b847e]">整体强度</p>
+              <p className="mt-2 font-semibold">{hangzhouSample.intensity}</p>
+            </div>
+            <div className="rounded-2xl bg-[#f4f6f1] p-4">
+              <p className="text-xs text-[#7b847e]">建议住宿</p>
+              <p className="mt-2 font-semibold">{hangzhouSample.stayArea}</p>
+            </div>
+          </div>
+          {expanded && (
+            <div className="mt-6 space-y-4 border-t pt-6">
+              {hangzhouSample.days.map((day) => (
+                <article
+                  key={day.day}
+                  className="rounded-2xl border border-black/7 p-4"
+                >
+                  <p className="text-xs font-bold text-[#287057]">
+                    DAY {day.day}
+                  </p>
+                  <h4 className="mt-2 text-lg font-bold">{day.title}</h4>
+                  <div className="mt-4">
+                    <DayRoute day={sampleRoute(day)} />
+                  </div>
+                  <p className="text-sm leading-6 text-[#707a74]">
+                    {day.detail}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => setExpanded((value) => !value)}
+            className="mt-6 w-full rounded-full border border-[#245b46]/20 px-5 py-3 text-sm font-bold text-[#245b46]"
+          >
+            {expanded ? "收起示例" : "查看完整三日示例"}
+          </button>
+          <button
+            onClick={back}
+            className="mt-3 w-full rounded-full bg-[#245b46] px-5 py-3 text-sm font-bold text-white"
+          >
+            按这样的方式规划我的旅行
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}

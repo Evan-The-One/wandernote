@@ -129,7 +129,9 @@
   "previousDay": {},
   "nextDay": {},
   "otherDaysCostTotal": 1200,
-  "instruction": "第二天轻松一点，减少步行。"
+  "instruction": "把下午的博物馆换成适合拍照的室内地点。",
+  "mode": "selected_activities",
+  "selectedActivityIds": ["day2-activity3"]
 }
 ```
 
@@ -143,4 +145,4 @@
 }
 ```
 
-客户端只替换目标`DayPlan`。其他日期不会发送给模型，也不会被模型返回。修改前的当天和预算快照保存在`wandernote:last-undo`，用于一次撤销。
+`mode`兼容`full_day`和`selected_activities`，旧请求默认按整天修改处理。局部模式下服务端验证活动归属、去重，并逐字段校验所有未选活动保持不变。客户端只替换目标`DayPlan`；其他日期不会发送给模型，也不会被模型返回。修改前的完整当天快照保存在`day_revisions`，两种模式都支持最近一次撤销。

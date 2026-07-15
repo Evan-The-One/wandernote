@@ -143,6 +143,8 @@ export const dayRevisionRequestSchema = z.object({
   nextDay: adjacentDayContextSchema,
   otherDaysCostTotal: z.number().nonnegative().nullable(),
   instruction: z.string().trim().min(3).max(500),
+  mode: z.enum(["full_day", "selected_activities"]).default("full_day"),
+  selectedActivityIds: z.array(z.string().trim().min(1)).max(12).default([]),
 });
 
 export const dayRevisionResponseSchema = z.object({

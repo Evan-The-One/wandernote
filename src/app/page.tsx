@@ -15,7 +15,7 @@ export default async function Home() {
       <div className="page-shell relative">
         <div className="mb-6 max-w-3xl">
           <span className="inline-flex rounded-full border border-[#245b46]/15 bg-white/70 px-3 py-1.5 text-sm font-semibold text-[#245b46]">AI 私人旅行管家</span>
-          <h1 className="mt-4 text-3xl font-bold tracking-[-.04em] sm:text-5xl"><span className="block sm:inline">不用查攻略，只需3步</span><span className="mt-1 block text-[#245b46] sm:ml-2 sm:mt-0 sm:inline">一键定制专属旅行</span></h1>
+          <h1 className="mt-4 text-3xl font-bold leading-tight tracking-[-.04em] sm:text-5xl"><span className="block">不用查攻略，只需3步</span><span className="mt-1 block text-[#245b46]">一键定制<br />专属旅行</span></h1>
         </div>
         <BetaAccessGate initialOpen={betaOpen}><TripForm /></BetaAccessGate>
         <HangzhouSamplePreview />

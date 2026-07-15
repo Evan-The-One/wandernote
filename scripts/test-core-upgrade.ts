@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { tripInputSchema, tripPlanSchema } from "../src/schemas/trip";
 import { validateTripPlanQuality } from "../src/server/validation/trip-plan-quality";
+import { validateDayRevisionQuality } from "../src/server/validation/day-revision-quality";
 
 const baseInput = tripInputSchema.parse({ schemaVersion: "0.2", destination: { city: "杭州", country: "中国" }, days: 1, travelStyle: "fast_paced", datePreference: { type: "undecided", startDate: null, approximateText: null }, budget: { mode: "unrestricted", amount: null, scope: null, includesAccommodation: null, includesIntercityTransport: null, currency: "CNY" }, priorities: ["great_food", "culture"], departureCity: null, travelers: { adults: 1, children: 0 }, transportPreference: "mixed", dayTripPreference: false, additionalRequirements: null });
 assert.equal(baseInput.companionType, "solo"); assert.equal(baseInput.travelers.seniors, 0); assert.equal(baseInput.preferredDepartureTime, null);
@@ -15,4 +16,9 @@ const crowded = { ...plan, days: [{ ...plan.days[0], activities: [...plan.days[0
 assert.equal(validateTripPlanQuality(crowded, baseInput).issues.some((item) => item.code === "MAIN_ACTIVITY_LIMIT"), true);
 const parents = tripInputSchema.parse({ ...baseInput, companionType: "parents", travelers: { adults: 1, children: 0, seniors: 2 } });
 assert.equal(validateTripPlanQuality(sparse, parents).issues.some((item) => item.code === "MAIN_ACTIVITY_MINIMUM"), false);
+const partialRequest = { schemaVersion:"0.2" as const, originalInput:baseInput, strategy:plan.strategy, budget:plan.budget, targetDayNumber:1, currentDay:plan.days[0], previousDay:null, nextDay:null, otherDaysCostTotal:null, instruction:"替换第二个活动", mode:"selected_activities" as const, selectedActivityIds:["1"] };
+const partialDay = { ...plan.days[0], activities:plan.days[0].activities.map((activity)=>activity.id==="1"?{...activity,name:"中国丝绸博物馆"}:activity) };
+assert.equal(validateDayRevisionQuality({targetDayNumber:1,updatedDay:partialDay,changeSummary:["替换选中活动"]},partialRequest).valid,true);
+const tamperedDay = { ...partialDay, activities:partialDay.activities.map((activity)=>activity.id==="0"?{...activity,name:"未授权修改"}:activity) };
+assert.equal(validateDayRevisionQuality({targetDayNumber:1,updatedDay:tamperedDay,changeSummary:["错误修改"]},partialRequest).valid,false);
 console.log("Core upgrade contract tests passed (migration defaults, time rules, fast-paced density and exceptions).");

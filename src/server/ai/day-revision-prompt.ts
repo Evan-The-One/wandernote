@@ -25,6 +25,8 @@ export function buildDayRevisionPrompt(request: DayRevisionRequest) {
   const context = {
     targetDayNumber: request.targetDayNumber,
     instruction: request.instruction,
+    mode: request.mode,
+    selectedActivityIds: request.selectedActivityIds,
     constraints: {
       travelStyle: request.originalInput.travelStyle,
       priorities: request.originalInput.priorities,
@@ -43,7 +45,8 @@ export function buildDayRevisionPrompt(request: DayRevisionRequest) {
     previousDay: compactAdjacent(request.previousDay),
     nextDay: compactAdjacent(request.nextDay),
   };
-  return `根据以下必要上下文修改当天。不要引入上下文以外的旅行日期或预算口径。\n${JSON.stringify(context)}`;
+  const localRules = request.mode === "selected_activities" ? `\n这是局部修改：只能修改selectedActivityIds对应活动。未选活动必须逐字段原样返回，包括ID、名称、文案、类型、时间、费用和交通；不得删除或重写未选活动。被替换活动可以沿用原ID；如拆分或新建活动，必须生成不与现有ID重复的新稳定ID。若无法在不改变未选活动的前提下合理衔接，请让结果保持原样，并在changeSummary说明应改用重新安排整天。` : "";
+  return `根据以下必要上下文修改当天。不要引入上下文以外的旅行日期或预算口径。${localRules}\n${JSON.stringify(context)}`;
 }
 
 export function buildDayRevisionRepairPrompt(raw: string, issues: TripPlanQualityIssue[] | string) {

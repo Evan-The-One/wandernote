@@ -16,6 +16,22 @@ export function validateDayRevisionQuality(response: DayRevisionResponse, reques
   const input = request.originalInput;
   if (response.targetDayNumber !== request.targetDayNumber || day.dayNumber !== request.currentDay.dayNumber) add(issues, "DAY_NUMBER", "updatedDay.dayNumber", "修改后dayNumber必须保持不变", request.currentDay.dayNumber, day.dayNumber);
   if (day.date !== request.currentDay.date) add(issues, "DATE_SEQUENCE", "updatedDay.date", "修改后日期必须保持不变", request.currentDay.date ?? "null", day.date);
+  if (request.mode === "selected_activities") {
+    if (day.title !== request.currentDay.title) add(issues, "DAY_NUMBER", "updatedDay.title", "局部修改必须保留当天标题");
+    if (day.theme !== request.currentDay.theme) add(issues, "DAY_NUMBER", "updatedDay.theme", "局部修改必须保留当天主题");
+    if (day.intensity !== request.currentDay.intensity) add(issues, "DAY_NUMBER", "updatedDay.intensity", "局部修改必须保留当天强度");
+    const selected = new Set(request.selectedActivityIds);
+    const updatedById = new Map(day.activities.map((activity) => [activity.id, activity]));
+    for (const original of request.currentDay.activities) {
+      if (selected.has(original.id)) continue;
+      const updated = updatedById.get(original.id);
+      if (!updated || JSON.stringify(updated) !== JSON.stringify(original)) add(issues, "DAY_NUMBER", `updatedDay.activities.${original.id}`, "未选择的活动必须逐字段保持不变");
+    }
+    const originalIds = new Set(request.currentDay.activities.map((activity) => activity.id));
+    const newActivities = day.activities.filter((activity) => !originalIds.has(activity.id));
+    if (newActivities.length > selected.size) add(issues, "DAY_NUMBER", "updatedDay.activities", "新增活动数量不能超过被选活动数量");
+    if (new Set(day.activities.map((activity) => activity.id)).size !== day.activities.length) add(issues, "DAY_NUMBER", "updatedDay.activities", "活动ID不能重复");
+  }
 
   const lowEffort = ["lazy", "family"].includes(input.travelStyle) || input.priorities.includes("less_walking") || /轻松|少走|减少步行|孩子.*累|酒店附近/.test(request.instruction);
   const mainCount = day.activities.filter((activity) => mainTypes.has(activity.type)).length;

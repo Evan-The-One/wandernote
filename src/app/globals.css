@@ -30,3 +30,12 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+@keyframes travel-dot-cycle {
+  0%, 28% { fill: #ffd45a; filter: drop-shadow(0 0 5px rgba(255,212,90,.55)); transform: scale(1.16); }
+  34%, 100% { fill: #dce9e1; filter: none; transform: scale(1); }
+}
+.travel-dot { fill:#dce9e1; stroke:#245b46; stroke-width:1; transform-box:fill-box; transform-origin:center; animation:travel-dot-cycle 6s ease-in-out infinite; }
+.travel-dot-2 { animation-delay:2s; }
+.travel-dot-3 { animation-delay:4s; }
+@keyframes dash { to { stroke-dashoffset:-32; } }
+@media (prefers-reduced-motion: reduce) { .travel-dot { animation:none; } .travel-dot-1 { fill:#ffd45a; } }
