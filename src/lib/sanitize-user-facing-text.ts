@@ -2,6 +2,8 @@ const legacyLazy = `\u61d2\u4eba`;
 
 export function sanitizeUserFacingText(value: string) {
   return value
+    .replaceAll("上不封顶", "暂不限制")
+    .replaceAll("不设上限", "暂不限制")
     .replaceAll(`${legacyLazy}旅行`, "轻松玩")
     .replaceAll(`${legacyLazy}模式`, "轻松节奏")
     .replaceAll(`${legacyLazy}节奏`, "轻松节奏")
