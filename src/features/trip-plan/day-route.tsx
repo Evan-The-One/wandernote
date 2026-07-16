@@ -43,52 +43,45 @@ export function summarizeDayRoute(day: DayPlan) {
 export function DayRoute({ day }: { day: Pick<DayPlan, "dayNumber" | "activities"> }) {
   const nodes = routeNodes(day);
   if (nodes.length < 2) return null;
+  const viewBoxHeight = 46;
+  const points = nodes.map((_, index) => ({
+    x: 10 + (index * 80) / (nodes.length - 1),
+    y: index % 2 === 0 ? 13 : 33,
+  }));
+  const segments = points.slice(1).map((point, index) => {
+    const previous = points[index];
+    const horizontalControl = (point.x - previous.x) * 0.38;
+    return `M ${previous.x} ${previous.y} C ${previous.x + horizontalControl} ${previous.y}, ${point.x - horizontalControl} ${point.y}, ${point.x} ${point.y}`;
+  });
 
   return (
     <section
-      className="mb-5 overflow-x-auto rounded-2xl bg-[#eef4ef] px-3 py-3"
+      className="mb-5 w-full bg-transparent py-2"
       aria-label={`第${day.dayNumber}天主要地点路线顺序`}
     >
-      <div className="flex min-w-max items-start px-1 py-1">
+      <div className="relative mx-auto aspect-[100/46] w-full max-w-[390px]">
+        <svg aria-hidden="true" viewBox={`0 0 100 ${viewBoxHeight}`} className="absolute inset-0 h-full w-full overflow-visible text-[#8daf9a]">
+          {segments.map((segment, index) => (
+            <path key={index} d={segment} fill="none" stroke="currentColor" strokeWidth="0.72" strokeDasharray="1.8 2.2" strokeLinecap="round" />
+          ))}
+          {points.map((point, index) => (
+            <circle key={nodes[index].id} cx={point.x} cy={point.y} r="1.65" fill="white" stroke="#6e9b82" strokeWidth="0.72" />
+          ))}
+        </svg>
         {nodes.map((node, index) => {
-          const lower = index % 2 === 1;
-          const nextLower = (index + 1) % 2 === 1;
-          const startY = lower ? 15 : 5;
-          const endY = nextLower ? 15 : 5;
+          const point = points[index];
+          const upper = index % 2 === 0;
           return (
-            <div key={node.id} className="flex items-start">
-              <button
-                type="button"
-                onClick={() =>
-                  document
-                    .getElementById(`activity-${day.dayNumber}-${node.id}`)
-                    ?.scrollIntoView({ behavior: "smooth", block: "center" })
-                }
-                className={`group w-20 text-center sm:w-24 ${lower ? "pt-5" : "pt-1"}`}
-              >
-                <span className="mx-auto block h-3 w-3 rounded-full border-2 border-[#6e9b82] bg-white transition group-hover:bg-[#ffd45a] motion-reduce:transition-none" />
-                <strong className="mt-2 block max-w-24 text-xs leading-4">
-                  {node.name}
-                </strong>
-              </button>
-              {index < nodes.length - 1 && (
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 72 24"
-                  className="mt-1 h-6 w-10 shrink-0 text-[#7fa18d] sm:w-14"
-                >
-                  <path
-                    d={`M1 ${startY} C20 ${startY}, 52 ${endY}, 71 ${endY}`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 4"
-                    strokeLinecap="round"
-                    className="motion-safe:animate-[dash_7s_linear_infinite]"
-                  />
-                </svg>
-              )}
-            </div>
+            <button
+              key={node.id}
+              type="button"
+              aria-label={`查看${node.name}行程`}
+              onClick={() => document.getElementById(`activity-${day.dayNumber}-${node.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+              style={{ left: `${point.x}%`, top: `${(point.y / viewBoxHeight) * 100}%` }}
+              className={`focus-ring absolute z-10 w-[58px] -translate-x-1/2 text-center text-xs font-semibold leading-4 hover:text-[#245b46] sm:w-[72px] ${upper ? "-translate-y-[calc(100%+10px)]" : "translate-y-[10px]"}`}
+            >
+              <span className="line-clamp-2 block">{node.name}</span>
+            </button>
           );
         })}
       </div>

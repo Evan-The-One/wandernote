@@ -81,7 +81,17 @@ export function TripForm() {
     } catch { /* ignore invalid legacy cache */ }
   }); }, []);
 
-  useEffect(()=>{const pending=sessionStorage.getItem("yijianchufa:pending-home-action");if(pending)sessionStorage.removeItem("yijianchufa:pending-home-action");const action=pending||new URLSearchParams(location.search).get("homeAction");queueMicrotask(()=>{if(action==="clear-trip-input")setClearConfirm(true);if(action==="choose-destination"){setInspirationsExpanded(true);setRecommenderRequest(value=>value+1)}})},[]);
+  useEffect(()=>{
+    const clear=()=>setClearConfirm(true);
+    const choose=()=>{setInspirationsExpanded(true);setRecommenderRequest(value=>value+1)};
+    const pending=sessionStorage.getItem("yijianchufa:pending-home-action");
+    if(pending)sessionStorage.removeItem("yijianchufa:pending-home-action");
+    const action=pending||new URLSearchParams(location.search).get("homeAction");
+    queueMicrotask(()=>{if(action==="clear-trip-input")clear();if(action==="choose-destination")choose()});
+    window.addEventListener("clear-trip-input",clear);
+    window.addEventListener("choose-destination",choose);
+    return()=>{window.removeEventListener("clear-trip-input",clear);window.removeEventListener("choose-destination",choose)};
+  },[]);
 
   function clearForm(){setDestination("");setDays(3);setCustomDaysOpen(false);setStyle("slow");setDateType("undecided");setStartDate("");setApproximateText("");setBudgetMode("unrestricted");setBudgetAmount(3000);setBudgetScope("total");setIncludesAccommodation(true);setIncludesIntercity(false);setPriorities([]);setDepartureCity("");setCompanionType("solo");setAdults(1);setChildren(0);setSeniors(0);setExtendedFamily({adults:2,children:0,seniors:0});setWakeTime("");setDepartureTime("");setTransport("mixed");setDayTrip(false);setRequirements("");setInspirationsExpanded(false);setError("");localStorage.removeItem(INPUT_KEY);localStorage.removeItem(LEGACY_INPUT_KEY);const details=document.getElementById("trip-extras") as HTMLDetailsElement|null;if(details)details.open=false;setClearConfirm(false);setToast("已清空当前选择");setTimeout(()=>setToast(""),1800);document.getElementById("trip-destination")?.focus();}
 
