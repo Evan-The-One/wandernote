@@ -5,6 +5,7 @@ import { validateDayRevisionQuality } from "../src/server/validation/day-revisio
 import { sanitizeUserFacingData } from "../src/lib/sanitize-user-facing-text";
 import { identifyDestination } from "../src/features/trip-input/destination-config";
 import { formatActivityCount } from "../src/features/trip-plan/display-formatters";
+import { estimateIntercityTransport } from "../src/features/trip-plan/intercity-transport";
 
 const baseInput = tripInputSchema.parse({ schemaVersion: "0.2", destination: { city: "杭州", country: "中国" }, days: 1, travelStyle: "fast_paced", datePreference: { type: "undecided", startDate: null, approximateText: null }, budget: { mode: "unrestricted", amount: null, scope: null, includesAccommodation: null, includesIntercityTransport: null, currency: "CNY" }, priorities: ["great_food", "culture"], departureCity: null, travelers: { adults: 1, children: 0 }, transportPreference: "mixed", dayTripPreference: false, additionalRequirements: null });
 assert.equal(baseInput.companionType, "undecided"); assert.equal(baseInput.travelers.seniors, 0); assert.equal(baseInput.preferredDepartureTime, null);
@@ -31,4 +32,9 @@ for(const province of ["云南","云南省","广东","四川","广西","新疆"]
 assert.equal(identifyDestination("杭州").type,"city");
 assert.equal(formatActivityCount(2,2),"约 2 个");
 assert.equal(formatActivityCount(3,4),"约 3–4 个");
+for(const days of [5,6,7]) assert.equal(tripInputSchema.safeParse({...baseInput,days}).success,true);
+assert.equal(tripInputSchema.safeParse({...baseInput,days:8}).success,false);
+const shanghaiHangzhou=estimateIntercityTransport({...baseInput,departureCity:"上海"});
+assert.equal(shanghaiHangzhou?.duration,"约1～1.5小时");
+assert.equal(estimateIntercityTransport({...baseInput,departureCity:null}),null);
 console.log("Core upgrade contract tests passed (migration defaults, time rules, fast-paced density and exceptions).");

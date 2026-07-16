@@ -13,6 +13,7 @@ import {
 import { DayImageExport } from "./day-image-export";
 import { DayRoute, summarizeDayRoute } from "./day-route";
 import { trackEvent } from "@/features/analytics/client";
+import { IntercitySummary } from "./intercity-summary";
 
 const method = {
   walk: "步行",
@@ -211,6 +212,7 @@ export function TripPlanView({
         </div>
       )}
       <div className="page-shell mt-8 space-y-6">
+        <IntercitySummary input={input}/>
         {plan.days.map((day) => (
           <article
             key={day.dayNumber}

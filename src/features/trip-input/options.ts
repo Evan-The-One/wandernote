@@ -25,9 +25,7 @@ export const detailPreferenceOptions: { value: TripInput["detailPreferences"][nu
 
 export const budgetModes: { value: TripInput["budget"]["mode"]; label: string; description: string }[] = [
   { value: "unrestricted", label: "暂不限制", description: "先按体验规划" },
-  { value: "moderate", label: "适中消费", description: "舒适与价格平衡" },
   { value: "economy", label: "尽量省钱", description: "优先性价比" },
-  { value: "comfortable", label: "上不封顶", description: "减少折腾，体验更好" },
   { value: "custom", label: "自定义金额", description: "明确预算口径" },
 ];
 

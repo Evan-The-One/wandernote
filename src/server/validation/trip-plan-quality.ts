@@ -120,7 +120,8 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
     if (input.travelStyle === "slow" && mainCount > 4) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "慢慢逛每天最多4个主要活动", 4, mainCount));
     if (["lazy", "family"].includes(input.travelStyle) && mainCount > 3) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "轻松玩和历史亲子模式每天最多3个主要活动", 3, mainCount));
     const transferDay=/转场|抵达|返程|入住/.test(`${day.title}${day.theme}${day.dayTips.join(" ")}`);
-    if (input.travelStyle === "fast_paced" && !fastPacedException && !transferDay && mainCount < 4) issues.push(issue("MAIN_ACTIVITY_MINIMUM", `${dayPath}.activities`, "特种兵普通完整游玩日不能只有两三个主要活动", 4, mainCount));
+    const boundaryTravelDay=Boolean(input.departureCity)&&(index===0||index===plan.days.length-1);
+    if (input.travelStyle === "fast_paced" && !fastPacedException && !transferDay && !boundaryTravelDay && mainCount < 4) issues.push(issue("MAIN_ACTIVITY_MINIMUM", `${dayPath}.activities`, "特种兵普通完整游玩日不能只有两三个主要活动", 4, mainCount));
     if (input.travelStyle === "fast_paced" && mainCount > 6) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "特种兵也不能为了凑数量安排超过6个主要活动", 6, mainCount));
     if (lowEffortRequested && mainCount > 3) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "用户明确要求轻松或少走路时每天最多3个主要活动", 3, mainCount));
     if (lowEffortRequested && day.estimatedWalkingKm > 6) issues.push(issue("WALKING_LIMIT", `${dayPath}.estimatedWalkingKm`, "用户明确要求轻松或少走路时每日步行不得超过6公里", 6, day.estimatedWalkingKm));

@@ -21,7 +21,7 @@ export const datePreferenceSchema = z.object({
 
 export const budgetPreferenceSchema = z.object({
   mode: z.enum(["unrestricted", "economy", "moderate", "comfortable", "custom"]),
-  amount: z.number().positive().nullable(),
+  amount: z.number().positive().max(1_000_000).nullable(),
   scope: z.enum(["total", "per_person"]).nullable(),
   includesAccommodation: z.boolean().nullable(),
   includesIntercityTransport: z.boolean().nullable(),

@@ -1,7 +1,7 @@
 const displayLabels: Record<string, string> = {
   late_start: "晚起下午逛", "late start": "晚起下午逛",
   fast_paced: "特种兵", slow: "慢慢逛", lazy: "轻松玩", food: "美食探索", romantic: "情侣旅行", family: "亲子旅行",
-  economy: "尽量省钱", moderate: "适中消费", comfortable: "上不封顶", unrestricted: "暂不限制", custom: "自定义金额",
+  economy: "尽量省钱", moderate: "暂不限制", comfortable: "暂不限制", unrestricted: "暂不限制", custom: "自定义金额",
   mixed: "组合交通", public_transport: "公共交通", taxi: "打车", walk: "步行", walking: "步行", driving: "自驾",
   easy: "轻松", intense: "充实",
   great_food: "吃点好的", photogenic: "拍照出片", less_walking: "少走路", avoid_crowds: "减少排队", hidden_gems: "小众安静",
