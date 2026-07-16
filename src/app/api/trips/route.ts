@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     const guard=await databaseStage(()=>assertAiRequestAllowed(request,visitorId,"full_generation"));
     created = await databaseStage(() => createTripAndJob(visitorId, input.data));
     await databaseStage(()=>recordIdempotency(visitorId,created!.tripId,keyHash));
-    const plan = await generateTripPlan(input.data, Math.round(performance.now() - processingStartedAt),usage=>recordAiUsage(visitorId,created!.tripId,usage),!guard.softBudgetReached);
+    const plan = await generateTripPlan(input.data, Math.round(performance.now() - processingStartedAt),usage=>recordAiUsage(visitorId,created!.tripId,created!.jobId,usage),!guard.softBudgetReached);
     const persistedPlan = { ...plan, tripId: created.tripId, status: "completed" as const, updatedAt: new Date().toISOString() };
     await databaseStage(() => completeTrip(created!.tripId, created!.jobId, persistedPlan, Math.round(performance.now() - startedAt)));
     return Response.json({ tripId: created.tripId }, { status: 201 });

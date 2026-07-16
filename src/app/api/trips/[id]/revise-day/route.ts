@@ -41,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     jobId = await createRevisionJob(visitor.visitorId, id);
     const aiRequest = { schemaVersion: "0.2" as const, originalInput: trip.input, strategy: trip.plan.strategy, budget: trip.plan.budget, targetDayNumber: currentDay.dayNumber, currentDay, previousDay: adjacent(trip.plan.days[index - 1]), nextDay: adjacent(trip.plan.days[index + 1]), otherDaysCostTotal: trip.input.budget.mode === "custom" ? trip.plan.days.reduce((sum, day) => day.dayNumber === currentDay.dayNumber ? sum : sum + (day.estimatedCost ?? 0), 0) : null, instruction: body.data.instruction, mode: body.data.mode, selectedActivityIds: selectedIds };
-    const result = await reviseDay(aiRequest,usage=>recordAiUsage(visitor.visitorId,id,usage),!guard.softBudgetReached);
+    const result = await reviseDay(aiRequest,usage=>recordAiUsage(visitor.visitorId,id,jobId!,usage),!guard.softBudgetReached);
     const updatedPlan = replaceDayAndBudget(trip.plan, result.updatedDay);
     await saveRevision({ tripId: id, visitorId: visitor.visitorId, expectedVersion: body.data.version, instruction: body.data.instruction, previousDay: currentDay, updatedDay: result.updatedDay, summary: result.changeSummary, updatedPlan, jobId, durationMs: Math.round(performance.now() - startedAt) });
     await recordAnalyticsEvent({visitorId:visitor.visitorId,tripId:id,eventName:body.data.mode==="full_day"?"day_revision_completed":"partial_revision_completed",status:"completed",metadata:{}}).catch(()=>undefined);

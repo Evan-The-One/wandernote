@@ -55,11 +55,11 @@ export async function assertRevisionModeLimit(visitorId: string, mode: "full_day
     : "今天的局部调整次数已经用完了，明天还可以继续修改。", "DAILY_LIMIT_REACHED");
 }
 
-export async function recordAiUsage(visitorId: string, tripId: string | null, usage: AiUsage, success = true) {
+export async function recordAiUsage(visitorId: string, tripId: string | null, generationJobId:string, usage: AiUsage, success = true) {
   await recordAnalyticsEvent({ visitorId, tripId, eventName: "ai_usage", status: success ? "completed" : "failed", durationMs: usage.durationMs, metadata: {
     requestType: usage.requestType, model: usage.model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens,
     cachedInputTokens: usage.cachedInputTokens, reasoningTokens: usage.reasoningTokens, estimatedCostUsd: Number(usage.estimatedCostUsd.toFixed(6)),
-    repairAttempt: usage.repairAttempt,
+    repairAttempt: usage.repairAttempt, generationJobId, actualCostUsd:null,
   }}).catch(() => undefined);
 }
 
