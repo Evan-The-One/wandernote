@@ -1,14 +1,15 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { budgetModes, companionOptions, priorityOptions, transportOptions, travelStyles } from "./options";
+import { budgetModes, companionOptions, detailPreferenceOptions, priorityOptions, transportOptions, travelStyles } from "./options";
 import { travelInspirations } from "./inspirations";
 import { tripInputSchema } from "@/schemas/trip";
 import type { TripInput } from "@/types/trip";
 import { migrateTripInput } from "@/schemas/migration";
 import { DestinationRecommender } from "./destination-recommender";
 import { trackEvent } from "@/features/analytics/client";
+import { identifyDestination, nearbyCityOptions, randomDestinationCities } from "./destination-config";
 
 const LEGACY_INPUT_KEY = "wandernote:demo-input";
 const INPUT_KEY = "yijianchufa:trip-input";
@@ -34,8 +35,10 @@ function ChoiceIcon({ name }: { name: string }) {
 
 export function TripForm() {
   const router = useRouter();
+  const destinationRef = useRef<HTMLInputElement>(null);
   const minDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [destination, setDestination] = useState("");
+  const [destinationSelection,setDestinationSelection]=useState<TripInput["destination"]|null>(null);
   const [days, setDays] = useState(3);
   const [customDaysOpen, setCustomDaysOpen] = useState(false);
   const [style, setStyle] = useState<TripInput["travelStyle"]>("slow");
@@ -48,8 +51,10 @@ export function TripForm() {
   const [includesAccommodation, setIncludesAccommodation] = useState(true);
   const [includesIntercity, setIncludesIntercity] = useState(false);
   const [priorities, setPriorities] = useState<TripInput["priorities"]>([]);
+  const [detailPreferences, setDetailPreferences] = useState<TripInput["detailPreferences"]>([]);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [departureCity, setDepartureCity] = useState("");
-  const [companionType, setCompanionType] = useState<TripInput["companionType"]>("solo");
+  const [companionType, setCompanionType] = useState<TripInput["companionType"]>("undecided");
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   const [seniors, setSeniors] = useState(0);
@@ -65,17 +70,19 @@ export function TripForm() {
   const [clearConfirm,setClearConfirm]=useState(false);
   const [toast,setToast]=useState("");
   const [recommenderRequest,setRecommenderRequest]=useState(0);
+  const [provinceConfirm,setProvinceConfirm]=useState<ReturnType<typeof identifyDestination>|null>(null);
+  const [longCityConfirm,setLongCityConfirm]=useState<{city:string;nearby:string}|null>(null);
 
   useEffect(() => { queueMicrotask(() => {
     try {
       const stored = migrateTripInput(JSON.parse(localStorage.getItem(INPUT_KEY) || localStorage.getItem(LEGACY_INPUT_KEY) || "null"));
       if (!stored) return;
-      setDestination(stored.destination.city); setDays(stored.days); setCustomDaysOpen(stored.days > 3); setStyle(stored.travelStyle);
+      setDestination(stored.destination.city); setDestinationSelection(stored.destination); setDays(stored.days); setCustomDaysOpen(stored.days > 3); setStyle(stored.travelStyle);
       setDateType(stored.datePreference.type); setStartDate(stored.datePreference.startDate || ""); setApproximateText(stored.datePreference.approximateText || "");
       setBudgetMode(stored.budget.mode); if (stored.budget.amount) setBudgetAmount(stored.budget.amount); if (stored.budget.scope) setBudgetScope(stored.budget.scope);
       if (stored.budget.includesAccommodation !== null) setIncludesAccommodation(stored.budget.includesAccommodation);
       if (stored.budget.includesIntercityTransport !== null) setIncludesIntercity(stored.budget.includesIntercityTransport);
-      setPriorities(stored.priorities); setDepartureCity(stored.departureCity || ""); setCompanionType(stored.companionType); setAdults(stored.travelers.adults); setChildren(stored.travelers.children); setSeniors(stored.travelers.seniors); if (stored.companionType === "extended_family") setExtendedFamily(stored.travelers);
+      setPriorities(stored.priorities.slice(0,2)); setDetailPreferences(stored.detailPreferences); setDepartureCity(stored.departureCity || ""); setCompanionType(stored.companionType); setAdults(stored.travelers.adults); setChildren(stored.travelers.children); setSeniors(stored.travelers.seniors); if (stored.companionType === "other") setExtendedFamily(stored.travelers);
       setWakeTime(stored.preferredWakeTime || ""); setDepartureTime(stored.preferredDepartureTime || "");
       setTransport(stored.transportPreference); setDayTrip(stored.dayTripPreference); setRequirements(stored.additionalRequirements || "");
     } catch { /* ignore invalid legacy cache */ }
@@ -84,39 +91,46 @@ export function TripForm() {
   useEffect(()=>{
     const clear=()=>setClearConfirm(true);
     const choose=()=>{setInspirationsExpanded(true);setRecommenderRequest(value=>value+1)};
+    const returnToPlan=()=>{document.getElementById("plan")?.scrollIntoView({behavior:"smooth"});setTimeout(()=>destinationRef.current?.focus({preventScroll:true}),450)};
     const pending=sessionStorage.getItem("yijianchufa:pending-home-action");
     if(pending)sessionStorage.removeItem("yijianchufa:pending-home-action");
     const action=pending||new URLSearchParams(location.search).get("homeAction");
-    queueMicrotask(()=>{if(action==="clear-trip-input")clear();if(action==="choose-destination")choose()});
+    queueMicrotask(()=>{if(action==="clear-trip-input")clear();if(action==="choose-destination")choose();if(action==="return-to-plan")returnToPlan()});
     window.addEventListener("clear-trip-input",clear);
     window.addEventListener("choose-destination",choose);
-    return()=>{window.removeEventListener("clear-trip-input",clear);window.removeEventListener("choose-destination",choose)};
+    window.addEventListener("return-to-plan",returnToPlan);
+    return()=>{window.removeEventListener("clear-trip-input",clear);window.removeEventListener("choose-destination",choose);window.removeEventListener("return-to-plan",returnToPlan)};
   },[]);
 
-  function clearForm(){setDestination("");setDays(3);setCustomDaysOpen(false);setStyle("slow");setDateType("undecided");setStartDate("");setApproximateText("");setBudgetMode("unrestricted");setBudgetAmount(3000);setBudgetScope("total");setIncludesAccommodation(true);setIncludesIntercity(false);setPriorities([]);setDepartureCity("");setCompanionType("solo");setAdults(1);setChildren(0);setSeniors(0);setExtendedFamily({adults:2,children:0,seniors:0});setWakeTime("");setDepartureTime("");setTransport("mixed");setDayTrip(false);setRequirements("");setInspirationsExpanded(false);setError("");localStorage.removeItem(INPUT_KEY);localStorage.removeItem(LEGACY_INPUT_KEY);const details=document.getElementById("trip-extras") as HTMLDetailsElement|null;if(details)details.open=false;setClearConfirm(false);setToast("已清空当前选择");setTimeout(()=>setToast(""),1800);document.getElementById("trip-destination")?.focus();}
+  function clearForm(){setDestination("");setDays(3);setCustomDaysOpen(false);setStyle("slow");setDateType("undecided");setStartDate("");setApproximateText("");setBudgetMode("unrestricted");setBudgetAmount(3000);setBudgetScope("total");setIncludesAccommodation(true);setIncludesIntercity(false);setPriorities([]);setDetailPreferences([]);setDepartureCity("");setCompanionType("undecided");setAdults(1);setChildren(0);setSeniors(0);setExtendedFamily({adults:2,children:0,seniors:0});setWakeTime("");setDepartureTime("");setTransport("mixed");setDayTrip(false);setRequirements("");setInspirationsExpanded(false);setError("");localStorage.removeItem(INPUT_KEY);localStorage.removeItem(LEGACY_INPUT_KEY);const details=document.getElementById("trip-extras") as HTMLDetailsElement|null;if(details)details.open=false;setClearConfirm(false);setToast("已清空当前选择");setTimeout(()=>setToast(""),1800);destinationRef.current?.focus();}
 
   function togglePriority(value: TripInput["priorities"][number]) {
     setError("");
     setPriorities((current) => current.includes(value) ? current.filter((item) => item !== value) : current.length < 2 ? [...current, value] : (setError("最多选择两个偏好，更多请在下方补充信息添加"), current));
   }
 
-  function selectCompanion(value: TripInput["companionType"]) {
-    if (companionType === "extended_family") setExtendedFamily({ adults, children, seniors });
-    setCompanionType(value);
-    const defaults = { solo: [1, 0, 0], friends: [2, 0, 0], couple: [2, 0, 0], parents: [1, 0, 2], with_children: [2, 1, 0], extended_family: [2, 0, 0] } as const;
-    const [nextAdults, nextChildren, nextSeniors] = value === "extended_family" ? [extendedFamily.adults, extendedFamily.children, extendedFamily.seniors] : defaults[value]; setAdults(nextAdults); setChildren(nextChildren); setSeniors(nextSeniors);
+  function toggleDetail(value: TripInput["detailPreferences"][number]) {
+    setError("");
+    setDetailPreferences((current)=>current.includes(value)?current.filter(item=>item!==value):current.length<3?[...current,value]:(setError("最多再选三个，其他要求可以写在补充说明里"),current));
   }
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
+  function selectCompanion(value: TripInput["companionType"]) {
+    if (companionType === "other") setExtendedFamily({ adults, children, seniors });
+    setCompanionType(value);
+    const defaults: Partial<Record<TripInput["companionType"],readonly [number,number,number]>> = { undecided:[1,0,0], solo:[1,0,0], friends:[2,0,0], partner:[2,0,0], with_children:[2,1,0] };
+    const [nextAdults, nextChildren, nextSeniors] = value === "other" ? [extendedFamily.adults, extendedFamily.children, extendedFamily.seniors] : defaults[value] || [adults,children,seniors]; setAdults(nextAdults); setChildren(nextChildren); setSeniors(nextSeniors);
+  }
+
+  function startGeneration(destinationOverride?: TripInput["destination"]) {
     if (submitting) return;
+    const identified=identifyDestination(destination);
     const customBudget = budgetMode === "custom";
     const input = {
       schemaVersion: "0.2",
-      destination: { city: destination, country: "中国" }, days, travelStyle: style,
+      destination: destinationOverride || { city: identified.normalizedName, country: "中国", type: identified.type, scope: "single_city", provinceName: identified.provinceName }, days, travelStyle: style,
       datePreference: { type: dateType, startDate: dateType === "exact" ? startDate || null : null, approximateText: dateType === "approximate" ? approximateText || null : null },
       budget: { mode: budgetMode, amount: customBudget ? budgetAmount : null, scope: customBudget ? budgetScope : null, includesAccommodation: customBudget ? includesAccommodation : null, includesIntercityTransport: customBudget ? includesIntercity : null, currency: "CNY" },
-      priorities, departureCity: departureCity || null, companionType, travelers: { adults, children, seniors }, preferredWakeTime: wakeTime || null, preferredDepartureTime: departureTime || null, transportPreference: transport,
+      priorities, detailPreferences, departureCity: departureCity || null, companionType, travelers: { adults, children, seniors }, preferredWakeTime: wakeTime || null, preferredDepartureTime: departureTime || null, transportPreference: transport,
       dayTripPreference: dayTrip, additionalRequirements: requirements || null,
     } satisfies TripInput;
     const result = tripInputSchema.safeParse(input);
@@ -130,20 +144,29 @@ export function TripForm() {
     window.setTimeout(() => router.push("/generating"), 80);
   }
 
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    const identified=identifyDestination(destination);
+    if(destinationSelection&&destinationSelection.city===destination){startGeneration(destinationSelection);return;}
+    if(identified.type==="province"){setProvinceConfirm(identified);return;}
+    if(days>=6&&nearbyCityOptions[identified.normalizedName]){setLongCityConfirm({city:identified.normalizedName,nearby:nearbyCityOptions[identified.normalizedName]});return;}
+    startGeneration();
+  }
+
   return <form onSubmit={submit} className="space-y-6">
     <section className="card rounded-[2rem] p-5 sm:p-8">
-      <label className={`block ${coreQuestionClass}`}>你想去哪里？ <span className="text-[#c55e3d]">*</span><input id="trip-destination" required value={destination} onChange={(event) => setDestination(event.target.value)} className={`${inputClass} font-normal tracking-normal`} placeholder="例如：杭州" /></label>
+      <label className={`block ${coreQuestionClass}`}>你想去哪里？ <span className="text-[#c55e3d]">*</span><span className="mt-2 flex items-center gap-2"><input ref={destinationRef} id="trip-destination" required value={destination} onChange={(event) => setDestination(event.target.value)} className={`${inputClass} mt-0 min-w-0 flex-1 font-normal tracking-normal`} placeholder="例如：杭州" /><button type="button" onClick={()=>{const candidates=randomDestinationCities.filter(city=>city!==destination);const city=candidates[Math.floor(Math.random()*candidates.length)]||randomDestinationCities[0];setDestination(city);setToast(`为你随机到了：${city}`);setTimeout(()=>setToast(""),1800)}} className="focus-ring mt-0 min-h-12 shrink-0 rounded-2xl border border-[#245b46]/20 bg-white px-4 text-sm font-bold text-[#245b46]">随机</button></span></label>
       <div className="mt-4 rounded-2xl bg-[#f4f5f0] p-4"><p className="text-xs font-bold text-[#617068]">旅行灵感</p><div className="mt-3 space-y-3">{travelInspirations.slice(0,inspirationsExpanded?travelInspirations.length:2).map((group) => <div key={group.category} className="flex items-center gap-2 overflow-x-auto"><span className="w-20 shrink-0 text-xs text-[#7b847e]">{group.category}</span>{group.cities.map((city) => <button key={city} type="button" onClick={() => setDestination(city)} className="focus-ring shrink-0 rounded-full border border-black/8 bg-white px-3 py-1.5 text-sm font-semibold hover:border-[#245b46]/40">{city}</button>)}</div>)}</div><button id="trip-inspiration-expand" type="button" aria-expanded={inspirationsExpanded} onClick={()=>setInspirationsExpanded(value=>!value)} className="mt-3 text-sm font-bold text-[#245b46]">{inspirationsExpanded?"收起更多灵感":"展开更多灵感"}</button><div className={inspirationsExpanded?"":"hidden"}><DestinationRecommender openRequest={recommenderRequest} days={days} departureCity={departureCity} onDepartureCity={setDepartureCity} onChoose={setDestination} /></div></div>
 
       <div className="mt-8"><p className={coreQuestionClass}>准备玩几天？ <span className="text-[#c55e3d]">*</span></p><div className="mt-3 grid grid-cols-4 gap-1.5 sm:gap-2">{[1, 2, 3].map((value) => <button key={value} type="button" aria-pressed={!customDaysOpen && days === value} onClick={() => { setDays(value); setCustomDaysOpen(false); }} className={`focus-ring min-w-0 rounded-xl border px-1 py-3 font-bold transition ${!customDaysOpen && days === value ? selectedCard : plainCard}`}>{value}天</button>)}<button type="button" aria-pressed={customDaysOpen} onClick={() => { setCustomDaysOpen(true); if (days <= 3) setDays(4); }} className={`focus-ring min-w-0 rounded-xl border px-1 py-3 font-bold transition ${customDaysOpen ? selectedCard : plainCard}`}>{customDaysOpen ? `${days}天` : "自定义"}</button></div>{customDaysOpen && <label className="mt-3 block text-sm font-semibold">自定义天数（1～7天）<input type="number" inputMode="numeric" min="1" max="7" value={days} onChange={(event) => setDays(Math.min(7, Math.max(1, Number(event.target.value) || 1)))} className={`${inputClass} max-w-40`} /></label>}</div>
 
-      <div className="mt-8"><p className={coreQuestionClass}>第三步，选一种喜欢的玩法 <span className="text-[#c55e3d]">*</span></p><div className="mt-4 space-y-6"><section><h3 className="font-bold">想怎么玩？</h3><p className="mt-1 text-xs text-[#707a74]">选择整体旅行节奏</p><div className="mt-3 grid gap-2 sm:grid-cols-3">{travelStyles.map((item) => <button key={item.value} type="button" aria-pressed={style === item.value} onClick={() => setStyle(item.value)} className={`focus-ring rounded-2xl border p-3 text-left transition ${style === item.value ? selectedCard : plainCard}`}><span className="inline-flex text-[#b98638]"><ChoiceIcon name={item.icon} /></span><span className="ml-2 font-bold">{item.label}</span><p className="mt-2 text-xs leading-5 text-[#707a74]">{item.description}</p></button>)}</div></section><section className="border-t border-black/5 pt-6"><div className="flex items-end justify-between"><div><h3 className="font-bold">这次更想要什么？</h3><p className="mt-1 text-xs text-[#707a74]">最多选2项，也可以不选</p></div><span className="text-sm font-bold text-[#245b46]">{priorities.length}/2</span></div><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{priorityOptions.map((item) => <button key={item.value} type="button" aria-pressed={priorities.includes(item.value)} onClick={() => togglePriority(item.value)} className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold ${priorities.includes(item.value) ? selectedCard : plainCard}`}><span className="mr-2 inline-flex align-[-5px] text-[#b98638]"><ChoiceIcon name={item.icon} /></span>{item.label}</button>)}</div></section></div></div>
+      <div className="mt-8"><p className={coreQuestionClass}>选一种喜欢的玩法 <span className="text-[#c55e3d]">*</span></p><div className="mt-4 space-y-6"><section><h3 className="font-bold">想怎么玩？</h3><p className="mt-1 text-xs text-[#707a74]">选择整体旅行节奏</p><div className="mt-3 grid gap-2 sm:grid-cols-3">{travelStyles.map((item) => <button key={item.value} type="button" aria-pressed={style === item.value} onClick={() => setStyle(item.value)} className={`focus-ring rounded-2xl border p-3 text-left transition ${style === item.value ? selectedCard : plainCard}`}><span className="inline-flex text-[#b98638]"><ChoiceIcon name={item.icon} /></span><span className="ml-2 font-bold">{item.label}</span><p className="mt-2 text-xs leading-5 text-[#707a74]">{item.description}</p></button>)}</div></section><section className="border-t border-black/5 pt-6"><div className="flex items-end justify-between"><div><h3 className="font-bold">这次更想要什么？</h3><p className="mt-1 text-xs text-[#707a74]">最多选2项，也可以不选</p></div><span className="text-sm font-bold text-[#245b46]">{priorities.length}/2</span></div><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{priorityOptions.map((item) => <button key={item.value} type="button" aria-pressed={priorities.includes(item.value)} onClick={() => togglePriority(item.value)} className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold ${priorities.includes(item.value) ? selectedCard : plainCard}`}><span className="mr-2 inline-flex align-[-5px] text-[#b98638]"><ChoiceIcon name={item.icon} /></span>{item.label}</button>)}</div></section><section className="border-t border-black/5 pt-6"><button type="button" aria-expanded={detailOpen} onClick={()=>setDetailOpen(value=>!value)} className="flex w-full items-center justify-between text-left"><span><strong>再加一些偏好（选填）</strong><small className="mt-1 block text-xs text-[#707a74]">咖啡、购物、少排队等</small></span><svg aria-hidden="true" viewBox="0 0 20 20" className={`h-5 w-5 transition ${detailOpen?"rotate-180":""}`} fill="none"><path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.7"/></svg></button>{detailOpen&&<div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{detailPreferenceOptions.map(item=><button key={item.value} type="button" aria-pressed={detailPreferences.includes(item.value)} onClick={()=>toggleDetail(item.value)} className={`min-h-11 rounded-xl border px-2 py-2 text-sm font-semibold ${detailPreferences.includes(item.value)?selectedCard:plainCard}`}>{item.label}</button>)}</div>}</section></div></div>
     </section>
 
     <details id="trip-extras" className="card group rounded-[2rem] p-3 sm:p-4">
       <summary className="focus-ring flex min-h-20 cursor-pointer list-none items-center justify-between gap-4 rounded-2xl border border-[#245b46]/12 bg-[#f4f7f2] px-4 py-3 shadow-sm transition hover:border-[#245b46]/25"><div><h2 className="text-lg font-bold group-open:hidden">补充更多需求，让攻略更懂你</h2><h2 className="hidden text-lg font-bold group-open:block">收起补充需求</h2><p className="mt-1 text-sm text-[#707a74]">日期、人数、预算等均可选填</p></div><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-6 w-6 shrink-0 text-[#245b46] transition-transform duration-200 group-open:rotate-180"><path d="m7 9 5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></summary>
       <div className="mt-8 space-y-9 border-t border-black/5 pt-8">
-        <section><h3 className="font-bold">和谁一起？</h3><p className="mt-1 text-sm text-[#707a74]">选填，帮助我们调整节奏与便利性</p><div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">{companionOptions.map((item) => <button key={item.value} type="button" aria-pressed={companionType === item.value} onClick={() => selectCompanion(item.value)} className={`min-h-11 rounded-xl border px-1.5 py-2 text-sm font-semibold ${companionType === item.value ? selectedCard : plainCard}`}>{item.label}</button>)}</div><div className={`mt-4 grid gap-3 ${companionType === "extended_family" ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2"}`}><NumberStepper label="成人" value={adults} min={1} max={8} onChange={setAdults} /><NumberStepper label="儿童" value={children} min={0} max={7} onChange={setChildren} />{companionType === "extended_family" && <NumberStepper label="老人" value={seniors} min={0} max={7} onChange={setSeniors} />}</div></section>
+        <section><h3 className="font-bold">和谁一起？</h3><p className="mt-1 text-sm text-[#707a74]">选填，帮助我们调整节奏与便利性</p><div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">{companionOptions.map((item) => <button key={item.value} type="button" aria-pressed={companionType === item.value} onClick={() => selectCompanion(item.value)} className={`min-h-11 rounded-xl border px-1.5 py-2 text-sm font-semibold ${companionType === item.value ? selectedCard : plainCard}`}>{item.label}</button>)}</div>{companionType==="other"&&<div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3"><NumberStepper label="成人" value={adults} min={1} max={8} onChange={setAdults} /><NumberStepper label="儿童" value={children} min={0} max={7} onChange={setChildren} /><NumberStepper label="老人" value={seniors} min={0} max={7} onChange={setSeniors} /></div>}</section>
 
         <section><h3 className="font-bold">作息偏好</h3><p className="mt-1 text-sm text-[#707a74]">选填，具体时间会优先用于每天安排</p><div className="mt-3 grid grid-cols-2 gap-3"><label className="text-sm font-semibold">大概几点起床<select value={wakeTime} onChange={(event) => setWakeTime(event.target.value)} className={inputClass}><option value="">不限制</option>{Array.from({ length: 21 }, (_, index) => { const total = 360 + index * 30; const time = `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`; return <option key={time} value={time}>{time}</option>; })}</select></label><label className="text-sm font-semibold">希望几点出门<select value={departureTime} onChange={(event) => setDepartureTime(event.target.value)} className={inputClass}><option value="">不限制</option>{Array.from({ length: 21 }, (_, index) => { const total = 360 + index * 30; const time = `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`; return <option key={time} value={time}>{time}</option>; })}</select></label></div></section>
         <section><h3 className="font-bold">出行时间</h3><div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">{([['undecided','还没确定'],['approximate','大概时间'],['exact','已确定日期']] as const).map(([value,label]) => <button key={value} type="button" aria-pressed={dateType === value} onClick={() => setDateType(value)} className={`min-w-0 whitespace-nowrap rounded-xl border px-1.5 py-3 text-sm font-semibold sm:px-3 ${dateType === value ? selectedCard : plainCard}`}>{label}</button>)}</div>{dateType === "exact" && <label className="mt-4 block text-sm font-semibold">具体日期<input type="date" min={minDate} value={startDate} onChange={(event) => setStartDate(event.target.value)} className={inputClass} /></label>}{dateType === "approximate" && <label className="mt-4 block text-sm font-semibold">大概什么时候<input value={approximateText} onChange={(event) => setApproximateText(event.target.value)} className={inputClass} placeholder="例如：10月、秋天、国庆前后" /></label>}</section>
@@ -160,6 +183,8 @@ export function TripForm() {
     <div className="sticky bottom-3 z-10 rounded-[1.6rem] border border-black/5 bg-[#f7f8f3]/90 p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"><button type="submit" disabled={submitting} aria-live="polite" className="focus-ring flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#245b46] px-4 py-4 text-base font-bold text-white shadow-lg shadow-[#245b46]/15 transition active:scale-[.99] disabled:cursor-wait disabled:bg-[#3f7661] sm:px-8 sm:text-lg">{submitting && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />}{submitting ? "正在准备你的旅行……" : "一键生成我的定制旅行"}</button></div>
     <p className="text-center text-xs leading-5 text-[#778079]">AI规划不含实时天气、票价或营业数据，出发前请再次确认。</p>
     {toast&&<p role="status" className="text-right text-sm font-semibold text-[#245b46]">{toast}</p>}
+    {provinceConfirm&&<div className="fixed inset-0 z-[70] grid place-items-center bg-black/35 p-5" role="dialog" aria-modal="true" aria-labelledby="province-title"><div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl"><h2 id="province-title" className="text-xl font-bold">你填写的是“{provinceConfirm.normalizedName}”</h2><p className="mt-2 text-sm text-[#65706a]">想怎么玩这次旅行？</p><div className="mt-5 space-y-2"><button type="button" onClick={()=>{setProvinceConfirm(null);startGeneration({city:provinceConfirm.capital!,country:"中国",type:"province",scope:"province_capital",provinceName:provinceConfirm.provinceName})}} className={`w-full rounded-2xl border p-4 text-left ${days<=3?selectedCard:plainCard}`}><strong>只玩省会{provinceConfirm.capital}</strong><span className="mt-1 block text-sm text-[#65706a]">以{provinceConfirm.capital}为主要目的地生成行程</span></button><button type="button" onClick={()=>{setProvinceConfirm(null);startGeneration({city:provinceConfirm.normalizedName,country:"中国",type:"province",scope:"multi_city_region",provinceName:provinceConfirm.provinceName})}} className={`w-full rounded-2xl border p-4 text-left ${days>=4?selectedCard:plainCard}`}><strong>规划{provinceConfirm.normalizedName.replace(/省|自治区/u,"")}多地</strong><span className="mt-1 block text-sm text-[#65706a]">根据天数和节奏安排顺路落脚点</span></button><button type="button" onClick={()=>{setProvinceConfirm(null);setTimeout(()=>destinationRef.current?.focus(),0)}} className={`w-full rounded-2xl border p-4 text-left ${plainCard}`}><strong>返回填写具体城市</strong><span className="mt-1 block text-sm text-[#65706a]">保留原文字，填写大理、丽江等城市</span></button></div></div></div>}
+    {longCityConfirm&&<div className="fixed inset-0 z-[70] grid place-items-center bg-black/35 p-5" role="dialog" aria-modal="true"><div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"><h2 className="text-xl font-bold">这次有{days}天，要不要加入一个周边城市？</h2><p className="mt-2 text-sm text-[#65706a]">{longCityConfirm.city}也可以继续单城慢慢玩。</p><div className="mt-5 grid gap-2"><button type="button" onClick={()=>{setLongCityConfirm(null);startGeneration({city:longCityConfirm.city,country:"中国",type:"city",scope:"single_city",provinceName:null})}} className={`rounded-2xl border p-4 text-left ${plainCard}`}><strong>只玩当前城市</strong></button><button type="button" onClick={()=>{setLongCityConfirm(null);startGeneration({city:`${longCityConfirm.city}及${longCityConfirm.nearby}`,country:"中国",type:"region",scope:"multi_city_region",provinceName:null})}} className={`rounded-2xl border p-4 text-left ${selectedCard}`}><strong>加入周边城市</strong><span className="mt-1 block text-sm text-[#65706a]">优先考虑{longCityConfirm.nearby}，控制转场次数</span></button></div></div></div>}
     {clearConfirm&&<div className="fixed inset-0 z-[60] grid place-items-center bg-black/30 p-5" role="dialog" aria-modal="true"><div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl"><h2 className="text-xl font-bold">确定清空当前选择吗？</h2><p className="mt-2 text-sm text-[#65706a]">只清除首页草稿，不会删除已生成攻略。</p><div className="mt-6 flex justify-end gap-3"><button type="button" onClick={()=>setClearConfirm(false)} className="rounded-full border px-5 py-2.5 font-semibold">取消</button><button type="button" onClick={clearForm} className="rounded-full bg-[#a34838] px-5 py-2.5 font-semibold text-white">确认清空</button></div></div></div>}
   </form>;
 }

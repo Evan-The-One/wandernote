@@ -3,9 +3,11 @@ import { tripInputSchema, tripPlanSchema } from "../src/schemas/trip";
 import { validateTripPlanQuality } from "../src/server/validation/trip-plan-quality";
 import { validateDayRevisionQuality } from "../src/server/validation/day-revision-quality";
 import { sanitizeUserFacingData } from "../src/lib/sanitize-user-facing-text";
+import { identifyDestination } from "../src/features/trip-input/destination-config";
+import { formatActivityCount } from "../src/features/trip-plan/display-formatters";
 
 const baseInput = tripInputSchema.parse({ schemaVersion: "0.2", destination: { city: "杭州", country: "中国" }, days: 1, travelStyle: "fast_paced", datePreference: { type: "undecided", startDate: null, approximateText: null }, budget: { mode: "unrestricted", amount: null, scope: null, includesAccommodation: null, includesIntercityTransport: null, currency: "CNY" }, priorities: ["great_food", "culture"], departureCity: null, travelers: { adults: 1, children: 0 }, transportPreference: "mixed", dayTripPreference: false, additionalRequirements: null });
-assert.equal(baseInput.companionType, "solo"); assert.equal(baseInput.travelers.seniors, 0); assert.equal(baseInput.preferredDepartureTime, null);
+assert.equal(baseInput.companionType, "undecided"); assert.equal(baseInput.travelers.seniors, 0); assert.equal(baseInput.preferredDepartureTime, null);
 assert.equal(tripInputSchema.safeParse({ ...baseInput, preferredWakeTime: "10:00", preferredDepartureTime: "09:30" }).success, false);
 
 const activities = ["西湖断桥", "浙江省博物馆孤山馆区", "河坊街", "京杭大运河杭州段"].map((name, index) => ({ id: String(index), type: "attraction" as const, startTime: `${String(8 + index * 2).padStart(2,"0")}:00`, endTime: `${String(9 + index * 2).padStart(2,"0")}:30`, name, area: index < 2 ? "西湖" : "上城", reason: "明确可搜索地点", durationMinutes: 90, estimatedCost: null, transportToNext: index === 3 ? null : { method: "public_transport" as const, durationMinutes: 30, description: "公共交通前往" }, tips: [], photoTips: [] }));
@@ -25,4 +27,8 @@ assert.equal(validateDayRevisionQuality({targetDayNumber:1,updatedDay:tamperedDa
 const legacyLabel = `\u61d2\u4eba`;
 const sanitizedPlan = sanitizeUserFacingData({ title: `${legacyLabel}旅行`, summary: `适合${legacyLabel}的路线`, nested: [`${legacyLabel}模式`] });
 assert.equal(JSON.stringify(sanitizedPlan).includes(legacyLabel), false);
+for(const province of ["云南","云南省","广东","四川","广西","新疆"]) assert.equal(identifyDestination(province).type,"province");
+assert.equal(identifyDestination("杭州").type,"city");
+assert.equal(formatActivityCount(2,2),"约 2 个");
+assert.equal(formatActivityCount(3,4),"约 3–4 个");
 console.log("Core upgrade contract tests passed (migration defaults, time rules, fast-paced density and exceptions).");

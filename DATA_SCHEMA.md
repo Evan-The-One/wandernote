@@ -14,6 +14,8 @@
 
 ## TripInput
 
+兼容扩展：`destination.type`区分`city/province/region/attraction/unknown`，`destination.scope`区分`single_city/province_capital/multi_city_region`；`detailPreferences`最多3项；同行类型新增`undecided/partner/other`。历史`couple`映射为`partner`，`parents/extended_family`映射为`other`。
+
 只有目的地、天数和旅行风格是用户必填项。其余字段都有安全默认值。
 
 ```json

@@ -3,6 +3,7 @@ import { BrandMark } from "@/components/brand-mark";
 import { HeaderActions } from "@/components/header-actions";
 import "./globals.css";
 import { PageTracker } from "@/features/analytics/page-tracker";
+import { SiteFooter } from "@/components/site-footer";
 
 const productionUrl = process.env.NEXT_PUBLIC_APP_URL
   || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://wandernote-beryl.vercel.app");
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const contactEmail=process.env.PUBLIC_CONTACT_EMAIL;
   return (
     <html lang="zh-CN" data-scroll-behavior="smooth">
       <body>
@@ -28,6 +30,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           </div>
         </header>
         {children}
+        <SiteFooter contactEmail={contactEmail}/>
       </body>
     </html>
   );

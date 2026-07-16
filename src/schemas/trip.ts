@@ -5,8 +5,9 @@ export const prioritySchema = z.enum([
   "great_food", "photogenic", "less_walking", "avoid_crowds", "hidden_gems", "must_see",
   "family_friendly", "hotel_experience", "nightlife", "value_for_money", "late_start", "culture", "nature",
 ]);
+export const detailPreferenceSchema = z.enum(["coffee", "shopping", "hidden_gems", "avoid_queues", "nightlife", "hotel_experience", "more_indoor", "local_experience"]);
 export const transportPreferenceSchema = z.enum(["mixed", "public_transport", "taxi", "walking", "driving"]);
-export const companionTypeSchema = z.enum(["solo", "friends", "couple", "parents", "with_children", "extended_family"]);
+export const companionTypeSchema = z.enum(["undecided", "solo", "friends", "partner", "with_children", "other", "couple", "parents", "extended_family"]);
 const halfHourTimeSchema = z.string().regex(/^([01]\d|2[0-3]):(00|30)$/, "请选择半小时刻度的时间").nullable();
 
 export const datePreferenceSchema = z.object({
@@ -35,14 +36,21 @@ export const budgetPreferenceSchema = z.object({
 
 export const tripInputSchema = z.object({
   schemaVersion: z.literal("0.2"),
-  destination: z.object({ city: z.string().trim().min(1, "请输入目的地").max(40), country: z.string().default("中国") }),
+  destination: z.object({
+    city: z.string().trim().min(1, "请输入目的地").max(40),
+    country: z.string().default("中国"),
+    type: z.enum(["city", "province", "region", "attraction", "unknown"]).default("unknown"),
+    scope: z.enum(["single_city", "province_capital", "multi_city_region"]).default("single_city"),
+    provinceName: z.string().trim().max(20).nullable().default(null),
+  }),
   days: z.number().int().min(1).max(7),
   travelStyle: travelStyleSchema,
   datePreference: datePreferenceSchema,
   budget: budgetPreferenceSchema,
   priorities: z.array(prioritySchema).max(3, "最多选择三项优先需求").default([]),
+  detailPreferences: z.array(detailPreferenceSchema).max(3, "最多再选三个细节偏好").default([]),
   departureCity: z.string().trim().max(40).nullable().default(null),
-  companionType: companionTypeSchema.default("solo"),
+  companionType: companionTypeSchema.default("undecided"),
   travelers: z.object({ adults: z.number().int().min(1).max(8).default(1), children: z.number().int().min(0).max(7).default(0), seniors: z.number().int().min(0).max(7).default(0) }).default({ adults: 1, children: 0, seniors: 0 }),
   preferredWakeTime: halfHourTimeSchema.default(null),
   preferredDepartureTime: halfHourTimeSchema.default(null),
@@ -50,6 +58,7 @@ export const tripInputSchema = z.object({
   dayTripPreference: z.boolean().default(false),
   additionalRequirements: z.string().trim().max(300).nullable().default(null),
 }).superRefine((value, context) => {
+  if (value.destination.type === "province" && value.destination.scope === "single_city") context.addIssue({ code:"custom",path:["destination","scope"],message:"省份目的地需要先选择只玩省会或规划省内多地" });
   if (!value.preferredWakeTime || !value.preferredDepartureTime) return;
   const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
   if (minutes(value.preferredDepartureTime) < minutes(value.preferredWakeTime) + 30) context.addIssue({ code: "custom", path: ["preferredDepartureTime"], message: "出发时间建议至少比起床时间晚30分钟" });

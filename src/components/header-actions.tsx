@@ -57,7 +57,7 @@ export function HeaderActions() {
   const panel = open ? (<>
     <button type="button" tabIndex={-1} aria-label="关闭快捷操作" onClick={() => setOpen(false)} className="fixed inset-0 z-[90] cursor-default bg-transparent" />
     <div ref={menu} role="menu" aria-label="快捷操作" style={{ top: position.top, right: position.right }} className="fixed z-[100] w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-black/8 bg-white p-2 shadow-xl">
-      <MenuButton label="帮我选目的地" onClick={() => action("choose-destination")} />
+      <MenuButton label="返回再次选择" onClick={() => action("return-to-plan")} />
       {hasDraft ? <MenuButton label="恢复上次填写" onClick={() => action("trip-restore-draft")} /> : <p className="flex min-h-11 items-center px-3 text-sm text-[#9aa09c]">暂无可恢复内容</p>}
       {recent === undefined ? <p className="flex min-h-11 items-center px-3 text-sm text-[#7b847e]">正在查找最近攻略…</p> : recent ? (
         <a role="menuitem" href={`/trip/${recent}`} onClick={() => setOpen(false)} className="flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold hover:bg-[#f2f5f0]">查看最近攻略</a>

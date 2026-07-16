@@ -108,12 +108,13 @@ export async function generateTripPlan(input: TripInput, inputProcessingMs = 0):
   const first = await requestWithProviderRetry(buildTripPlannerPrompt(input), tripPlanSchema, "trip_plan", TRIP_PLANNER_SYSTEM_PROMPT,metrics);
   metrics.firstModelCallMs = first.durationMs;
   try {
-    const plan = validatePlan(first.raw, input, metrics);
+    const plan = validatePlan(first.raw, input, metrics, true);
     metrics.totalMs = Math.round(performance.now() - totalStartedAt) + inputProcessingMs;
     console.info("ai_generation_metrics", JSON.stringify({ days: input.days, style: input.travelStyle, ...metrics }));
     return plan;
   } catch (firstError) {
     metrics.repairUsed = true;
+    console.warn("ai_quality_repair_started", JSON.stringify({ days:input.days, style:input.travelStyle, autoRepairAttempted:true, repairType:"targeted_ai", issues:validationSummary(firstError) }));
     const issues = firstError instanceof z.ZodError
       ? firstError.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ")
       : Array.isArray(firstError) ? firstError
@@ -131,7 +132,7 @@ export async function generateTripPlan(input: TripInput, inputProcessingMs = 0):
       metrics.repairValidationMs = Math.round(performance.now() - repairValidationStartedAt);
       metrics.totalMs = Math.round(performance.now() - totalStartedAt) + inputProcessingMs;
       console.warn("ai_generation_metrics", JSON.stringify({ days: input.days, style: input.travelStyle, failed: true, validationIssues: validationSummary(repairError), ...metrics }));
-      const code = repairError instanceof z.ZodError ? "SCHEMA_VALIDATION_FAILED" : Array.isArray(repairError) ? "QUALITY_VALIDATION_FAILED" : /JSON|解析/.test(String(repairError)) ? "JSON_PARSE_FAILED" : "VALIDATION_FAILED";
+      const code = repairError instanceof z.ZodError ? "INVALID_SCHEMA" : Array.isArray(repairError) ? ((repairError as TripPlanQualityIssue[])[0]?.code || "QUALITY_VALIDATION_FAILED") : /JSON|解析/.test(String(repairError)) ? "JSON_PARSE_FAILED" : "VALIDATION_FAILED";
       throw new AiGenerationError("这次行程没有顺利生成，已为你保留全部条件，可以直接再试一次。", code, 422);
     }
   }

@@ -30,6 +30,8 @@ export function buildDayRevisionPrompt(request: DayRevisionRequest) {
     constraints: {
       travelStyle: request.originalInput.travelStyle,
       priorities: request.originalInput.priorities,
+      detailPreferences: request.originalInput.detailPreferences,
+      destination: request.originalInput.destination,
       companionType: request.originalInput.companionType,
       travelers: request.originalInput.travelers,
       preferredWakeTime: request.originalInput.preferredWakeTime,

@@ -8,7 +8,10 @@ const oldInterestMap: Record<string, TripInput["priorities"][number]> = {
 
 export function migrateTripInput(value: unknown): TripInput | null {
   const current = tripInputSchema.safeParse(value);
-  if (current.success) return current.data;
+  if (current.success) {
+    const companion = ({ couple: "partner", parents: "other", extended_family: "other" } as const)[current.data.companionType as "couple" | "parents" | "extended_family"] || current.data.companionType;
+    return { ...current.data, companionType: companion };
+  }
   if (!value || typeof value !== "object") return null;
   const old = value as Record<string, unknown>;
   if (old.schemaVersion !== "0.1") return null;
@@ -25,7 +28,8 @@ export function migrateTripInput(value: unknown): TripInput | null {
     budget: budget?.amount ? { mode: "custom", amount: budget.amount, scope: "total", includesAccommodation: false, includesIntercityTransport: false, currency: "CNY" } : { mode: "unrestricted", amount: null, scope: null, includesAccommodation: null, includesIntercityTransport: null, currency: "CNY" },
     priorities: interests.map((item) => oldInterestMap[String(item)]).filter(Boolean).slice(0, 3),
     departureCity: null,
-    companionType: "solo",
+    detailPreferences: [],
+    companionType: "undecided",
     travelers: { adults: travelers?.adults ?? 1, children: travelers?.children ?? 0, seniors: 0 },
     preferredWakeTime: null,
     preferredDepartureTime: null,

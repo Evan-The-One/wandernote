@@ -6,6 +6,8 @@
 
 公网 Beta：[https://www.yjchufa.com](https://www.yjchufa.com)
 
+公共说明页面：`/about`、`/privacy`、`/terms`。联系邮箱通过服务端环境变量 `PUBLIC_CONTACT_EMAIL` 配置；未配置时不会展示虚假邮箱。
+
 ## 技术栈
 
 Next.js 16 App Router、React 19、TypeScript、Tailwind CSS 4、Zod 4、OpenAI Responses API、Neon PostgreSQL、Drizzle ORM、pnpm。

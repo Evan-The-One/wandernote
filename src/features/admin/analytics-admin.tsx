@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 type Data = {
   metrics: Record<string, number>;
   failures: { label: string; value: number; ratio: number }[];
+  styleStats: {style:string;total:number;successRate:number;failureRate:number;revisionRate:number;averageDurationMs:number}[];
   devices: [string, number][];
   trend: {
     days: number;
@@ -55,7 +56,7 @@ const display: Record<string, string> = {
   romantic: "情侣旅行",
   family: "亲子旅行",
   solo: "独自出行",
-  couple: "情侣",
+  undecided:"还没确定",partner:"对象",other:"其他",couple:"对象",parents:"其他",extended_family:"其他",
   friends: "朋友",
   family_with_children: "亲子",
   family_adults: "家人",
@@ -207,6 +208,7 @@ export function AnalyticsAdmin({
           </div>
         </section>
       </div>
+      <section className="card mt-6 rounded-3xl p-6"><h2 className="font-bold">旅行节奏表现</h2><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[650px] text-sm"><thead><tr>{["节奏","使用次数","成功率","失败率","修改率","平均耗时"].map(item=><th key={item} className="p-2 text-left">{item}</th>)}</tr></thead><tbody>{data?.styleStats.map(item=><tr key={item.style} className="border-t"><td className="p-2 font-bold">{display[item.style]||item.style}</td><td>{item.total}</td><td>{(item.successRate*100).toFixed(1)}%</td><td>{(item.failureRate*100).toFixed(1)}%</td><td>{(item.revisionRate*100).toFixed(1)}%</td><td>{Math.round(item.averageDurationMs/1000)}秒</td></tr>)}</tbody></table></div></section>
       <div className="mt-6 overflow-x-auto rounded-2xl bg-white">
         <table className="w-full min-w-[850px] text-sm">
           <thead>

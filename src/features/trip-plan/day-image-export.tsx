@@ -29,7 +29,7 @@ async function renderDayImage(day: DayPlan, destination: string, tripTitle: stri
   ctx.fillStyle = "#204f3c"; ctx.fillRect(0,0,WIDTH,300);
   ctx.strokeStyle = "#e2a24d"; ctx.lineWidth = 8; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(76,82); ctx.lineTo(112,46); ctx.moveTo(84,46); ctx.lineTo(112,46); ctx.lineTo(112,74); ctx.stroke();
   ctx.fillStyle = "#fff"; ctx.font = `700 46px ${FONT}`; ctx.fillText("一键出发",140,82);
-  ctx.fillStyle = "#e7b66f"; ctx.font = `500 18px ${FONT}`; ctx.fillText("T R I P   R E A D Y",140,118);
+  const brandCenter=140+ctx.measureText("一键出发").width/2;ctx.fillStyle = "#e7b66f"; ctx.font = `500 18px ${FONT}`;ctx.textAlign="center";ctx.fillText("T R I P   R E A D Y",brandCenter,118);ctx.textAlign="left";
   ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.font = `600 24px ${FONT}`; ctx.fillText(`${destination} · DAY ${day.dayNumber}${day.date ? ` · ${day.date}` : ""}`,72,190);
   ctx.fillStyle = "#fff"; ctx.font = `700 44px ${FONT}`; drawLines(ctx, day.title || tripTitle, 72,245,920,56,2);
   let y = 360;

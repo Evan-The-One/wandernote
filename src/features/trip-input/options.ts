@@ -12,8 +12,15 @@ export const priorityOptions: { value: TripInput["priorities"][number]; label: s
 ];
 
 export const companionOptions: { value: TripInput["companionType"]; label: string }[] = [
-  { value: "solo", label: "一个人" }, { value: "friends", label: "朋友" }, { value: "couple", label: "情侣" },
-  { value: "parents", label: "父母" }, { value: "with_children", label: "带娃" }, { value: "extended_family", label: "一大家人" },
+  { value: "undecided", label: "还没确定" }, { value: "solo", label: "一个人" }, { value: "friends", label: "朋友" },
+  { value: "partner", label: "对象" }, { value: "with_children", label: "带娃" }, { value: "other", label: "其他" },
+];
+
+export const detailPreferenceOptions: { value: TripInput["detailPreferences"][number]; label: string }[] = [
+  { value: "coffee", label: "咖啡探店" }, { value: "shopping", label: "逛街购物" },
+  { value: "hidden_gems", label: "小众一点" }, { value: "avoid_queues", label: "尽量少排队" },
+  { value: "nightlife", label: "夜景夜生活" }, { value: "hotel_experience", label: "住宿体验" },
+  { value: "more_indoor", label: "室内活动多一点" }, { value: "local_experience", label: "当地特色体验" },
 ];
 
 export const budgetModes: { value: TripInput["budget"]["mode"]; label: string; description: string }[] = [

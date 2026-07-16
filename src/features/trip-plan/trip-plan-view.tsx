@@ -8,6 +8,7 @@ import {
   formatDisplayText,
   formatDisplayValue,
   formatPriority,
+  formatActivityCount,
 } from "./display-formatters";
 import { DayImageExport } from "./day-image-export";
 import { DayRoute, summarizeDayRoute } from "./day-route";
@@ -21,12 +22,15 @@ const method = {
 };
 const mainTypes = new Set(["attraction", "shopping", "entertainment"]);
 const companionLabel: Record<TripInput["companionType"], string> = {
+  undecided: "还没确定",
   solo: "一个人",
   friends: "朋友",
-  couple: "情侣",
-  parents: "父母",
+  partner: "对象",
   with_children: "带娃",
-  extended_family: "一大家人",
+  other: "其他",
+  couple: "对象",
+  parents: "其他",
+  extended_family: "其他",
 };
 
 export function TripPlanView({
@@ -79,7 +83,7 @@ export function TripPlanView({
         )[0]!
       : "mixed";
     return {
-      mainActivities: `${Math.min(...counts)}–${Math.max(...counts)}个/天`,
+      mainActivities: `${formatActivityCount(Math.min(...counts),Math.max(...counts))}/天`,
       walking: walking <= 4 ? "较少" : walking <= 7 ? "适中" : "较多",
       transport: method[transport as keyof typeof method],
     };

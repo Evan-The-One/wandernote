@@ -5,7 +5,8 @@ export type TripPlanQualityCode =
   | "ACTIVITY_DURATION" | "TIME_OVERLAP" | "TRANSPORT_GAP" | "LAST_TRANSPORT"
   | "DAY_COST_MISSING" | "ACTIVITY_COST_MISSING" | "DAY_COST_UNDERCOUNT" | "BUDGET_MODE"
   | "BUDGET_PRECISION" | "BUDGET_LIMIT" | "BUDGET_RECONCILIATION" | "BUDGET_EXPLANATION"
-  | "FUZZY_PLACE" | "MAIN_ACTIVITY_LIMIT" | "MAIN_ACTIVITY_MINIMUM" | "WALKING_LIMIT" | "DEPARTURE_TIME";
+  | "FUZZY_PLACE" | "MAIN_ACTIVITY_LIMIT" | "MAIN_ACTIVITY_MINIMUM" | "WALKING_LIMIT" | "DEPARTURE_TIME"
+  | "DUPLICATE_ACTIVITY" | "REPEATED_LOCATION" | "TOO_MANY_CITIES" | "UNREALISTIC_TRANSFER" | "PROVINCE_TRIP_NOT_EXPANDED" | "TRANSFER_DAY_MISCLASSIFIED" | "STYLE_CONSTRAINT_CONFLICT" | "COMPANION_CONSTRAINT_CONFLICT";
 
 export type TripPlanQualityIssue = {
   code: TripPlanQualityCode;
@@ -13,6 +14,8 @@ export type TripPlanQualityIssue = {
   message: string;
   expected?: string | number;
   actual?: string | number | null;
+  severity?: "repairable" | "warning" | "fatal";
+  stage?: "schema" | "schedule" | "route" | "budget" | "preference";
 };
 
 export type TripPlanQualityResult = { valid: boolean; issues: TripPlanQualityIssue[] };
@@ -86,7 +89,11 @@ export function normalizeTripPlanForQuality(plan: TripPlan, input: TripInput): T
 }
 
 function issue(code: TripPlanQualityCode, path: string, message: string, expected?: string | number, actual?: string | number | null): TripPlanQualityIssue {
-  return { code, path, message, ...(expected !== undefined ? { expected } : {}), ...(actual !== undefined ? { actual } : {}) };
+  const warningCodes: TripPlanQualityCode[] = ["MAIN_ACTIVITY_MINIMUM"];
+  const repairableCodes: TripPlanQualityCode[] = ["DAY_NUMBER","DATE_MISSING","DATE_UNEXPECTED","DATE_SEQUENCE","ACTIVITY_DURATION","TRANSPORT_GAP","LAST_TRANSPORT","DAY_COST_UNDERCOUNT","BUDGET_RECONCILIATION","BUDGET_EXPLANATION"];
+  const severity = warningCodes.includes(code) ? "warning" : repairableCodes.includes(code) ? "repairable" : "fatal";
+  const stage = code.includes("BUDGET") || code.includes("COST") ? "budget" : code.includes("TIME") || code.includes("DURATION") || code.includes("TRANSPORT") ? "schedule" : code.includes("PLACE") || code.includes("CITY") || code.includes("LOCATION") || code.includes("TRANSFER") ? "route" : "preference";
+  return { code, path, message, severity, stage, ...(expected !== undefined ? { expected } : {}), ...(actual !== undefined ? { actual } : {}) };
 }
 
 export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripPlanQualityResult {
@@ -94,7 +101,7 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
   const lowEffortRequested = ["lazy", "family"].includes(input.travelStyle)
     || input.priorities.includes("less_walking")
     || /不想太累|少走路|减少步行|轻松一点/.test(input.additionalRequirements ?? "");
-  const fastPacedException = ["parents", "with_children", "extended_family"].includes(input.companionType)
+  const fastPacedException = ["parents", "with_children", "extended_family", "other"].includes(input.companionType)
     || Boolean(input.preferredDepartureTime && minutes(input.preferredDepartureTime) >= 10 * 60 + 30)
     || /到达|返程|长途|老人|孩子|行动不便|晚出发/.test(input.additionalRequirements ?? "");
   if (plan.days.length !== input.days) issues.push(issue("DAY_COUNT", "days", "攻略天数必须与输入一致", input.days, plan.days.length));
@@ -112,17 +119,22 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
     const mainCount = day.activities.filter((activity) => mainActivityTypes.has(activity.type)).length;
     if (input.travelStyle === "slow" && mainCount > 4) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "慢慢逛每天最多4个主要活动", 4, mainCount));
     if (["lazy", "family"].includes(input.travelStyle) && mainCount > 3) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "轻松玩和历史亲子模式每天最多3个主要活动", 3, mainCount));
-    if (input.travelStyle === "fast_paced" && !fastPacedException && mainCount < 4) issues.push(issue("MAIN_ACTIVITY_MINIMUM", `${dayPath}.activities`, "特种兵普通完整游玩日不能只有两三个主要活动", 4, mainCount));
+    const transferDay=/转场|抵达|返程|入住/.test(`${day.title}${day.theme}${day.dayTips.join(" ")}`);
+    if (input.travelStyle === "fast_paced" && !fastPacedException && !transferDay && mainCount < 4) issues.push(issue("MAIN_ACTIVITY_MINIMUM", `${dayPath}.activities`, "特种兵普通完整游玩日不能只有两三个主要活动", 4, mainCount));
     if (input.travelStyle === "fast_paced" && mainCount > 6) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "特种兵也不能为了凑数量安排超过6个主要活动", 6, mainCount));
     if (lowEffortRequested && mainCount > 3) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "用户明确要求轻松或少走路时每天最多3个主要活动", 3, mainCount));
     if (lowEffortRequested && day.estimatedWalkingKm > 6) issues.push(issue("WALKING_LIMIT", `${dayPath}.estimatedWalkingKm`, "用户明确要求轻松或少走路时每日步行不得超过6公里", 6, day.estimatedWalkingKm));
 
     let activityCostTotal = 0;
+    const seenNames = new Set<string>();
     const firstMain = day.activities.find((activity) => mainActivityTypes.has(activity.type));
     if (input.preferredDepartureTime && firstMain && minutes(firstMain.startTime) < minutes(input.preferredDepartureTime)) issues.push(issue("DEPARTURE_TIME", `${dayPath}.activities`, "首个主要活动不得早于用户希望出门时间", input.preferredDepartureTime, firstMain.startTime));
     for (let activityIndex = 0; activityIndex < day.activities.length; activityIndex++) {
       const activity = day.activities[activityIndex];
       const activityPath = `${dayPath}.activities.${activityIndex}`;
+      const normalizedName=activity.name.replace(/\s+/g,"").toLowerCase();
+      if(seenNames.has(normalizedName)) issues.push(issue("DUPLICATE_ACTIVITY",`${activityPath}.name`,"同一天不能重复安排相同地点",undefined,activity.name));
+      seenNames.add(normalizedName);
       const actualDuration = minutes(activity.endTime) - minutes(activity.startTime);
       if (actualDuration <= 0 || actualDuration !== activity.durationMinutes) issues.push(issue("ACTIVITY_DURATION", `${activityPath}.durationMinutes`, "活动时长必须与起止时间一致", actualDuration, activity.durationMinutes));
       if (mainActivityTypes.has(activity.type) && fuzzyPlaceTerms.some((term) => activity.name.includes(term))) issues.push(issue("FUZZY_PLACE", `${activityPath}.name`, "核心活动必须使用明确、真实、可搜索的地点或街区", "明确地点", activity.name));
@@ -148,6 +160,12 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
       else if (day.estimatedCost < activityCostTotal) issues.push(issue("DAY_COST_UNDERCOUNT", `${dayPath}.estimatedCost`, "每日费用不得小于活动费用合计", activityCostTotal, day.estimatedCost));
     } else if (day.estimatedCost !== null) issues.push(issue("BUDGET_PRECISION", `${dayPath}.estimatedCost`, "非自定义预算不得生成精确每日费用", "null", day.estimatedCost));
   }
+  if(input.destination.scope==="multi_city_region"){
+    const areas=new Set(plan.days.flatMap(day=>day.activities.filter(activity=>mainActivityTypes.has(activity.type)).map(activity=>activity.area.split(/[·｜\/]/)[0].trim())).filter(Boolean));
+    if(input.days>=6&&areas.size<2) issues.push(issue("PROVINCE_TRIP_NOT_EXPANDED","days","用户选择省内多地，但行程没有形成至少两个明确落脚区域",2,areas.size));
+    const maxStops=input.days<=3?1:input.days<=5?2:input.travelStyle==="fast_paced"?3:2;
+    if(areas.size>maxStops+2) issues.push(issue("TOO_MANY_CITIES","days","多地路线涉及过多片区，可能频繁转场",maxStops,areas.size));
+  }
 
   const budget = plan.budget;
   if (budget.mode !== input.budget.mode) issues.push(issue("BUDGET_MODE", "budget.mode", "输出预算模式必须与输入一致", input.budget.mode, budget.mode));
@@ -167,7 +185,7 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
     }
     if (budget.userBudgetAmount !== input.budget.amount || budget.userBudgetScope !== input.budget.scope || budget.includesAccommodation !== input.budget.includesAccommodation || budget.includesIntercityTransport !== input.budget.includesIntercityTransport) issues.push(issue("BUDGET_MODE", "budget", "输出必须原样保留用户的预算金额、口径和包含项"));
   }
-  return { valid: issues.length === 0, issues };
+  return { valid: issues.every(item=>item.severity==="warning"), issues };
 }
 
 export function formatQualityIssues(issues: TripPlanQualityIssue[]) {

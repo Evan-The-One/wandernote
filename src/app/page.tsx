@@ -4,7 +4,6 @@ import { TripForm } from "@/features/trip-input/trip-form";
 import { HangzhouSamplePreview } from "@/features/trip-plan/hangzhou-sample-preview";
 import { hasBetaAccess } from "@/server/auth/visitor";
 import { serverConfig } from "@/server/config";
-import { BrandMark } from "@/components/brand-mark";
 
 export default async function Home() {
   const betaOpen = await hasBetaAccess(serverConfig.betaAccessCode);
@@ -29,6 +28,5 @@ export default async function Home() {
         ["03", "一句话就能改", "哪天不满意，只调整当天，其他日期保持不变。"],
       ].map(([number,title,body]) => <article key={number} className="card rounded-3xl p-7"><span className="text-sm font-bold text-[#d48a35]">{number}</span><h3 className="mt-8 text-xl font-bold">{title}</h3><p className="mt-3 leading-7 text-[#65706a]">{body}</p></article>)}</div>
     </section>
-    <footer className="page-shell border-t border-black/5 py-10"><BrandMark size="compact" /><p className="mt-3 text-xs text-[#7b847e]">www.yjchufa.com</p></footer>
   </main>;
 }
