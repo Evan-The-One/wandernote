@@ -111,7 +111,7 @@ export function buildTripPlannerPrompt(input: TripInput) {
 出行时间：${describeDate(input)}
 同行人数：${input.travelers.adults}位成人，${input.travelers.children}位儿童
 同行关系：${companionLabels[input.companionType]}；另有${input.travelers.seniors}位老人
-作息偏好：起床${input.preferredWakeTime || "未限制"}；出门${input.preferredDepartureTime || "未限制"}。若填写了具体时间，首个主要活动不得早于出门时间。
+作息偏好：起床${input.preferredWakeTime || "未限制"}；出门${input.preferredDepartureTime || "未限制"}。若同时填写出发城市且出门时间不早于12:30，该时间视为首日离开出发城市的时间，只约束到达日；否则作为每日作息偏好。
 旅行风格：${styleGuides[input.travelStyle]}
 优先需求：${input.priorities.length ? input.priorities.map((item) => priorityLabels[item]).join("、") : "未指定"}
 细节偏好（只用于二次筛选，不得压过核心偏好）：${input.detailPreferences.length?input.detailPreferences.map(item=>detailLabels[item]).join("、"):"未指定"}

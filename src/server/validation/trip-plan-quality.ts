@@ -152,7 +152,8 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
     let activityCostTotal = 0;
     const seenNames = new Set<string>();
     const firstMain = day.activities.find((activity) => mainActivityTypes.has(activity.type));
-    if (input.preferredDepartureTime && firstMain && minutes(firstMain.startTime) < minutes(input.preferredDepartureTime)) issues.push(issue("DEPARTURE_TIME", `${dayPath}.activities`, "首个主要活动不得早于用户希望出门时间", input.preferredDepartureTime, firstMain.startTime));
+    const departureAppliesToDay=Boolean(input.preferredDepartureTime)&&(!input.departureCity||minutes(input.preferredDepartureTime!)<12*60+30||index===0);
+    if (departureAppliesToDay && input.preferredDepartureTime && firstMain && minutes(firstMain.startTime) < minutes(input.preferredDepartureTime)) issues.push(issue("DEPARTURE_TIME", `${dayPath}.activities`, "首个主要活动不得早于用户希望出门时间", input.preferredDepartureTime, firstMain.startTime));
     for (let activityIndex = 0; activityIndex < day.activities.length; activityIndex++) {
       const activity = day.activities[activityIndex];
       const activityPath = `${dayPath}.activities.${activityIndex}`;
