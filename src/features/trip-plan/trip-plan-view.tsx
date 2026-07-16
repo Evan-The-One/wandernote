@@ -2,11 +2,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { DayPlan, TripInput, TripPlan } from "@/types/trip";
-import { priorityOptions, travelStyles } from "@/features/trip-input/options";
+import { priorityOptions } from "@/features/trip-input/options";
 import { DayFeedback } from "@/features/feedback/day-feedback";
 import {
   formatDisplayText,
-  formatDisplayValue,
   formatPriority,
   formatActivityCount,
 } from "./display-formatters";
@@ -27,7 +26,7 @@ function routePreview(day: DayPlan) {
   return names.join(" → ");
 }
 function friendlySummary(value:string){
-  const clean=value.replace(/根据你的需求|根据用户需求|综合考虑(?:了)?|进行(?:了)?(?:路线)?优化|覆盖(?:了)?代表性地点|代表性地点/g,"").replace(/\s+/g," ").trim();
+  const clean=value.replace(/根据你的需求|根据用户需求|综合考虑(?:了)?|进行(?:了)?(?:路线)?优化|覆盖(?:了)?代表性地点/g,"").replace(/最具代表性的/g,"很有辨识度的").replace(/代表性/g,"经典").replace(/建立城市(?:感|印象)/g,"先看看城市全貌").replace(/高含金量/g,"值得去").replace(/核心体验/g,"重点").replace(/适合作为/g,"可以放在").replace(/\s+/g," ").trim();
   return clean.split(/(?<=[。！？])/u).filter(Boolean).slice(0,5).join("")||"把每天的地点放在相邻区域，少走回头路，把时间留给真正想看的地方。";
 }
 function friendlyReason(value:string){return friendlySummary(value).split(/(?<=[。！？])/u).filter(Boolean)[0]?.slice(0,70)||"顺路安排，到了就能直接开始体验。";}
@@ -38,18 +37,7 @@ function friendlyWhy(plan:TripPlan,input:TripInput){
   return [`你有${plan.days.length}天，所以每天集中在相邻区域，${pace}。`,`第一天先玩${first}${second?`，第二天再到${second}`:""}。`,`这样少走回头路，也不用一直赶路。`];
 }
 function stayLabel(minutes:number){if(minutes<=45)return "约30–45分钟";if(minutes<=75)return "约60分钟";if(minutes<=105)return "约60–90分钟";if(minutes<=150)return "约90–120分钟";return `约${Math.round(minutes/30)*30}分钟`;}
-function fitLabels(activity:DayPlan["activities"][number],input:TripInput){
-  const labels:string[]=[];const text=`${activity.name}${activity.reason}`;
-  if(activity.type==="meal")labels.push("吃点好的");
-  else if(activity.type==="coffee")labels.push("休息片刻");
-  else if(activity.type==="shopping")labels.push("逛街");
-  else if(activity.type==="entertainment")labels.push("轻松体验");
-  else labels.push("第一次来");
-  if(input.priorities.includes("photogenic")||/拍照|风景|夜景|滨江|古镇|公园/.test(text))labels.push("拍照");
-  else if(input.priorities.includes("culture")||/博物馆|历史|文化|古迹|老街/.test(text))labels.push("人文");
-  else if(input.companionType==="with_children")labels.push("亲子");
-  return labels.slice(0,2).join(" · ");
-}
+function displayTripTitle(input:TripInput){const prefix=`${input.destination.city}${input.days}日`;const suffix:Record<TripInput["travelStyle"],string>={fast_paced:"高效打卡路线",slow:"慢游路线",lazy:"轻松游路线",food:"美食漫游路线",romantic:"城市约会路线",family:"亲子轻松路线"};return `${prefix}${suffix[input.travelStyle]}`;}
 
 export function TripPlanView({
   plan,
@@ -88,25 +76,11 @@ export function TripPlanView({
     const walking =
       plan.days.reduce((sum, day) => sum + day.estimatedWalkingKm, 0) /
       plan.days.length;
-    const methods = plan.days.flatMap((day) =>
-      day.activities
-        .map((activity) => activity.transportToNext?.method)
-        .filter(Boolean),
-    );
-    const transport = methods.length
-      ? methods.sort(
-          (a, b) =>
-            methods.filter((value) => value === b).length -
-            methods.filter((value) => value === a).length,
-        )[0]!
-      : "mixed";
     return {
-      mainActivities: formatActivityCount(Math.min(...counts),Math.max(...counts)).replace("个","个核心体验"),
-      transport: method[transport as keyof typeof method],
+      mainActivities: formatActivityCount(Math.min(...counts),Math.max(...counts)).replace("个","个体验点"),
       intensity: walking <= 4 ? "轻松" : walking <= 7 ? "适中" : "较满",
     };
   }, [plan]);
-  const style = travelStyles.find((item) => item.value === input.travelStyle);
   const priorities = input.priorities.map(
     (value) =>
       priorityOptions.find((item) => item.value === value)?.label ||
@@ -119,7 +93,7 @@ export function TripPlanView({
     if (navigator.share) {
       try {
         await navigator.share({
-          title: plan.title,
+          title: displayTripTitle(input),
           text: `一起看看${plan.destination.city}旅行计划`,
           url,
         });
@@ -162,7 +136,7 @@ export function TripPlanView({
           </p>
           <h1 className="mt-3 text-4xl font-bold sm:text-6xl">这几天这样玩</h1>
           <p className="mt-3 text-xl font-semibold text-white/85">
-            {plan.title}
+            {displayTripTitle(input)}
           </p>
           <div className="mt-6 space-y-2 text-sm font-medium leading-6 text-white/75 sm:text-base">
             {plan.days.slice(0,3).map(day=><p key={day.dayNumber}>{routePreview(day)}</p>)}
@@ -174,13 +148,8 @@ export function TripPlanView({
           <p className="text-sm font-bold text-[#287057]">
             我帮你这样安排
           </p>
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-4 grid grid-cols-2 gap-2">
             {[
-              [
-                "旅行节奏",
-                style?.label || formatDisplayValue(input.travelStyle),
-              ],
-              ["主要交通", formatDisplayValue(understanding.transport)],
               ["每天安排", understanding.mainActivities],
               ["整体强度", understanding.intensity],
             ].map(([label, value]) => (
@@ -190,12 +159,10 @@ export function TripPlanView({
               </div>
             ))}
           </div>
-          <details className="mt-3 rounded-2xl bg-[#f4f6f1] p-4">
-            <summary className="cursor-pointer text-sm font-bold text-[#245b46]">
-              为什么这样安排
-            </summary>
+          <section className="mt-3 rounded-2xl bg-[#f4f6f1] p-4">
+            <h2 className="text-sm font-bold text-[#245b46]">这次这样玩</h2>
             <div className="mt-2 space-y-1 text-sm leading-6 text-[#65706a]">{friendlyWhy(plan,input).map(line=><p key={line}>{line}</p>)}</div>
-          </details>
+          </section>
           {priorities.length > 0 && (
             <p className="mt-3 text-xs text-[#707a74]">
               重点：{priorities.join(" · ")}
@@ -266,32 +233,29 @@ export function TripPlanView({
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#526159]">
-                      <span><strong>建议停留：</strong>{stayLabel(activity.durationMinutes)}</span>
-                      <span><strong>适合：</strong>{fitLabels(activity,input)}</span>
+                      <span>停留时间：<strong className="text-[#26352e]">{stayLabel(activity.durationMinutes)}</strong></span>
                     </div>
                     <p className="mt-2 text-sm leading-6 text-[#65706a]">
-                      <strong className="font-semibold text-[#38453f]">为什么安排：</strong>{friendlyReason(activity.reason)}
+                      {friendlyReason(activity.reason)}
                     </p>
                     {activity.transportToNext && (
                       <p className="mt-3 rounded-xl bg-[#f2f5f0] px-3 py-2 text-xs text-[#566159]">
-                        下一站：{method[activity.transportToNext.method]}约{" "}
-                        {activity.transportToNext.durationMinutes} 分钟 ·{" "}
-                        {activity.transportToNext.description}
+                        <strong className="text-[#38453f]">下一站：</strong><strong>{method[activity.transportToNext.method]}约 {activity.transportToNext.durationMinutes} 分钟</strong> → {activity.transportToNext.description}
                       </p>
                     )}
                   </div>
                 </div>
               ))}
               <div className="mt-5 space-y-3 border-t border-black/5 pt-4 text-sm leading-6 text-[#65706a]">
-                <p><strong className="text-[#38453f]">今天主要在：</strong>{dayAreas(plan.destination.city,summarizeDayRoute(day).areas)}</p>
-                <p><strong className="text-[#38453f]">交通方式：</strong>以{summarizeDayRoute(day).transport}为主</p>
-                <p><strong className="text-[#38453f]">预计：</strong>{summarizeDayRoute(day).walking}{day.estimatedCost !== null ? `，花费约 ¥${day.estimatedCost}` : ""}</p>
+                <p>今天主要玩：<strong className="text-[#26352e]">{dayAreas(plan.destination.city,summarizeDayRoute(day).areas)}</strong></p>
+                <p>交通方式：<strong className="text-[#26352e]">{summarizeDayRoute(day).transport}</strong></p>
+                <p>预计：<strong className="text-[#26352e]">{summarizeDayRoute(day).walking}{day.estimatedCost !== null ? `，花费约 ¥${day.estimatedCost}` : ""}</strong></p>
               </div>
               <div className="mt-4 flex justify-end">
                 <DayImageExport
                   day={day}
                   destination={plan.destination.city}
-                  tripTitle={plan.title}
+                  tripTitle={displayTripTitle(input)}
                   tripId={tripId}
                 />
               </div>
