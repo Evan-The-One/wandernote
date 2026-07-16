@@ -45,7 +45,7 @@ async function renderDayImage(day: DayPlan, destination: string, tripTitle: stri
     if(activity.transportToNext){ctx.fillStyle="#f0f3ef";ctx.fillRect(126,textY+40,820,62);ctx.fillStyle="#536159";ctx.font=`500 19px ${FONT}`;drawLines(ctx,`下一站：${formatDisplayValue(activity.transportToNext.method)}约${activity.transportToNext.durationMinutes}分钟 · ${activity.transportToNext.description}`,146,textY+78,780,26,2);}
     y += 235;
   });
-  ctx.fillStyle="#fff2dc";ctx.fillRect(64,y,952,Math.max(110,day.dayTips.length*55+70));ctx.fillStyle="#915b20";ctx.font=`700 25px ${FONT}`;ctx.fillText("今日提醒",92,y+42);ctx.font=`500 20px ${FONT}`;let tipY=y+82;day.dayTips.forEach((tip)=>{tipY=drawLines(ctx,`· ${tip}`,92,tipY,860,30,3)+12;});
+  const visibleTips=day.dayTips.slice(0,3);ctx.fillStyle="#fff2dc";ctx.fillRect(64,y,952,Math.max(110,visibleTips.length*55+70));ctx.fillStyle="#915b20";ctx.font=`700 25px ${FONT}`;ctx.fillText("出发前知道",92,y+42);ctx.font=`500 20px ${FONT}`;let tipY=y+82;visibleTips.forEach((tip)=>{tipY=drawLines(ctx,`· ${tip}`,92,tipY,860,30,3)+12;});
   const publicUrl = tripId ? `https://www.yjchufa.com/trip/${encodeURIComponent(tripId)}` : "https://www.yjchufa.com";
   const qrDataUrl = await QRCode.toDataURL(publicUrl, { errorCorrectionLevel: "M", margin: 1, width: 148, color: { dark: "#204f3c", light: "#ffffff" } });
   ctx.drawImage(await loadImage(qrDataUrl), 860, height - 190, 148, 148);
