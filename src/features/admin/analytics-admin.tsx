@@ -47,6 +47,7 @@ const labels: Record<string, string> = {
   shares: "分享点击",
   images: "图片保存",
   feedback: "反馈提交",
+  todayAiRequests:"今日AI请求",todayAiCostUsd:"今日估算成本",fullGenerationCostUsd:"完整生成成本",dayRevisionCostUsd:"整天修改成本",partialRevisionCostUsd:"局部修改成本",repairCostUsd:"自动修复成本",rateLimited:"限流拦截",idempotentReused:"幂等复用",
 };
 const display: Record<string, string> = {
   fast_paced: "特种兵",
@@ -160,7 +161,7 @@ export function AnalyticsAdmin({
             <div key={key} className="card rounded-2xl p-4">
               <p className="text-xs text-[#707a74]">{labels[key] || key}</p>
               <strong className="mt-1 block text-xl">
-                {key.includes("Rate")
+                {key.includes("CostUsd") ? `$${value.toFixed(4)}` : key.includes("Rate")
                   ? `${(value * 100).toFixed(1)}%`
                   : key.includes("Ms")
                     ? `${Math.round(value / 1000)}秒`

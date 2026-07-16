@@ -5,16 +5,16 @@ import { dayPlanSchema, tripInputSchema, tripPlanSchema } from "@/schemas/trip";
 import type { DayPlan, TripInput, TripPlan } from "@/types/trip";
 import { HttpError } from "@/server/http";
 
-export function startOfUtcDay() {
-  const date = new Date();
-  date.setUTCHours(0, 0, 0, 0);
-  return date;
+export function startOfShanghaiDay(now = new Date()) {
+  const shanghai = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  shanghai.setUTCHours(0, 0, 0, 0);
+  return new Date(shanghai.getTime() - 8 * 60 * 60 * 1000);
 }
 
 export async function assertDailyLimit(visitorId: string, type: "full_generation" | "day_revision", limit: number) {
   const db = getDatabase();
-  const [row] = await db.select({ value: count() }).from(generationJobs).where(and(eq(generationJobs.visitorId, visitorId), eq(generationJobs.type, type), gte(generationJobs.createdAt, startOfUtcDay())));
-  if (row.value >= limit) throw new HttpError(429, type === "full_generation" ? "今天的攻略生成次数已用完，请明天再来" : "今天的行程调整次数已用完，请明天再来", "DAILY_LIMIT_REACHED");
+  const [row] = await db.select({ value: count() }).from(generationJobs).where(and(eq(generationJobs.visitorId, visitorId), eq(generationJobs.type, type), eq(generationJobs.status, "completed"), gte(generationJobs.createdAt, startOfShanghaiDay())));
+  if (row.value >= limit) throw new HttpError(429, type === "full_generation" ? "今天的2次免费生成已经用完了，明天再来看看。" : "今天的2次整天调整已经用完了，可以尝试只调整其中几个活动。", "DAILY_LIMIT_REACHED");
 }
 
 export async function createTripAndJob(visitorId: string, input: TripInput) {

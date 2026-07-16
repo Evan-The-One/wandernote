@@ -19,7 +19,10 @@ const steps = [
 ];
 const errorMessages: Record<string, string> = {
   AI_DISABLED: "当前暂停生成新计划，请稍后再试。",
-  DAILY_LIMIT_REACHED: "今天的生成次数已用完，请明天再来。",
+  DAILY_LIMIT_REACHED: "今天的2次免费生成已经用完了，明天再来看看。",
+  DAILY_AI_BUDGET_EXCEEDED: "今天的免费生成名额暂时用完了，明天再来看看。",
+  GLOBAL_CONCURRENCY_LIMIT: "现在体验的人有点多，请稍后再试。",
+  RATE_LIMITED: "请求有点频繁，请稍后再试。",
   OPENAI_AUTH_ERROR: "AI服务配置异常，管理员正在处理。",
   OPENAI_QUOTA_ERROR: "AI服务额度暂时不足，请稍后再试。",
   OPENAI_TIMEOUT: "AI这次思考时间过长，请直接重试。",
@@ -80,7 +83,7 @@ export function GeneratingView() {
       try {
         const response = await fetch("/api/trips", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Idempotency-Key": window.sessionStorage.getItem("yjchufa:generation-key") || (()=>{const key=crypto.randomUUID();window.sessionStorage.setItem("yjchufa:generation-key",key);return key;})() },
           body: JSON.stringify(validInput),
         });
         const payload = (await response.json()) as {
@@ -99,6 +102,7 @@ export function GeneratingView() {
           "wandernote:recent-trip-id",
           payload.tripId,
         );
+        window.sessionStorage.removeItem("yjchufa:generation-key");
         router.replace(`/trip/${payload.tripId}`);
       } catch (cause) {
         setError(

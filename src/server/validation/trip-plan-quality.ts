@@ -6,7 +6,8 @@ export type TripPlanQualityCode =
   | "DAY_COST_MISSING" | "ACTIVITY_COST_MISSING" | "DAY_COST_UNDERCOUNT" | "BUDGET_MODE"
   | "BUDGET_PRECISION" | "BUDGET_LIMIT" | "BUDGET_RECONCILIATION" | "BUDGET_EXPLANATION"
   | "FUZZY_PLACE" | "MAIN_ACTIVITY_LIMIT" | "MAIN_ACTIVITY_MINIMUM" | "WALKING_LIMIT" | "DEPARTURE_TIME"
-  | "DUPLICATE_ACTIVITY" | "REPEATED_LOCATION" | "TOO_MANY_CITIES" | "UNREALISTIC_TRANSFER" | "PROVINCE_TRIP_NOT_EXPANDED" | "TRANSFER_DAY_MISCLASSIFIED" | "STYLE_CONSTRAINT_CONFLICT" | "COMPANION_CONSTRAINT_CONFLICT";
+  | "DUPLICATE_ACTIVITY" | "REPEATED_LOCATION" | "TOO_MANY_CITIES" | "UNREALISTIC_TRANSFER" | "PROVINCE_TRIP_NOT_EXPANDED" | "TRANSFER_DAY_MISCLASSIFIED" | "STYLE_CONSTRAINT_CONFLICT" | "COMPANION_CONSTRAINT_CONFLICT"
+  | "UNREQUESTED_COFFEE_OVERUSE" | "LATE_LUNCH";
 
 export type TripPlanQualityIssue = {
   code: TripPlanQualityCode;
@@ -38,12 +39,32 @@ function timeFromMinutes(total: number) {
   const bounded = Math.max(0, Math.min(total, 23 * 60 + 59));
   return `${String(Math.floor(bounded / 60)).padStart(2, "0")}:${String(bounded % 60).padStart(2, "0")}`;
 }
+export type PlanningDayType="arrival_day"|"full_day"|"transfer_day"|"departure_day";
+export function classifyPlanningDay(input:TripInput,day:TripPlan["days"][number],index:number,total:number):PlanningDayType{
+  if(/转场|换酒店|跨城/.test(`${day.title}${day.theme}${day.dayTips.join(" ")}`))return "transfer_day";
+  if(input.departureCity&&index===0)return "arrival_day";
+  if(input.departureCity&&index===total-1)return "departure_day";
+  return "full_day";
+}
 
 /** Corrects arithmetic fields deterministically; semantic quality rules remain unchanged. */
 export function normalizeTripPlanForQuality(plan: TripPlan, input: TripInput): TripPlan {
+  const coffeeRequested=input.detailPreferences.includes("coffee")||/咖啡|coffee/i.test(input.additionalRequirements||"");
+  let retainedCoffee=0;
   const days = plan.days.map((day, dayIndex) => {
     let previousEnd = -1;
-    const activities = day.activities.map((activity, activityIndex) => {
+    let dayCoffee=0;
+    const sourceActivities=day.activities.filter(activity=>!(dayIndex===0&&input.preferredDepartureTime&&minutes(input.preferredDepartureTime)>=12*60+30&&activity.type==="meal"&&/午餐|午饭/.test(activity.name)));
+    const normalizedSource=sourceActivities.map(activity=>{
+      const coffee=activity.type==="coffee"||/咖啡|coffee/i.test(activity.name);
+      if(!coffee)return activity;
+      dayCoffee+=1;
+      if(coffeeRequested&&dayCoffee<=1){return activity;}
+      retainedCoffee+=1;
+      if(!coffeeRequested&&retainedCoffee<=1)return activity;
+      return {...activity,type:"rest" as const,name:"附近稍作休息",reason:"在当前片区原地休息，不额外增加目的地"};
+    });
+    const activities = normalizedSource.map((activity, activityIndex) => {
       const declaredDuration = Math.max(1, activity.durationMinutes);
       let start = minutes(activity.startTime);
       if (activityIndex > 0) {
@@ -60,7 +81,7 @@ export function normalizeTripPlanForQuality(plan: TripPlan, input: TripInput): T
         endTime: timeFromMinutes(end),
         durationMinutes: duration,
         estimatedCost: input.budget.mode === "custom" ? activity.estimatedCost : null,
-        transportToNext: activityIndex === day.activities.length - 1 ? null : activity.transportToNext,
+        transportToNext: activityIndex === normalizedSource.length - 1 ? null : activity.transportToNext,
       };
     });
     return {
@@ -69,6 +90,7 @@ export function normalizeTripPlanForQuality(plan: TripPlan, input: TripInput): T
       date: input.datePreference.type === "exact" ? addDays(input.datePreference.startDate!, dayIndex) : null,
       estimatedCost: input.budget.mode === "custom" ? day.estimatedCost : null,
       activities,
+      dayTips: dayIndex===0&&input.preferredDepartureTime&&minutes(input.preferredDepartureTime)>=12*60+30&&!day.dayTips.some(tip=>tip.includes("出发前已用过午餐"))?["默认出发前已用过午餐。",...day.dayTips]:day.dayTips,
     };
   });
   const budget = input.budget.mode === "custom" ? plan.budget : {
@@ -90,7 +112,7 @@ export function normalizeTripPlanForQuality(plan: TripPlan, input: TripInput): T
 
 function issue(code: TripPlanQualityCode, path: string, message: string, expected?: string | number, actual?: string | number | null): TripPlanQualityIssue {
   const warningCodes: TripPlanQualityCode[] = ["MAIN_ACTIVITY_MINIMUM"];
-  const repairableCodes: TripPlanQualityCode[] = ["DAY_NUMBER","DATE_MISSING","DATE_UNEXPECTED","DATE_SEQUENCE","ACTIVITY_DURATION","TRANSPORT_GAP","LAST_TRANSPORT","DAY_COST_UNDERCOUNT","BUDGET_RECONCILIATION","BUDGET_EXPLANATION"];
+  const repairableCodes: TripPlanQualityCode[] = ["DAY_NUMBER","DATE_MISSING","DATE_UNEXPECTED","DATE_SEQUENCE","ACTIVITY_DURATION","TRANSPORT_GAP","LAST_TRANSPORT","DAY_COST_UNDERCOUNT","BUDGET_RECONCILIATION","BUDGET_EXPLANATION","UNREQUESTED_COFFEE_OVERUSE","LATE_LUNCH"];
   const severity = warningCodes.includes(code) ? "warning" : repairableCodes.includes(code) ? "repairable" : "fatal";
   const stage = code.includes("BUDGET") || code.includes("COST") ? "budget" : code.includes("TIME") || code.includes("DURATION") || code.includes("TRANSPORT") ? "schedule" : code.includes("PLACE") || code.includes("CITY") || code.includes("LOCATION") || code.includes("TRANSFER") ? "route" : "preference";
   return { code, path, message, severity, stage, ...(expected !== undefined ? { expected } : {}), ...(actual !== undefined ? { actual } : {}) };
@@ -105,6 +127,8 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
     || Boolean(input.preferredDepartureTime && minutes(input.preferredDepartureTime) >= 10 * 60 + 30)
     || /到达|返程|长途|老人|孩子|行动不便|晚出发/.test(input.additionalRequirements ?? "");
   if (plan.days.length !== input.days) issues.push(issue("DAY_COUNT", "days", "攻略天数必须与输入一致", input.days, plan.days.length));
+  const coffeeRequested=input.detailPreferences.includes("coffee")||/咖啡|coffee/i.test(input.additionalRequirements||"");
+  let coffeeCount=0;
 
   for (let index = 0; index < plan.days.length; index++) {
     const day = plan.days[index];
@@ -119,8 +143,7 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
     const mainCount = day.activities.filter((activity) => mainActivityTypes.has(activity.type)).length;
     if (input.travelStyle === "slow" && mainCount > 4) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "慢慢逛每天最多4个主要活动", 4, mainCount));
     if (["lazy", "family"].includes(input.travelStyle) && mainCount > 3) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "轻松玩和历史亲子模式每天最多3个主要活动", 3, mainCount));
-    const transferDay=/转场|抵达|返程|入住/.test(`${day.title}${day.theme}${day.dayTips.join(" ")}`);
-    const boundaryTravelDay=Boolean(input.departureCity)&&(index===0||index===plan.days.length-1);
+    const dayType=classifyPlanningDay(input,day,index,plan.days.length);const transferDay=dayType==="transfer_day";const boundaryTravelDay=dayType==="arrival_day"||dayType==="departure_day";
     if (input.travelStyle === "fast_paced" && !fastPacedException && !transferDay && !boundaryTravelDay && mainCount < 4) issues.push(issue("MAIN_ACTIVITY_MINIMUM", `${dayPath}.activities`, "特种兵普通完整游玩日不能只有两三个主要活动", 4, mainCount));
     if (input.travelStyle === "fast_paced" && mainCount > 6) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "特种兵也不能为了凑数量安排超过6个主要活动", 6, mainCount));
     if (lowEffortRequested && mainCount > 3) issues.push(issue("MAIN_ACTIVITY_LIMIT", `${dayPath}.activities`, "用户明确要求轻松或少走路时每天最多3个主要活动", 3, mainCount));
@@ -134,6 +157,8 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
       const activity = day.activities[activityIndex];
       const activityPath = `${dayPath}.activities.${activityIndex}`;
       const normalizedName=activity.name.replace(/\s+/g,"").toLowerCase();
+      if(activity.type==="coffee"||/咖啡|coffee/i.test(activity.name))coffeeCount+=1;
+      if(index===0&&input.preferredDepartureTime&&minutes(input.preferredDepartureTime)>=12*60+30&&activity.type==="meal"&&/午餐|午饭/.test(activity.name))issues.push(issue("LATE_LUNCH",`${activityPath}.startTime`,"下午出发时不得在抵达后安排午餐","不安排",activity.startTime));
       if(seenNames.has(normalizedName)) issues.push(issue("DUPLICATE_ACTIVITY",`${activityPath}.name`,"同一天不能重复安排相同地点",undefined,activity.name));
       seenNames.add(normalizedName);
       const actualDuration = minutes(activity.endTime) - minutes(activity.startTime);
@@ -161,6 +186,7 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
       else if (day.estimatedCost < activityCostTotal) issues.push(issue("DAY_COST_UNDERCOUNT", `${dayPath}.estimatedCost`, "每日费用不得小于活动费用合计", activityCostTotal, day.estimatedCost));
     } else if (day.estimatedCost !== null) issues.push(issue("BUDGET_PRECISION", `${dayPath}.estimatedCost`, "非自定义预算不得生成精确每日费用", "null", day.estimatedCost));
   }
+  if(!coffeeRequested&&coffeeCount>=2)issues.push(issue("UNREQUESTED_COFFEE_OVERUSE","days","用户未要求咖啡探店时，整趟行程不得频繁安排咖啡正式活动",1,coffeeCount));
   if(input.destination.scope==="multi_city_region"){
     const areas=new Set(plan.days.flatMap(day=>day.activities.filter(activity=>mainActivityTypes.has(activity.type)).map(activity=>activity.area.split(/[·｜\/]/)[0].trim())).filter(Boolean));
     if(input.days>=6&&areas.size<2) issues.push(issue("PROVINCE_TRIP_NOT_EXPANDED","days","用户选择省内多地，但行程没有形成至少两个明确落脚区域",2,areas.size));

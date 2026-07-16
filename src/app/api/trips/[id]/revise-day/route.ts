@@ -2,8 +2,10 @@ import { persistedRevisionSchema } from "@/schemas/beta";
 import { reviseDay } from "@/server/ai/day-revision";
 import { ensureVisitor, hasBetaAccess } from "@/server/auth/visitor";
 import { serverConfig } from "@/server/config";
-import { assertDailyLimit, createRevisionJob, finishRevisionJob, getTrip, replaceDayAndBudget, saveRevision } from "@/server/database/trips";
+import { createRevisionJob, finishRevisionJob, getTrip, replaceDayAndBudget, saveRevision } from "@/server/database/trips";
 import { apiError, HttpError, readJsonBody } from "@/server/http";
+import { assertAiRequestAllowed, assertRevisionModeLimit, recordAiUsage } from "@/server/ai/guard";
+import { recordAnalyticsEvent } from "@/server/database/analytics";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -25,7 +27,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (trip.visitorId !== visitor.visitorId) throw new HttpError(403, "分享访客只能查看，不能修改这份攻略", "EDIT_FORBIDDEN");
     if (!trip.plan || trip.status !== "completed") throw new HttpError(409, "攻略尚未生成完成", "TRIP_NOT_READY");
     if (trip.version !== body.data.version) throw new HttpError(409, "攻略已在其他窗口更新，请刷新后重试", "VERSION_CONFLICT");
-    await assertDailyLimit(visitor.visitorId, "day_revision", serverConfig.dayRevisionDailyLimit);
+    await assertRevisionModeLimit(visitor.visitorId,body.data.mode);
+    const guard=await assertAiRequestAllowed(request,visitor.visitorId,body.data.mode==="full_day"?"day_revision":"partial_revision");
     const index = trip.plan.days.findIndex((day) => day.dayNumber === body.data.targetDayNumber);
     const currentDay = trip.plan.days[index];
     if (!currentDay) throw new HttpError(400, "目标日期不存在", "DAY_NOT_FOUND");
@@ -38,9 +41,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     jobId = await createRevisionJob(visitor.visitorId, id);
     const aiRequest = { schemaVersion: "0.2" as const, originalInput: trip.input, strategy: trip.plan.strategy, budget: trip.plan.budget, targetDayNumber: currentDay.dayNumber, currentDay, previousDay: adjacent(trip.plan.days[index - 1]), nextDay: adjacent(trip.plan.days[index + 1]), otherDaysCostTotal: trip.input.budget.mode === "custom" ? trip.plan.days.reduce((sum, day) => day.dayNumber === currentDay.dayNumber ? sum : sum + (day.estimatedCost ?? 0), 0) : null, instruction: body.data.instruction, mode: body.data.mode, selectedActivityIds: selectedIds };
-    const result = await reviseDay(aiRequest);
+    const result = await reviseDay(aiRequest,usage=>recordAiUsage(visitor.visitorId,id,usage),!guard.softBudgetReached);
     const updatedPlan = replaceDayAndBudget(trip.plan, result.updatedDay);
     await saveRevision({ tripId: id, visitorId: visitor.visitorId, expectedVersion: body.data.version, instruction: body.data.instruction, previousDay: currentDay, updatedDay: result.updatedDay, summary: result.changeSummary, updatedPlan, jobId, durationMs: Math.round(performance.now() - startedAt) });
+    await recordAnalyticsEvent({visitorId:visitor.visitorId,tripId:id,eventName:body.data.mode==="full_day"?"day_revision_completed":"partial_revision_completed",status:"completed",metadata:{}}).catch(()=>undefined);
     const originalIds=new Set(currentDay.activities.map((activity)=>activity.id));
     const modifiedActivityIds=body.data.mode==="selected_activities"?result.updatedDay.activities.filter((activity)=>selectedIds.includes(activity.id)||!originalIds.has(activity.id)).map((activity)=>activity.id):result.updatedDay.activities.map((activity)=>activity.id);
     return Response.json({ plan: updatedPlan, version: body.data.version + 1, changeSummary: result.changeSummary, modifiedActivityIds });

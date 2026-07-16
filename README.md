@@ -41,6 +41,8 @@ ADMIN_ACCESS_CODE=
 
 ## 数据、权限与成本保护
 
+详细的限额、熔断与交通数据策略见 [成本与交通安全策略](docs/cost-and-transport-safeguards.md)。
+
 - Neon PostgreSQL 是最终数据源；TripInput、TripPlan、DayPlan JSONB 在应用边界经过 Zod。
 - 首次 API 访问生成 256-bit 随机 session，写入 HTTP-only、SameSite=Lax Cookie；生产环境自动启用 Secure。
 - 攻略使用不可预测 UUID。链接持有者可只读，只有 Cookie 对应的创建者可修改和撤销。

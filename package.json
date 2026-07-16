@@ -13,6 +13,7 @@
     "db:check": "drizzle-kit check",
     "test:integration": "tsx scripts/test-persistence.ts",
     "test:core-upgrade": "tsx scripts/test-core-upgrade.ts",
+    "test:quality-cost": "tsx scripts/test-quality-cost.ts",
     "test:qr": "tsx scripts/test-qr-code.ts",
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "test:ai": "node scripts/test-ai-cases.mjs",

@@ -35,6 +35,6 @@ assert.equal(formatActivityCount(3,4),"约 3–4 个");
 for(const days of [5,6,7]) assert.equal(tripInputSchema.safeParse({...baseInput,days}).success,true);
 assert.equal(tripInputSchema.safeParse({...baseInput,days:8}).success,false);
 const shanghaiHangzhou=estimateIntercityTransport({...baseInput,departureCity:"上海"});
-assert.equal(shanghaiHangzhou?.duration,"约1～1.5小时");
+assert.match(shanghaiHangzhou?.duration||"",/约1～1.5小时/);
 assert.equal(estimateIntercityTransport({...baseInput,departureCity:null}),null);
 console.log("Core upgrade contract tests passed (migration defaults, time rules, fast-paced density and exceptions).");

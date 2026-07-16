@@ -1001,6 +1001,7 @@ export function TripForm() {
           )}
           {submitting ? "正在准备你的旅行……" : "一键生成我的定制旅行"}
         </button>
+        <p className="mt-2 text-center text-xs text-[#707a74]">每天可免费生成2次</p>
       </div>
       <p className="text-center text-xs leading-5 text-[#778079]">
         AI规划不含实时天气、票价或营业数据，出发前请再次确认。

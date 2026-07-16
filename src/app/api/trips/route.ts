@@ -4,6 +4,8 @@ import { ensureVisitor, hasBetaAccess } from "@/server/auth/visitor";
 import { serverConfig } from "@/server/config";
 import { apiError, HttpError, readJsonBody } from "@/server/http";
 import { assertDailyLimit, completeTrip, createTripAndJob, failJob } from "@/server/database/trips";
+import { assertAiRequestAllowed, findIdempotentTrip, hashIdempotency, recordAiUsage, recordIdempotency } from "@/server/ai/guard";
+import { recordAnalyticsEvent } from "@/server/database/analytics";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -26,9 +28,15 @@ export async function POST(request: Request) {
     const input = tripInputSchema.safeParse(await readJsonBody(request));
     if (!input.success) throw new HttpError(400, input.error.issues[0]?.message || "旅行需求格式无效", "INVALID_TRIP_INPUT");
     const { visitorId } = await databaseStage(() => ensureVisitor());
+    const idempotencyKey=request.headers.get("idempotency-key")?.trim();
+    if(!idempotencyKey||idempotencyKey.length<16||idempotencyKey.length>100) throw new HttpError(400,"请刷新页面后重新提交","INVALID_IDEMPOTENCY_KEY");
+    const keyHash=hashIdempotency(idempotencyKey); const existing=await databaseStage(()=>findIdempotentTrip(visitorId,keyHash));
+    if(existing){await recordAnalyticsEvent({visitorId,tripId:existing,eventName:"idempotent_reused",status:"blocked",metadata:{}}).catch(()=>undefined);return Response.json({tripId:existing,reused:true},{status:200});}
     await databaseStage(() => assertDailyLimit(visitorId, "full_generation", serverConfig.fullGenerationDailyLimit));
+    const guard=await databaseStage(()=>assertAiRequestAllowed(request,visitorId,"full_generation"));
     created = await databaseStage(() => createTripAndJob(visitorId, input.data));
-    const plan = await generateTripPlan(input.data, Math.round(performance.now() - processingStartedAt));
+    await databaseStage(()=>recordIdempotency(visitorId,created!.tripId,keyHash));
+    const plan = await generateTripPlan(input.data, Math.round(performance.now() - processingStartedAt),usage=>recordAiUsage(visitorId,created!.tripId,usage),!guard.softBudgetReached);
     const persistedPlan = { ...plan, tripId: created.tripId, status: "completed" as const, updatedAt: new Date().toISOString() };
     await databaseStage(() => completeTrip(created!.tripId, created!.jobId, persistedPlan, Math.round(performance.now() - startedAt)));
     return Response.json({ tripId: created.tripId }, { status: 201 });

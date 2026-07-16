@@ -2,7 +2,7 @@ import { z } from "zod";
 import { dayRevisionResponseSchema } from "@/schemas/trip";
 import type { DayRevisionRequest, DayRevisionResponse } from "@/types/trip";
 import { parseJsonResponse } from "./json";
-import { requestStructuredModel, AiGenerationError } from "./client";
+import { requestStructuredModel, AiGenerationError, type AiUsage } from "./client";
 import { buildDayRevisionPrompt, buildDayRevisionRepairPrompt, DAY_REVISION_SYSTEM_PROMPT } from "./day-revision-prompt";
 import { validateDayRevisionQuality } from "@/server/validation/day-revision-quality";
 import { sanitizeUserFacingData } from "@/lib/sanitize-user-facing-text";
@@ -18,10 +18,10 @@ function validate(raw: string, request: DayRevisionRequest): DayRevisionResponse
   return cleanResult;
 }
 
-export async function reviseDay(request: DayRevisionRequest): Promise<DayRevisionResponse> {
+export async function reviseDay(request: DayRevisionRequest, onUsage?: (usage:AiUsage)=>void|Promise<void>, allowAiRepair=true): Promise<DayRevisionResponse> {
   const startedAt = performance.now();
   const metrics: DayRevisionMetrics = { firstModelCallMs: 0, validationMs: 0, repairModelCallMs: 0, repairValidationMs: 0, repairUsed: false, totalMs: 0 };
-  const first = await requestStructuredModel(buildDayRevisionPrompt(request), dayRevisionResponseSchema, "day_revision", DAY_REVISION_SYSTEM_PROMPT);
+  const first = await requestStructuredModel(buildDayRevisionPrompt(request), dayRevisionResponseSchema, request.mode==="selected_activities"?"partial_revision":"day_revision", DAY_REVISION_SYSTEM_PROMPT,onUsage);
   metrics.firstModelCallMs = first.durationMs;
   const validationStartedAt = performance.now();
   try {
@@ -33,8 +33,9 @@ export async function reviseDay(request: DayRevisionRequest): Promise<DayRevisio
   } catch (firstError) {
     metrics.validationMs = Math.round(performance.now() - validationStartedAt);
     metrics.repairUsed = true;
+    if(!allowAiRepair) throw new AiGenerationError("这次调整没有通过质量检查，原行程已保留。","QUALITY_VALIDATION_FAILED",422);
     const issues = firstError instanceof z.ZodError ? firstError.issues.map((item) => `${item.path.join(".")}: ${item.message}`).join("; ") : Array.isArray(firstError) ? firstError : "单日结果不符合约束";
-    const repair = await requestStructuredModel(buildDayRevisionRepairPrompt(first.raw, issues), dayRevisionResponseSchema, "day_revision_repair", DAY_REVISION_SYSTEM_PROMPT);
+    const repair = await requestStructuredModel(buildDayRevisionRepairPrompt(first.raw, issues), dayRevisionResponseSchema, "day_revision_repair", DAY_REVISION_SYSTEM_PROMPT,onUsage,true);
     metrics.repairModelCallMs = repair.durationMs;
     const repairStartedAt = performance.now();
     try {
