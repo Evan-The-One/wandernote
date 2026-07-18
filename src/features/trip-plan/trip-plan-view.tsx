@@ -305,7 +305,14 @@ export function TripPlanView({
             >
               {copied ? "分享链接已准备好" : "分享这份旅行计划"}
             </button>
-            <a href="#premium-trip-images" className="mt-3 inline-flex rounded-full border border-[#245b46]/20 bg-white px-5 py-2.5 text-sm font-bold text-[#245b46]">生成或查看精美图片版</a>
+            {canEdit && (
+              <a
+                href="#premium-trip-images"
+                className="mt-3 inline-flex rounded-full border border-[#245b46]/20 bg-white px-5 py-2.5 text-sm font-bold text-[#245b46]"
+              >
+                生成或查看精美图片版
+              </a>
+            )}
           </section>
         )}
         <div className="grid gap-5 md:grid-cols-3">
