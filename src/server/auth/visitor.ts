@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { getDatabase } from "@/server/database/client";
@@ -14,22 +14,48 @@ function options(httpOnly = true) {
 
 export async function ensureVisitor() {
   const store = await cookies();
-  let sessionId = store.get(VISITOR_COOKIE)?.value;
-  if (!sessionId || !/^[A-Za-z0-9_-]{40,60}$/.test(sessionId)) {
-    sessionId = randomBytes(32).toString("base64url");
-    store.set(VISITOR_COOKIE, sessionId, options());
-  }
   const db = getDatabase();
+  const rawCookie = store.get(VISITOR_COOKIE)?.value;
+  let sessionId = verifySessionCookie(rawCookie);
+  if (!sessionId && rawCookie && /^[A-Za-z0-9_-]{40,60}$/.test(rawCookie)) {
+    // One-time migration for existing HTTP-only cookies: only accept a legacy
+    // value if it already belongs to a persisted visitor.
+    const [legacy] = await db.select({ id: visitors.id }).from(visitors).where(eq(visitors.sessionId, rawCookie)).limit(1);
+    if (legacy) sessionId = rawCookie;
+  }
+  if (!sessionId) sessionId = randomBytes(32).toString("base64url");
+  if (rawCookie !== signSessionCookie(sessionId)) store.set(VISITOR_COOKIE, signSessionCookie(sessionId), options());
   const [visitor] = await db.insert(visitors).values({ sessionId }).onConflictDoUpdate({ target: visitors.sessionId, set: { lastSeenAt: new Date() } }).returning({ id: visitors.id });
   return { visitorId: visitor.id, sessionId };
 }
 
 export async function findVisitor() {
-  const sessionId = (await cookies()).get(VISITOR_COOKIE)?.value;
+  const store = await cookies();
+  const rawCookie = store.get(VISITOR_COOKIE)?.value;
+  let sessionId = verifySessionCookie(rawCookie);
+  if (!sessionId && rawCookie && /^[A-Za-z0-9_-]{40,60}$/.test(rawCookie)) sessionId = rawCookie;
   if (!sessionId) return null;
   const db = getDatabase();
   const [visitor] = await db.select({ id: visitors.id }).from(visitors).where(eq(visitors.sessionId, sessionId)).limit(1);
+  if (visitor && rawCookie !== signSessionCookie(sessionId)) store.set(VISITOR_COOKIE, signSessionCookie(sessionId), options());
   return visitor ? { visitorId: visitor.id, sessionId } : null;
+}
+
+function sessionSecret() {
+  return process.env.VISITOR_SESSION_SECRET || process.env.ADMIN_ACCESS_CODE || process.env.OPENAI_API_KEY || "development-only-session-secret";
+}
+
+function signSessionCookie(sessionId: string) {
+  const signature = createHmac("sha256", sessionSecret()).update(sessionId).digest("base64url");
+  return `${sessionId}.${signature}`;
+}
+
+function verifySessionCookie(value: string | undefined) {
+  if (!value) return null;
+  const [sessionId, signature, extra] = value.split(".");
+  if (extra || !sessionId || !signature || !/^[A-Za-z0-9_-]{43}$/.test(sessionId)) return null;
+  const expected = signSessionCookie(sessionId).split(".")[1]!;
+  return signature.length === expected.length && timingSafeEqual(Buffer.from(signature), Buffer.from(expected)) ? sessionId : null;
 }
 
 export async function hasBetaAccess(expectedCode: string | null) {

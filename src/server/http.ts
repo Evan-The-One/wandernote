@@ -12,11 +12,43 @@ export type PublicErrorCode =
   | "DAILY_AI_BUDGET_EXCEEDED" | "GLOBAL_CONCURRENCY_LIMIT" | "RATE_LIMITED";
 
 export async function readJsonBody(request: Request): Promise<unknown> {
+  assertTrustedMutation(request);
+  const contentType = request.headers.get("content-type")?.toLowerCase() || "";
+  if (!contentType.startsWith("application/json")) throw new HttpError(415, "请求格式无效", "UNSUPPORTED_MEDIA_TYPE");
   const declared = Number(request.headers.get("content-length") || 0);
   if (declared > MAX_REQUEST_BODY_BYTES) throw new HttpError(413, "请求内容过大，请精简补充要求后重试", "BODY_TOO_LARGE");
   const raw = await request.text();
   if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BODY_BYTES) throw new HttpError(413, "请求内容过大，请精简补充要求后重试", "BODY_TOO_LARGE");
   try { return JSON.parse(raw); } catch { throw new HttpError(400, "请求格式无效", "INVALID_JSON"); }
+}
+
+/**
+ * Cookie-backed mutations must come from this deployment. This blocks browser
+ * CSRF and casual cross-site replay; quotas and idempotency remain the security
+ * boundary for non-browser clients, which can forge headers.
+ */
+export function assertTrustedMutation(request: Request) {
+  const site = request.headers.get("sec-fetch-site");
+  if (site && site !== "same-origin" && site !== "same-site" && site !== "none") {
+    throw new HttpError(403, "请求来源无效，请刷新页面后重试", "UNTRUSTED_ORIGIN");
+  }
+
+  const origin = request.headers.get("origin");
+  if (!origin) {
+    if (process.env.NODE_ENV === "production") throw new HttpError(403, "请求来源无效，请刷新页面后重试", "UNTRUSTED_ORIGIN");
+    return;
+  }
+
+  let originUrl: URL;
+  try { originUrl = new URL(origin); }
+  catch { throw new HttpError(403, "请求来源无效，请刷新页面后重试", "UNTRUSTED_ORIGIN"); }
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") || (process.env.NODE_ENV === "production" ? "https" : "http");
+  const deploymentOrigin = host ? `${forwardedProto}://${host}` : null;
+  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || null;
+  if (originUrl.origin !== deploymentOrigin && originUrl.origin !== configuredOrigin) {
+    throw new HttpError(403, "请求来源无效，请刷新页面后重试", "UNTRUSTED_ORIGIN");
+  }
 }
 
 export function secureEqual(left: string, right: string) {

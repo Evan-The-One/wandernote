@@ -16,6 +16,16 @@ function riskHash(request: Request) {
   return createHash("sha256").update(`${salt}:${raw}`).digest("hex").slice(0, 24);
 }
 
+function assertRequestRiskAllowed(request: Request, hash: string) {
+  const blocked = new Set((process.env.AI_BLOCKED_RISK_HASHES || "").split(",").map((value) => value.trim()).filter(Boolean));
+  if (blocked.has(hash)) throw new HttpError(403, "当前请求暂时无法处理", "RATE_LIMITED");
+  const userAgent = request.headers.get("user-agent")?.trim() || "";
+  const blockAutomation = process.env.AI_BLOCK_SUSPICIOUS_USER_AGENTS !== "false" && process.env.NODE_ENV === "production";
+  if (blockAutomation && (!userAgent || /(?:curl|wget|python-requests|httpclient|scrapy|libwww-perl)/i.test(userAgent))) {
+    throw new HttpError(403, "请使用浏览器完成旅行规划", "RATE_LIMITED");
+  }
+}
+
 export function hashIdempotency(value: string) {
   return createHash("sha256").update(value).digest("hex").slice(0, 32);
 }
@@ -25,6 +35,7 @@ export async function assertAiRequestAllowed(request: Request, visitorId: string
   const db = getDatabase();
   const sinceHour = new Date(Date.now() - 60 * 60 * 1000);
   const hash = riskHash(request);
+  assertRequestRiskAllowed(request, hash);
   const recent = await db.select({ metadata: analyticsEvents.metadata }).from(analyticsEvents)
     .where(and(eq(analyticsEvents.eventName, "ai_request_started"), gte(analyticsEvents.createdAt, sinceHour))).limit(500);
   if (recent.filter((event) => event.metadata.riskHash === hash).length >= serverConfig.ipHourlyLimit){
