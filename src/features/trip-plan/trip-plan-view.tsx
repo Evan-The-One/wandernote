@@ -13,6 +13,7 @@ import { DayImageExport } from "./day-image-export";
 import { DayRoute, summarizeDayRoute } from "./day-route";
 import { trackEvent } from "@/features/analytics/client";
 import { IntercitySummary } from "./intercity-summary";
+import { PremiumTripImages } from "./premium-trip-images";
 
 const method = {
   walk: "步行",
@@ -48,6 +49,7 @@ export function TripPlanView({
   onUndo,
   canEdit,
   tripId,
+  tripVersion,
   highlightedActivityIds = [],
 }: {
   plan: TripPlan;
@@ -58,6 +60,7 @@ export function TripPlanView({
   onUndo?: () => void;
   canEdit?: boolean;
   tripId?: string;
+  tripVersion?: number;
   highlightedActivityIds?: string[];
 }) {
   const [copied, setCopied] = useState(false);
@@ -167,6 +170,9 @@ export function TripPlanView({
             <p className="mt-3 text-xs text-[#707a74]">
               重点：{priorities.join(" · ")}
             </p>
+          )}
+          {tripId && tripVersion && (
+            <PremiumTripImages tripId={tripId} tripVersion={tripVersion} canEdit={Boolean(canEdit)} destination={plan.destination.city}/>
           )}
         </div>
       </section>
@@ -299,6 +305,7 @@ export function TripPlanView({
             >
               {copied ? "分享链接已准备好" : "分享这份旅行计划"}
             </button>
+            <a href="#premium-trip-images" className="mt-3 inline-flex rounded-full border border-[#245b46]/20 bg-white px-5 py-2.5 text-sm font-bold text-[#245b46]">生成或查看精美图片版</a>
           </section>
         )}
         <div className="grid gap-5 md:grid-cols-3">

@@ -13,4 +13,6 @@ export const serverConfig = {
   dailyAiSoftBudgetUsd: Number(process.env.DAILY_AI_SOFT_BUDGET_USD || 5),
   dailyAiHardBudgetUsd: Number(process.env.DAILY_AI_HARD_BUDGET_USD || 8),
   betaAccessCode: process.env.BETA_ACCESS_CODE?.trim() || null,
+  freeLifetimePremiumImageLimit: positiveInteger("FREE_LIFETIME_PREMIUM_IMAGE_LIMIT", 1),
+  dailyTemplateExportLimit: positiveInteger("DAILY_TEMPLATE_EXPORT_LIMIT", 10),
 };

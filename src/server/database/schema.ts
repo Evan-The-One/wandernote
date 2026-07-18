@@ -66,3 +66,42 @@ export const analyticsEvents = pgTable("analytics_events", {
   durationMs: integer("duration_ms"), status: text("status"), errorCategory: text("error_category"), metadata: jsonb("metadata").$type<Record<string,string|number|boolean|null>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("analytics_events_created_idx").on(table.createdAt), index("analytics_events_name_created_idx").on(table.eventName,table.createdAt)]);
+
+export const tripImageTasks = pgTable("trip_image_tasks", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  visitorId: uuid("visitor_id").notNull().references(() => visitors.id, { onDelete: "cascade" }),
+  tripId: uuid("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  tripVersion: integer("trip_version").notNull(),
+  imageType: text("image_type").notNull(),
+  aspectRatio: text("aspect_ratio").notNull(),
+  templateVersion: text("template_version").notNull(),
+  provider: text("provider").notNull(),
+  status: text("status").notNull(),
+  idempotencyHash: text("idempotency_hash").notNull(),
+  outputJson: jsonb("output_json").$type<Record<string, unknown>>(),
+  failureCode: text("failure_code"),
+  retryCount: integer("retry_count").notNull().default(0),
+  durationMs: integer("duration_ms"),
+  estimatedCostUsd: text("estimated_cost_usd").notNull().default("0"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => [
+  uniqueIndex("trip_image_tasks_idempotency_unique").on(table.visitorId, table.idempotencyHash),
+  uniqueIndex("trip_image_tasks_cache_unique").on(table.tripId, table.tripVersion, table.imageType, table.aspectRatio, table.templateVersion),
+  index("trip_image_tasks_trip_created_idx").on(table.tripId, table.createdAt),
+]);
+
+export const entitlementLedger = pgTable("entitlement_ledger", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  visitorId: uuid("visitor_id").notNull().references(() => visitors.id, { onDelete: "cascade" }),
+  creditType: text("credit_type").notNull(),
+  direction: text("direction").notNull(),
+  amount: integer("amount").notNull(),
+  source: text("source").notNull(),
+  businessKey: text("business_key").notNull(),
+  taskId: uuid("task_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("entitlement_ledger_business_key_unique").on(table.businessKey),
+  index("entitlement_ledger_visitor_type_idx").on(table.visitorId, table.creditType, table.createdAt),
+]);

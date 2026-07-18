@@ -76,4 +76,6 @@ pnpm test:core-upgrade
 pnpm scan:secrets
 ```
 
-当前不开发正式登录、支付、地图、实时天气、图片、PDF、小程序、iOS 或多城市规划。详细范围见 [PRODUCT_SPEC.md](./PRODUCT_SPEC.md)，协议见 [DATA_SCHEMA.md](./DATA_SCHEMA.md)。
+当前不开发正式登录、支付、地图、实时天气、AI 景点图片、PDF、小程序或 iOS。结果页支持基于结构化行程的模板式整趟旅行图片，以及原有单日执行长图；模板导出不会调用图片模型。详细范围见 [PRODUCT_SPEC.md](./PRODUCT_SPEC.md)，协议见 [DATA_SCHEMA.md](./DATA_SCHEMA.md)。
+
+精美旅行图片的任务、额度、模板和未来 AI Provider 设计见 [docs/premium-trip-images.md](./docs/premium-trip-images.md)。

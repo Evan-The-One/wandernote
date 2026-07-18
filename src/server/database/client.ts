@@ -10,7 +10,7 @@ export function getDatabase() {
 }
 
 type TransactionalDatabase = ReturnType<typeof createTransactionalDatabase>;
-type Transaction = Parameters<Parameters<TransactionalDatabase["transaction"]>[0]>[0];
+export type Transaction = Parameters<Parameters<TransactionalDatabase["transaction"]>[0]>[0];
 
 function createTransactionalDatabase(pool: Pool) {
   return drizzleTransactional(pool, { schema });
