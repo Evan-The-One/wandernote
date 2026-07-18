@@ -36,9 +36,13 @@ export async function assertAiRequestAllowed(request: Request, visitorId: string
   const sinceHour = new Date(Date.now() - 60 * 60 * 1000);
   const hash = riskHash(request);
   assertRequestRiskAllowed(request, hash);
-  const recent = await db.select({ metadata: analyticsEvents.metadata }).from(analyticsEvents)
-    .where(and(eq(analyticsEvents.eventName, "ai_request_started"), gte(analyticsEvents.createdAt, sinceHour))).limit(500);
-  if (recent.filter((event) => event.metadata.riskHash === hash).length >= serverConfig.ipHourlyLimit){
+  const [recent] = await db.select({ value: count() }).from(analyticsEvents)
+    .where(and(
+      eq(analyticsEvents.eventName, "ai_request_started"),
+      gte(analyticsEvents.createdAt, sinceHour),
+      sql`${analyticsEvents.metadata}->>'riskHash' = ${hash}`,
+    ));
+  if (recent.value >= serverConfig.ipHourlyLimit){
     await recordAnalyticsEvent({visitorId,eventName:"ai_rate_limited",status:"blocked",metadata:{requestType}}).catch(()=>undefined);
     throw new HttpError(429, "请求有点频繁，请稍后再试。", "RATE_LIMITED");
   }
