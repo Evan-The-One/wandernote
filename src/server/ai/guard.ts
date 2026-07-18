@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { and, count, eq, gte, sql } from "drizzle-orm";
-import { analyticsEvents, generationJobs, trips } from "@/server/database/schema";
+import { analyticsEvents, generationJobs, tripImageTasks, trips } from "@/server/database/schema";
 import { ensureAnalyticsTable, recordAnalyticsEvent } from "@/server/database/analytics";
 import { getDatabase } from "@/server/database/client";
 import { startOfShanghaiDay } from "@/server/database/trips";
@@ -8,7 +8,7 @@ import { serverConfig } from "@/server/config";
 import { HttpError } from "@/server/http";
 import type { AiUsage } from "./client";
 
-export type AiRequestType = "full_generation" | "day_revision" | "partial_revision" | "quality_repair";
+export type AiRequestType = "full_generation" | "day_revision" | "partial_revision" | "quality_repair" | "travel_poster";
 
 function riskHash(request: Request) {
   const raw = (request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown").split(",")[0]!.trim();
@@ -46,8 +46,12 @@ export async function assertAiRequestAllowed(request: Request, visitorId: string
     await recordAnalyticsEvent({visitorId,eventName:"ai_rate_limited",status:"blocked",metadata:{requestType}}).catch(()=>undefined);
     throw new HttpError(429, "请求有点频繁，请稍后再试。", "RATE_LIMITED");
   }
-  const [running] = await db.select({ value: count() }).from(generationJobs).where(and(eq(generationJobs.status, "running"),gte(generationJobs.createdAt,new Date(Date.now()-10*60*1000))));
-  if (running.value >= serverConfig.globalConcurrentLimit)
+  const runningSince = new Date(Date.now() - 10 * 60 * 1000);
+  const [[runningPlans], [runningPosters]] = await Promise.all([
+    db.select({ value: count() }).from(generationJobs).where(and(eq(generationJobs.status, "running"), gte(generationJobs.createdAt, runningSince))),
+    db.select({ value: count() }).from(tripImageTasks).where(and(eq(tripImageTasks.status, "running"), gte(tripImageTasks.createdAt, runningSince))),
+  ]);
+  if (runningPlans.value + runningPosters.value >= serverConfig.globalConcurrentLimit)
     throw new HttpError(503, "现在体验的人有点多，请稍后再试。", "GLOBAL_CONCURRENCY_LIMIT");
   const [cost] = await db.select({ value: sql<number>`coalesce(sum((metadata->>'estimatedCostUsd')::numeric), 0)` })
     .from(analyticsEvents).where(and(eq(analyticsEvents.eventName, "ai_usage"), gte(analyticsEvents.createdAt, startOfShanghaiDay())));

@@ -45,10 +45,10 @@ const labels: Record<string, string> = {
   revisions: "单日修改",
   revisionSuccessRate: "修改成功率",
   shares: "分享点击",
-  images: "图片保存",
+  images: "海报保存",
   feedback: "反馈提交",
   todayAiRequests:"今日AI请求",todayAiCostUsd:"今日估算成本",fullGenerationCostUsd:"完整生成成本",dayRevisionCostUsd:"整天修改成本",partialRevisionCostUsd:"局部修改成本",repairCostUsd:"自动修复成本",rateLimited:"限流拦截",idempotentReused:"幂等复用",
-  premiumImageTasks:"今日精美图片任务",premiumImageSuccess:"图片成功",premiumImageFailed:"图片失败",premiumImageAverageDurationMs:"图片平均耗时",premiumImageCostUsd:"图片总成本",premiumImageFreeCreditsUsed:"免费图片额度使用",premiumImageSaved:"图片保存",premiumImageShared:"图片分享",
+  premiumImageTasks:"今日旅行海报任务",premiumImageSuccess:"海报成功",premiumImageFailed:"海报失败",premiumImageAverageDurationMs:"海报平均耗时",premiumImageCostUsd:"海报总成本",premiumImageFreeCreditsUsed:"免费海报额度使用",premiumImageSaved:"海报保存",premiumImageShared:"海报分享",
 };
 const display: Record<string, string> = {
   fast_paced: "特种兵",

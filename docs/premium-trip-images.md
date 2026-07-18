@@ -1,4 +1,6 @@
-# 精美旅行图片
+# 精美旅行图片（已停用）
+
+此模板式产品入口自 2026-07-18 起停用。历史 `premium_trip` 任务和数据表保留用于兼容与回滚；新产品流程使用 `travel_poster`，详见 [travel-posters.md](./travel-posters.md)。
 
 ## 第一阶段
 

@@ -1,4 +1,4 @@
-import type { TripImageAspectRatio, TripImageTemplateSpec } from "@/schemas/trip-image";
+import type { TravelPosterSpec, TripImageAspectRatio, TripImageTemplateSpec } from "@/schemas/trip-image";
 
 const WIDTH = 1080;
 const FONT = '"PingFang SC", "Microsoft YaHei", Arial, sans-serif';
@@ -59,3 +59,21 @@ async function renderPage(spec: TripImageTemplateSpec, page: Page, index: number
 }
 
 export async function renderPremiumTripImages(spec: TripImageTemplateSpec) { const pages = buildPremiumImagePagePlan(spec); return Promise.all(pages.map((page, index) => renderPage(spec, page, index, pages.length))); }
+
+function loadImage(src: string) { return new Promise<HTMLImageElement>((resolve, reject) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = reject; image.src = src; }); }
+export async function renderTravelPosters(spec: TravelPosterSpec) {
+  await document.fonts?.ready;
+  return Promise.all(spec.pages.map(async (page, pageIndex) => {
+    const canvas = document.createElement("canvas"); canvas.width = 1080; canvas.height = 1620; const ctx = canvas.getContext("2d"); if (!ctx) throw new Error("当前浏览器无法生成海报");
+    const image = await loadImage(page.backgroundDataUrl); ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height); gradient.addColorStop(0, "rgba(247,245,238,.72)"); gradient.addColorStop(.34, "rgba(247,245,238,.12)"); gradient.addColorStop(.58, "rgba(247,245,238,.28)"); gradient.addColorStop(1, "rgba(247,245,238,.94)"); ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    rounded(ctx, 48, 42, 984, 185, 30, "rgba(250,248,241,.91)"); ctx.textAlign = "center"; ctx.fillStyle = "#204f3c"; ctx.font = `800 53px ${FONT}`; wrap(ctx, spec.title, 880).slice(0, 2).forEach((value, index) => ctx.fillText(value, 540, 108 + index * 59)); ctx.fillStyle = "#9a682d"; ctx.font = `600 19px ${FONT}`; ctx.fillText(`${spec.destination} · ${spec.daysCount}天 · ${page.dayRange}`, 540, 202); ctx.textAlign = "left";
+    if (page.kind === "cover") {
+      rounded(ctx, 72, 970, 936, 410, 34, "rgba(250,248,241,.92)"); ctx.fillStyle = "#204f3c"; ctx.font = `800 34px ${FONT}`; ctx.fillText("这次这样玩", 110, 1030); ctx.fillStyle = "#37483f"; ctx.font = `600 27px ${FONT}`; lines(ctx, spec.subtitle, 110, 1080, 850, 43, 4); ctx.fillStyle = "#9a682d"; ctx.font = `700 21px ${FONT}`; ctx.fillText("建议住宿", 110, 1250); ctx.fillStyle = "#37483f"; ctx.font = `600 25px ${FONT}`; lines(ctx, spec.stayArea, 110, 1290, 850, 36, 2);
+    } else {
+      let y = 780; for (const day of page.days) { const cardHeight = page.days.length === 1 ? 650 : 355; rounded(ctx, 58, y, 964, cardHeight, 34, "rgba(250,248,241,.94)"); ctx.fillStyle = "#204f3c"; ctx.font = `800 28px ${FONT}`; ctx.fillText(`DAY ${day.dayNumber}  ${day.title}`, 96, y + 52); ctx.fillStyle = "#a36f2f"; ctx.font = `600 18px ${FONT}`; ctx.fillText(day.city, 96, y + 82); let rowY = y + 126; for (const activity of day.activities.slice(0, page.days.length === 1 ? 5 : 4)) { ctx.fillStyle = "#e2b95e"; ctx.beginPath(); ctx.arc(104, rowY - 7, 7, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#245b46"; ctx.font = `800 19px ${FONT}`; ctx.fillText(activity.time, 128, rowY); ctx.fillStyle = "#1f2d26"; ctx.font = `700 22px ${FONT}`; ctx.fillText(activity.name.slice(0, 24), 222, rowY); ctx.fillStyle = "#637068"; ctx.font = `500 17px ${FONT}`; ctx.fillText(activity.note.slice(0, 36), 222, rowY + 27); rowY += page.days.length === 1 ? 91 : 63; } y += cardHeight + 22; }
+    }
+    rounded(ctx, 48, 1490, 984, 88, 25, "rgba(32,79,60,.94)"); ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = `800 24px ${FONT}`; ctx.fillText("一键出发", 540, 1525); ctx.fillStyle = "#f1c777"; ctx.font = `600 12px ${FONT}`; ctx.fillText("T R I P   R E A D Y", 540, 1547); ctx.fillStyle = "rgba(255,255,255,.78)"; ctx.font = `500 13px ${FONT}`; ctx.fillText(`yjchufa.com   ·   ${pageIndex + 1} / ${spec.pages.length}`, 540, 1567); ctx.textAlign = "left";
+    return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("海报生成失败")), "image/jpeg", .92));
+  }));
+}

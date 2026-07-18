@@ -28,14 +28,15 @@ function routePreview(day: DayPlan) {
 }
 function friendlySummary(value:string){
   const clean=value.replace(/根据你的需求|根据用户需求|综合考虑(?:了)?|进行(?:了)?(?:路线)?优化|覆盖(?:了)?代表性地点/g,"").replace(/最具代表性的/g,"很有辨识度的").replace(/代表性/g,"经典").replace(/建立城市(?:感|印象)/g,"先看看城市全貌").replace(/高含金量/g,"值得去").replace(/核心体验/g,"重点").replace(/适合作为/g,"可以放在").replace(/\s+/g," ").trim();
-  return clean.split(/(?<=[。！？])/u).filter(Boolean).slice(0,5).join("")||"把每天的地点放在相邻区域，少走回头路，把时间留给真正想看的地方。";
+  return clean.split(/(?<=[。！？])/u).filter(Boolean).slice(0,4).join("");
 }
 function friendlyReason(value:string){return friendlySummary(value).split(/(?<=[。！？])/u).filter(Boolean)[0]?.slice(0,70)||"顺路安排，到了就能直接开始体验。";}
 function dayAreas(destination:string,areas:string){return areas.includes(destination)?areas:`${destination}·${areas}`;}
 function friendlyWhy(plan:TripPlan,input:TripInput){
-  const first=plan.days[0]?summarizeDayRoute(plan.days[0]).areas:"核心区域";const second=plan.days[1]?summarizeDayRoute(plan.days[1]).areas:null;
-  const pace=input.travelStyle==="fast_paced"?"多看几个重点":input.travelStyle==="lazy"?"少换地方、多留休息":"每个地方多留一点时间";
-  return [`你有${plan.days.length}天，所以每天集中在相邻区域，${pace}。`,`第一天先玩${first}${second?`，第二天再到${second}`:""}。`,`这样少走回头路，也不用一直赶路。`];
+  const generated=friendlySummary(plan.summary).split(/(?<=[。！？])/u).filter(Boolean).filter(line=>!/(少走回头路|不用一直赶路|减少折返|把时间留给)/.test(line)||new RegExp(`${plan.destination.city}|DAY|第\\d天|步行|自驾|高铁|地铁|公交|打车|\\d天`).test(line));
+  if(generated.length>=2)return generated.slice(0,4);
+  const first=plan.days[0]?summarizeDayRoute(plan.days[0]).areas:"";const second=plan.days[1]?summarizeDayRoute(plan.days[1]).areas:null;
+  return [`${plan.destination.city}${plan.days.length}天，第一天安排${first}${second?`，第二天前往${second}`:""}。`,input.departureCity?`从${input.departureCity}出发，首日和返程日已按大交通预留时间。`:`行程按${plan.days.length}天的实际活动时间展开。`];
 }
 function stayLabel(minutes:number){if(minutes<=45)return "约30–45分钟";if(minutes<=75)return "约60分钟";if(minutes<=105)return "约60–90分钟";if(minutes<=150)return "约90–120分钟";return `约${Math.round(minutes/30)*30}分钟`;}
 function displayTripTitle(input:TripInput){const prefix=`${input.destination.city}${input.days}日`;const suffix:Record<TripInput["travelStyle"],string>={fast_paced:"高效打卡路线",slow:"慢游路线",lazy:"轻松游路线",food:"美食漫游路线",romantic:"城市约会路线",family:"亲子轻松路线"};return `${prefix}${suffix[input.travelStyle]}`;}
@@ -172,7 +173,7 @@ export function TripPlanView({
             </p>
           )}
           {tripId && tripVersion && (
-            <PremiumTripImages tripId={tripId} tripVersion={tripVersion} canEdit={Boolean(canEdit)} destination={plan.destination.city}/>
+            <PremiumTripImages tripId={tripId} tripVersion={tripVersion} canEdit={Boolean(canEdit)} destination={plan.destination.city} daysCount={plan.days.length}/>
           )}
         </div>
       </section>
@@ -211,7 +212,6 @@ export function TripPlanView({
                     {day.date ? ` · ${day.date}` : ""}
                   </p>
                   <h2 className="mt-2 text-2xl font-bold">{day.title}</h2>
-                  <p className="mt-1 font-medium text-[#526159]">今天：{day.theme}</p>
                 </div>
               </div>
             </header>
@@ -307,10 +307,10 @@ export function TripPlanView({
             </button>
             {canEdit && (
               <a
-                href="#premium-trip-images"
+                href="#travel-poster"
                 className="mt-3 inline-flex rounded-full border border-[#245b46]/20 bg-white px-5 py-2.5 text-sm font-bold text-[#245b46]"
               >
-                生成或查看精美图片版
+                生成或查看旅行海报
               </a>
             )}
           </section>

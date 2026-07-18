@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { tripImageTemplateSpecSchema, type TripImageAspectRatio } from "../src/schemas/trip-image";
+import { travelPosterSpecSchema, tripImageTemplateSpecSchema, type TripImageAspectRatio } from "../src/schemas/trip-image";
 import { buildPremiumImagePagePlan } from "../src/features/trip-plan/premium-image-renderer";
 
 function spec(daysCount: number, ratio: TripImageAspectRatio, activities = 4) {
@@ -24,4 +24,10 @@ for (const ratio of ["3:4", "9:16", "1:1"] as const) {
 const longName = spec(2, "3:4");
 longName.days[0]!.activities[0]!.name = "一个很长但仍然能够安全进入模板并自动截断显示的中文旅行地点名称";
 assert.equal(tripImageTemplateSpecSchema.safeParse(longName).success, true);
-console.log("Trip image schemas and pagination passed (3:4, 9:16, 1:1; 1–7 days). ");
+for(const daysCount of [1,2,3,4,5,6,7]){
+  const pageCount=daysCount<=2?1:1+Math.ceil(daysCount/2);
+  const pages=Array.from({length:pageCount},(_,index)=>({pageNumber:index+1,dayRange:index===0&&daysCount>2?"旅行总览":`DAY ${Math.max(1,index*2-1)}–${Math.min(daysCount,index*2)}`,backgroundDataUrl:"data:image/webp;base64,AAAA",kind:index===0&&daysCount>2?"cover" as const:"days" as const,days:[]}));
+  const parsed=travelPosterSpecSchema.safeParse({kind:"travel_poster",version:"travel_poster_v1",tripId:"11111111-1111-4111-8111-111111111111",tripVersion:1,aspectRatio:"3:4",title:"绍兴两天一晚",subtitle:"古城、水巷与黄酒文化",destination:"绍兴",daysCount,stayArea:"越城区",reminder:"出发前核实实际信息。",pages,model:"gpt-image-2",quality:"medium",estimatedCostUsd:pageCount*.041});
+  assert.equal(parsed.success,true,`${daysCount}天海报Schema应通过`); assert.equal(pages.length,pageCount);
+}
+console.log("Trip image and travel poster schemas passed (legacy ratios; AI poster 1–7 days). ");
