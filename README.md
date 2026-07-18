@@ -79,3 +79,4 @@ pnpm scan:secrets
 当前不开发正式登录、支付、地图、实时天气、AI 景点图片、PDF、小程序或 iOS。结果页支持基于结构化行程的模板式整趟旅行图片，以及原有单日执行长图；模板导出不会调用图片模型。详细范围见 [PRODUCT_SPEC.md](./PRODUCT_SPEC.md)，协议见 [DATA_SCHEMA.md](./DATA_SCHEMA.md)。
 
 旅行海报的 OpenAI 生图、混合排版、任务、额度与安全设计见 [docs/travel-posters.md](./docs/travel-posters.md)。旧模板图片功能已下线，但历史任务继续兼容读取。
+旅行海报账户升级与迁移说明见 [docs/POSTER_ACCOUNT_MIGRATION.md](docs/POSTER_ACCOUNT_MIGRATION.md)。

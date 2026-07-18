@@ -5,8 +5,9 @@ import "./globals.css";
 import { PageTracker } from "@/features/analytics/page-tracker";
 import { SiteFooter } from "@/components/site-footer";
 
-const productionUrl = process.env.NEXT_PUBLIC_APP_URL
+const configuredProductionUrl = process.env.NEXT_PUBLIC_APP_URL
   || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://wandernote-beryl.vercel.app");
+const productionUrl = /^https?:\/\/[^\s]+$/i.test(configuredProductionUrl) ? configuredProductionUrl : "https://www.yjchufa.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(productionUrl),

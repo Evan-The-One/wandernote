@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 type Data = {
   metrics: Record<string, number>;
+  imageMetrics: Record<string, number | [string,number][]>;
   failures: { label: string; value: number; ratio: number }[];
   styleStats: {style:string;total:number;successRate:number;failureRate:number;revisionRate:number;averageDurationMs:number}[];
   devices: [string, number][];
@@ -210,7 +211,7 @@ export function AnalyticsAdmin({
           </div>
         </section>
       </div>
-      <section className="card mt-6 rounded-3xl p-6"><h2 className="font-bold">旅行节奏表现</h2><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[650px] text-sm"><thead><tr>{["节奏","使用次数","成功率","失败率","修改率","平均耗时"].map(item=><th key={item} className="p-2 text-left">{item}</th>)}</tr></thead><tbody>{data?.styleStats.map(item=><tr key={item.style} className="border-t"><td className="p-2 font-bold">{display[item.style]||item.style}</td><td>{item.total}</td><td>{(item.successRate*100).toFixed(1)}%</td><td>{(item.failureRate*100).toFixed(1)}%</td><td>{(item.revisionRate*100).toFixed(1)}%</td><td>{Math.round(item.averageDurationMs/1000)}秒</td></tr>)}</tbody></table></div></section>
+      <section className="card mt-6 rounded-3xl p-6"><h2 className="font-bold">旅行海报漏斗</h2><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{data&&Object.entries(data.imageMetrics).filter(([,value])=>typeof value==="number").map(([key,value])=><div key={key} className="rounded-2xl bg-[#f4f6f1] p-3"><p className="text-xs text-[#707a74]">{{posterExampleVisitors:"示例访客",posterGenerateClickVisitors:"生成点击访客",posterLoginPrompts:"登录提示",posterStarted:"开始生成",posterSucceeded:"生成成功",posterFailed:"生成失败",posterSaveCurrent:"保存单张",posterSaveAll:"全部保存",posterShares:"分享海报",total:"任务数",succeeded:"成功任务",failed:"失败任务",averageDurationMs:"平均耗时",totalCostUsd:"今日成本",freeCreditsUsed:"权益使用"}[key]||key}</p><strong className="mt-1 block text-lg">{key.includes("Cost")?`$${Number(value).toFixed(4)}`:key.includes("Ms")?`${Math.round(Number(value)/1000)}秒`:value}</strong></div>)}</div></section>
       <div className="mt-6 overflow-x-auto rounded-2xl bg-white">
         <table className="w-full min-w-[850px] text-sm">
           <thead>

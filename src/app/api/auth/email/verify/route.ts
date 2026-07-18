@@ -1,0 +1,2 @@
+import { verifyLoginToken } from "@/server/auth/user";
+export async function GET(request:Request){const url=new URL(request.url);const token=url.searchParams.get("token")||"";const returnTo=url.searchParams.get("returnTo")||"/";const user=token?await verifyLoginToken(token):null;return Response.redirect(new URL(user&&returnTo.startsWith("/trip/")?`${returnTo}?poster=resume`:"/?login=failed",url.origin));}

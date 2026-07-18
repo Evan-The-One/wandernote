@@ -115,6 +115,15 @@ export const planBudgetSchema = z.object({
   notes: z.string().min(1),
 });
 
+export const preTripAdviceSchema = z.object({
+  transport: z.string().trim().min(1).max(72),
+  accommodation: z.string().trim().min(1).max(72),
+  clothing: z.string().trim().min(1).max(72),
+  photoSpots: z.string().trim().min(1).max(72),
+  food: z.string().trim().min(1).max(72),
+  timing: z.string().trim().min(1).max(72),
+});
+
 export const tripPlanSchema = z.object({
   schemaVersion: z.literal("0.2"),
   tripId: z.string(),
@@ -126,6 +135,7 @@ export const tripPlanSchema = z.object({
   budget: planBudgetSchema,
   days: z.array(dayPlanSchema),
   generalTips: z.array(z.string()),
+  preTripAdvice: preTripAdviceSchema.optional(),
   dataDisclaimer: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),

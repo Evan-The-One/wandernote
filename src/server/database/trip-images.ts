@@ -7,6 +7,7 @@ import { tripImageOutputSchema, tripImageTemplateSpecSchema, travelPosterSpecSch
 import { tripPlanSchema } from "@/schemas/trip";
 import { HttpError } from "@/server/http";
 import { createOpenAIImageProvider, staticCityAtmosphere } from "@/server/images/provider";
+import { resolvePreTripAdvice } from "@/features/trip-plan/pre-trip-advice";
 
 export const PREMIUM_IMAGE_TEMPLATE_VERSION = "classic_timeline_v1";
 export const TRAVEL_POSTER_VERSION = "shaoxing_timeline_v2";
@@ -63,30 +64,30 @@ async function loadVisualCache() {
   return cache;
 }
 
-export async function createTravelPosterTask(args: { tripId: string; visitorId: string; aspectRatio: TripImageAspectRatio; idempotencyHash: string; lifetimeLimit: number }) {
+export async function createTravelPosterTask(args: { tripId: string; visitorId: string; userId: string; aspectRatio: TripImageAspectRatio; idempotencyHash: string; lifetimeLimit: number }) {
   await ensureTripImageTables();
   const db = getDatabase();
   const prepared = await withDatabaseTransaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${args.visitorId}))`);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${args.userId}))`);
     const [trip] = await tx.select().from(trips).where(eq(trips.id, args.tripId)).limit(1);
     if (!trip) throw new HttpError(404, "没有找到这份旅行攻略", "TRIP_NOT_FOUND");
-    if (trip.visitorId !== args.visitorId) throw new HttpError(403, "分享访客只能查看，不能生成旅行海报", "EDIT_FORBIDDEN");
+    if (trip.userId !== args.userId) throw new HttpError(403, "分享访客只能查看，不能生成旅行海报", "EDIT_FORBIDDEN");
     if (trip.status !== "completed" || !trip.currentPlanJson) throw new HttpError(409, "攻略完成后才能生成海报", "TRIP_NOT_READY");
     const [same] = await tx.select().from(tripImageTasks).where(and(eq(tripImageTasks.visitorId, args.visitorId), eq(tripImageTasks.idempotencyHash, args.idempotencyHash))).limit(1);
     if (same) return { existing: same, trip: null };
     const [cached] = await tx.select().from(tripImageTasks).where(and(eq(tripImageTasks.tripId, args.tripId), eq(tripImageTasks.tripVersion, trip.version), eq(tripImageTasks.imageType, "travel_poster"), eq(tripImageTasks.aspectRatio, args.aspectRatio), eq(tripImageTasks.templateVersion, TRAVEL_POSTER_VERSION),sql`${tripImageTasks.status} in ('running','succeeded')`)).limit(1);
     if (cached) return { existing: cached, trip: null };
     const creditType = "travel_poster_v2";
-    await tx.insert(entitlementLedger).values({ visitorId: args.visitorId, creditType, direction: "grant", amount: args.lifetimeLimit, source: "free_grant", businessKey: `free-grant:${creditType}:${args.visitorId}` }).onConflictDoNothing({ target: entitlementLedger.businessKey });
-    const remaining = await remainingCreditsForType(tx, args.visitorId, creditType, args.lifetimeLimit);
+    await tx.insert(entitlementLedger).values({ visitorId: args.visitorId, principalType:"user", principalId:args.userId, creditType, direction: "grant", amount: args.lifetimeLimit, source: "free_grant", businessKey: `free-grant:${creditType}:user:${args.userId}` }).onConflictDoNothing({ target: entitlementLedger.businessKey });
+    const remaining = await remainingUserCredits(tx, args.userId, creditType, args.lifetimeLimit);
     if (remaining < 1) throw new HttpError(429, "免费海报机会已使用，更多生成方式正在准备中", "IMAGE_LIMIT_REACHED");
-    const creditKey = `consume:${creditType}:${args.visitorId}:${args.tripId}:${trip.version}:${TRAVEL_POSTER_VERSION}`;
+    const creditKey = `consume:${creditType}:user:${args.userId}:${args.tripId}:${trip.version}:${TRAVEL_POSTER_VERSION}`;
     const [failed] = await tx.select().from(tripImageTasks).where(and(eq(tripImageTasks.tripId,args.tripId),eq(tripImageTasks.tripVersion,trip.version),eq(tripImageTasks.imageType,"travel_poster"),eq(tripImageTasks.aspectRatio,args.aspectRatio),eq(tripImageTasks.templateVersion,TRAVEL_POSTER_VERSION),eq(tripImageTasks.status,"failed"))).limit(1);
     const [task] = failed ? await tx.update(tripImageTasks).set({ status:"running",idempotencyHash:args.idempotencyHash,failureCode:null,outputJson:null,completedAt:null }).where(eq(tripImageTasks.id,failed.id)).returning() : await tx.insert(tripImageTasks).values({ visitorId: args.visitorId, tripId: args.tripId, tripVersion: trip.version, imageType: "travel_poster", aspectRatio: args.aspectRatio, templateVersion: TRAVEL_POSTER_VERSION, provider: "openai", status: "running", idempotencyHash: args.idempotencyHash }).returning();
-    await tx.insert(entitlementLedger).values({ visitorId: args.visitorId, creditType, direction: "consume", amount: 1, source: "openai_poster_generation", businessKey: `${creditKey}:${task.id}:${Date.now()}`, taskId: task.id });
+    await tx.insert(entitlementLedger).values({ visitorId: args.visitorId, principalType:"user", principalId:args.userId, creditType, direction: "consume", amount: 1, source: "openai_poster_generation", businessKey: `${creditKey}:${task.id}`, taskId: task.id });
     return { existing: null, trip, task, creditKey };
   });
-  if (prepared.existing) return { task: serializeTask(prepared.existing), reused: true, remaining: await remainingCreditsForType(db, args.visitorId, "travel_poster_v2", args.lifetimeLimit) };
+  if (prepared.existing) return { task: serializeTask(prepared.existing), reused: true, remaining: await remainingUserCredits(db, args.userId, "travel_poster_v2", args.lifetimeLimit) };
   if (!prepared.trip || !prepared.task || !prepared.creditKey) throw new HttpError(500, "海报任务创建失败", "IMAGE_TASK_ERROR");
   const started = performance.now();
   try {
@@ -97,16 +98,16 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
     for(const day of days){const missing:typeof day.activities=[];for(const activity of day.activities){const key=visualKey(plan.destination.city,activity.name,activity.category,model),cached=cache.get(key);if(cached){reusedCount++;results.set(`${day.dayNumber}:${activity.time}:${activity.name}`,{...cached,reused:true});}else missing.push(activity);}if(!missing.length)continue;const generated=await provider.generatePosterBackground({prompt:visualPrompt(plan.destination.city,missing),size:"1024x1024",quality:"low"});estimatedCostUsd+=generated.estimatedCostUsd;const crops=await cropContactSheet(generated.dataUrl,missing.length);missing.forEach((activity,index)=>{const key=visualKey(plan.destination.city,activity.name,activity.category,model),asset={dataUrl:crops[index]!,category:activity.category,altText:`${activity.name} AI视觉示意`,reused:false};cache.set(key,asset);results.set(`${day.dayNumber}:${activity.time}:${activity.name}`,asset);generatedVisuals++;});}
     const hydratedDays=days.map(day=>({...day,activities:day.activities.map(activity=>{const key=visualKey(plan.destination.city,activity.name,activity.category,model);const result=results.get(`${day.dayNumber}:${activity.time}:${activity.name}`);if(!result)throw Object.assign(new Error("活动图片缺失"),{code:"POSTER_VISUAL_MISSING"});return {...activity,visualAsset:{id:randomUUID(),cacheKey:key,...result}};})}));
     const hydratedPages=splitPosterPages(hydratedDays).map((page,index)=>({pageNumber:index+1,dayRange:`DAY ${page[0]!.dayNumber}${page.length>1?`–${page.at(-1)!.dayNumber}`:""}`,days:page,tips:[...new Set(page.flatMap(day=>day.tips))].slice(0,6).concat("景点图片为 AI 视觉示意，请以实际现场为准。").slice(0,6)}));
-    const output = travelPosterSpecSchema.parse({ kind:"travel_poster",version:TRAVEL_POSTER_VERSION,tripId:args.tripId,tripVersion:prepared.trip.version,aspectRatio:"3:4",width:1024,height:1536,title:compact(plan.title,70),subtitle:compact(plan.summary,90),destination:plan.destination.city,daysCount:days.length,pages:hydratedPages,model,quality:"low",estimatedCostUsd });
+    const output = travelPosterSpecSchema.parse({ kind:"travel_poster",version:TRAVEL_POSTER_VERSION,tripId:args.tripId,tripVersion:prepared.trip.version,aspectRatio:"3:4",width:1024,height:1536,title:compact(plan.title,70),subtitle:compact(plan.summary,90),destination:plan.destination.city,daysCount:days.length,pages:hydratedPages,preTripAdvice:resolvePreTripAdvice(plan,prepared.trip.inputJson),model,quality:"low",estimatedCostUsd });
     const durationMs = Math.round(performance.now() - started);
     const [saved] = await db.update(tripImageTasks).set({ status: "succeeded", outputJson: output, durationMs, estimatedCostUsd: String(estimatedCostUsd), completedAt: new Date() }).where(eq(tripImageTasks.id, prepared.task.id)).returning();
     await db.insert(analyticsEvents).values({ visitorId: args.visitorId, tripId: args.tripId, eventName: "travel_poster_succeeded", status: "completed", durationMs, metadata: { provider: "openai", model: output.model, pages: output.pages.length, estimatedCostUsd, reusedVisuals:reusedCount,generatedVisuals,templateVersion:TRAVEL_POSTER_VERSION } });
     await db.insert(analyticsEvents).values({ visitorId: args.visitorId, tripId: args.tripId, eventName: "ai_usage", status: "completed", durationMs, metadata: { requestType: "travel_poster", model: output.model, inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, reasoningTokens: 0, estimatedCostUsd, actualCostUsd: null, repairAttempt: false } });
-    return { task: serializeTask(saved), reused: false, remaining: await remainingCreditsForType(db, args.visitorId, "travel_poster_v2", args.lifetimeLimit) };
+    return { task: serializeTask(saved), reused: false, remaining: await remainingUserCredits(db, args.userId, "travel_poster_v2", args.lifetimeLimit) };
   } catch (error) {
     const code = typeof error === "object" && error && "code" in error ? String(error.code) : "IMAGE_PROVIDER_ERROR";
     await db.update(tripImageTasks).set({ status: "failed", failureCode: code, durationMs: Math.round(performance.now() - started), completedAt: new Date() }).where(eq(tripImageTasks.id, prepared.task.id));
-    await db.insert(entitlementLedger).values({ visitorId: args.visitorId, creditType: "travel_poster_v2", direction: "refund", amount: 1, source: "generation_failed", businessKey: `refund:travel_poster_v2:${prepared.task.id}`, taskId: prepared.task.id }).onConflictDoNothing({ target: entitlementLedger.businessKey });
+    await db.insert(entitlementLedger).values({ visitorId: args.visitorId, principalType:"user",principalId:args.userId, creditType: "travel_poster_v2", direction: "refund", amount: 1, source: "generation_failed", businessKey: `refund:travel_poster_v2:${prepared.task.id}`, taskId: prepared.task.id }).onConflictDoNothing({ target: entitlementLedger.businessKey });
     throw new HttpError(502, "暂时没能生成这张海报，免费机会不会被扣除，请稍后再试。", code);
   }
 }
@@ -147,17 +148,17 @@ async function remainingCredits(tx: CreditReader, visitorId: string, fallbackGra
   return Math.max(0, rows.reduce((sum, row) => sum + (row.direction === "grant" || row.direction === "refund" ? row.amount : -row.amount), 0));
 }
 
-async function remainingCreditsForType(tx: CreditReader, visitorId: string, creditType: string, fallbackGrant: number) {
-  const rows = await tx.select({ direction: entitlementLedger.direction, amount: entitlementLedger.amount }).from(entitlementLedger).where(and(eq(entitlementLedger.visitorId, visitorId), eq(entitlementLedger.creditType, creditType)));
-  if (!rows.length) return fallbackGrant;
-  return Math.max(0, rows.reduce((sum, row) => sum + (row.direction === "grant" || row.direction === "refund" ? row.amount : -row.amount), 0));
+async function remainingUserCredits(tx:CreditReader,userId:string,creditType:string,fallbackGrant:number){
+  const rows=await tx.select({direction:entitlementLedger.direction,amount:entitlementLedger.amount}).from(entitlementLedger).where(and(eq(entitlementLedger.principalType,"user"),eq(entitlementLedger.principalId,userId),eq(entitlementLedger.creditType,creditType)));
+  if(!rows.length)return fallbackGrant;
+  return Math.max(0,rows.reduce((sum,row)=>sum+(row.direction==="grant"||row.direction==="refund"?row.amount:-row.amount),0));
 }
 
-export async function listTripImageTasks(tripId: string, visitorId: string | null, ownerId: string, lifetimeLimit: number) {
+export async function listTripImageTasks(tripId: string, visitorId: string | null, ownerId: string, lifetimeLimit: number, userId: string|null=null, ownerUserId:string|null=null) {
   await ensureTripImageTables(); const db = getDatabase();
   const rows = await db.select().from(tripImageTasks).where(eq(tripImageTasks.tripId, tripId)).orderBy(desc(tripImageTasks.createdAt)).limit(30);
-  const canGenerate = visitorId === ownerId;
-  return { tasks: rows.map(serializeTask), canGenerate, remaining: canGenerate && visitorId ? await remainingCreditsForType(db, visitorId, "travel_poster_v2", lifetimeLimit) : 0 };
+  const canGenerate = Boolean(userId && ownerUserId === userId);
+  return { tasks: rows.map(serializeTask), canGenerate, authenticated:Boolean(userId), remaining: canGenerate && userId ? await remainingUserCredits(db, userId, "travel_poster_v2", lifetimeLimit) : 0 };
 }
 
 export async function getImageAdminMetrics(since: Date) {

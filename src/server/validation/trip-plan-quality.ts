@@ -7,7 +7,7 @@ export type TripPlanQualityCode =
   | "BUDGET_PRECISION" | "BUDGET_LIMIT" | "BUDGET_RECONCILIATION" | "BUDGET_EXPLANATION"
   | "FUZZY_PLACE" | "MAIN_ACTIVITY_LIMIT" | "MAIN_ACTIVITY_MINIMUM" | "WALKING_LIMIT" | "DEPARTURE_TIME"
   | "DUPLICATE_ACTIVITY" | "REPEATED_LOCATION" | "TOO_MANY_CITIES" | "UNREALISTIC_TRANSFER" | "PROVINCE_TRIP_NOT_EXPANDED" | "TRANSFER_DAY_MISCLASSIFIED" | "STYLE_CONSTRAINT_CONFLICT" | "COMPANION_CONSTRAINT_CONFLICT"
-  | "UNREQUESTED_COFFEE_OVERUSE" | "LATE_LUNCH" | "GENERIC_PLAN_RATIONALE";
+  | "UNREQUESTED_COFFEE_OVERUSE" | "LATE_LUNCH" | "GENERIC_PLAN_RATIONALE" | "INTERNAL_FIELD_LEAK" | "PERSONAL_RATIONALE_TOO_LONG" | "PERSONAL_RATIONALE_TOO_MANY_PARAGRAPHS";
 
 export type TripPlanQualityIssue = {
   code: TripPlanQualityCode;
@@ -50,7 +50,7 @@ export function classifyPlanningDay(input:TripInput,day:TripPlan["days"][number]
 /** Corrects arithmetic fields deterministically; semantic quality rules remain unchanged. */
 export function normalizeTripPlanForQuality(plan: TripPlan, input: TripInput): TripPlan {
   const rationaleSentences=plan.summary.split(/(?<=[。！？])/u).filter(Boolean); const concrete=new RegExp(`${input.destination.city}|第\\d天|\\d天|步行|自驾|高铁|地铁|公交|打车|酒店|落脚`);
-  const summary=rationaleSentences.filter(sentence=>!/(少走回头路|不用一直赶路|减少折返|把时间留给|根据你的需求|综合考虑|代表性地点|核心体验|建立城市感)/.test(sentence)||concrete.test(sentence)).slice(0,4).join("")||plan.summary;
+  const summary=(rationaleSentences.filter(sentence=>!/(少走回头路|不用一直赶路|减少折返|把时间留给|根据你的需求|综合考虑|代表性地点|核心体验|建立城市感)/.test(sentence)||concrete.test(sentence)).slice(0,3).join("")||plan.summary).replace(/mixed|null|undefined|day\.date|[a-z]+_[a-z_]+/gi,"").slice(0,160);
   const coffeeRequested=input.detailPreferences.includes("coffee")||/咖啡|coffee/i.test(input.additionalRequirements||"");
   let retainedCoffee=0;
   const days = plan.days.map((day, dayIndex) => {
@@ -113,7 +113,7 @@ export function normalizeTripPlanForQuality(plan: TripPlan, input: TripInput): T
 }
 
 function issue(code: TripPlanQualityCode, path: string, message: string, expected?: string | number, actual?: string | number | null): TripPlanQualityIssue {
-  const warningCodes: TripPlanQualityCode[] = ["MAIN_ACTIVITY_MINIMUM","GENERIC_PLAN_RATIONALE"];
+  const warningCodes: TripPlanQualityCode[] = ["MAIN_ACTIVITY_MINIMUM","GENERIC_PLAN_RATIONALE","PERSONAL_RATIONALE_TOO_LONG","PERSONAL_RATIONALE_TOO_MANY_PARAGRAPHS"];
   const repairableCodes: TripPlanQualityCode[] = ["DAY_NUMBER","DATE_MISSING","DATE_UNEXPECTED","DATE_SEQUENCE","ACTIVITY_DURATION","TRANSPORT_GAP","LAST_TRANSPORT","DAY_COST_UNDERCOUNT","BUDGET_RECONCILIATION","BUDGET_EXPLANATION","UNREQUESTED_COFFEE_OVERUSE","LATE_LUNCH"];
   const severity = warningCodes.includes(code) ? "warning" : repairableCodes.includes(code) ? "repairable" : "fatal";
   const stage = code.includes("BUDGET") || code.includes("COST") ? "budget" : code.includes("TIME") || code.includes("DURATION") || code.includes("TRANSPORT") ? "schedule" : code.includes("PLACE") || code.includes("CITY") || code.includes("LOCATION") || code.includes("TRANSFER") ? "route" : "preference";
@@ -131,6 +131,9 @@ export function validateTripPlanQuality(plan: TripPlan, input: TripInput): TripP
   if (plan.days.length !== input.days) issues.push(issue("DAY_COUNT", "days", "攻略天数必须与输入一致", input.days, plan.days.length));
   const genericSentences=plan.summary.split(/(?<=[。！？])/u).filter(sentence=>/(少走回头路|不用一直赶路|减少折返|把时间留给|根据你的需求|综合考虑|代表性地点|核心体验|建立城市感)/.test(sentence)&&!new RegExp(`${input.destination.city}|第\\d天|\\d天|步行|自驾|高铁|地铁|公交|打车|酒店|落脚`).test(sentence));
   if(genericSentences.length)issues.push(issue("GENERIC_PLAN_RATIONALE","summary","行程思路包含缺少具体行程依据的模板化句子",0,genericSentences.length));
+  if(/mixed|null|undefined|day\.date|[a-z]+_[a-z_]+/i.test(plan.summary))issues.push(issue("INTERNAL_FIELD_LEAK","summary","用户可见说明包含内部字段或枚举"));
+  if(plan.summary.length>160)issues.push(issue("PERSONAL_RATIONALE_TOO_LONG","summary","个性化说明应控制在160字以内",160,plan.summary.length));
+  if(plan.summary.split(/\n+/).filter(Boolean).length>2)issues.push(issue("PERSONAL_RATIONALE_TOO_MANY_PARAGRAPHS","summary","个性化说明最多两段",2,plan.summary.split(/\n+/).filter(Boolean).length));
   const coffeeRequested=input.detailPreferences.includes("coffee")||/咖啡|coffee/i.test(input.additionalRequirements||"");
   let coffeeCount=0;
 

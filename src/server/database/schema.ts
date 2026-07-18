@@ -9,9 +9,23 @@ export const visitors = pgTable("visitors", {
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [uniqueIndex("visitors_session_id_unique").on(table.sessionId)]);
 
+export const users = pgTable("users", {
+  id: uuid("id").defaultRandom().primaryKey(), email: text("email").notNull(), verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  status: text("status").notNull().default("active"), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(), lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+}, (table) => [uniqueIndex("users_email_unique").on(table.email)]);
+
+export const userSessions = pgTable("user_sessions", {
+  id: uuid("id").defaultRandom().primaryKey(), userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }), tokenHash: text("token_hash").notNull(), expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("user_sessions_token_unique").on(table.tokenHash), index("user_sessions_user_idx").on(table.userId)]);
+
+export const emailLoginTokens = pgTable("email_login_tokens", {
+  id: uuid("id").defaultRandom().primaryKey(), email: text("email").notNull(), tokenHash: text("token_hash").notNull(), expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(), usedAt: timestamp("used_at", { withTimezone: true }), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("email_login_tokens_token_unique").on(table.tokenHash), index("email_login_tokens_email_created_idx").on(table.email, table.createdAt)]);
+
 export const trips = pgTable("trips", {
   id: uuid("id").defaultRandom().primaryKey(),
   visitorId: uuid("visitor_id").notNull().references(() => visitors.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
   status: text("status", { enum: ["generating", "completed", "failed"] }).notNull().default("generating"),
   inputJson: jsonb("input_json").$type<TripInput>().notNull(),
   currentPlanJson: jsonb("current_plan_json").$type<TripPlan>(),
@@ -94,6 +108,8 @@ export const tripImageTasks = pgTable("trip_image_tasks", {
 export const entitlementLedger = pgTable("entitlement_ledger", {
   id: uuid("id").defaultRandom().primaryKey(),
   visitorId: uuid("visitor_id").notNull().references(() => visitors.id, { onDelete: "cascade" }),
+  principalType: text("principal_type"),
+  principalId: uuid("principal_id"),
   creditType: text("credit_type").notNull(),
   direction: text("direction").notNull(),
   amount: integer("amount").notNull(),
@@ -104,4 +120,5 @@ export const entitlementLedger = pgTable("entitlement_ledger", {
 }, (table) => [
   uniqueIndex("entitlement_ledger_business_key_unique").on(table.businessKey),
   index("entitlement_ledger_visitor_type_idx").on(table.visitorId, table.creditType, table.createdAt),
+  index("entitlement_ledger_principal_type_idx").on(table.principalType, table.principalId, table.creditType, table.createdAt),
 ]);

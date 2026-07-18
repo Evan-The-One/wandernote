@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS "users" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),"email" text NOT NULL,"verified_at" timestamptz,"status" text NOT NULL DEFAULT 'active',"created_at" timestamptz NOT NULL DEFAULT now(),"last_login_at" timestamptz);
+CREATE UNIQUE INDEX IF NOT EXISTS "users_email_unique" ON "users" ("email");
+CREATE TABLE IF NOT EXISTS "user_sessions" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),"user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,"token_hash" text NOT NULL,"expires_at" timestamptz NOT NULL,"created_at" timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX IF NOT EXISTS "user_sessions_token_unique" ON "user_sessions" ("token_hash");
+CREATE INDEX IF NOT EXISTS "user_sessions_user_idx" ON "user_sessions" ("user_id");
+CREATE TABLE IF NOT EXISTS "email_login_tokens" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),"email" text NOT NULL,"token_hash" text NOT NULL,"expires_at" timestamptz NOT NULL,"used_at" timestamptz,"created_at" timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX IF NOT EXISTS "email_login_tokens_token_unique" ON "email_login_tokens" ("token_hash");
+CREATE INDEX IF NOT EXISTS "email_login_tokens_email_created_idx" ON "email_login_tokens" ("email","created_at");
+ALTER TABLE "trips" ADD COLUMN IF NOT EXISTS "user_id" uuid REFERENCES "users"("id") ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS "trips_user_updated_idx" ON "trips" ("user_id","updated_at");
+ALTER TABLE "entitlement_ledger" ADD COLUMN IF NOT EXISTS "principal_type" text;
+ALTER TABLE "entitlement_ledger" ADD COLUMN IF NOT EXISTS "principal_id" uuid;
+CREATE INDEX IF NOT EXISTS "entitlement_ledger_principal_type_idx" ON "entitlement_ledger" ("principal_type","principal_id","credit_type","created_at");

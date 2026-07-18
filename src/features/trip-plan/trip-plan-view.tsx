@@ -14,6 +14,8 @@ import { DayRoute, summarizeDayRoute } from "./day-route";
 import { trackEvent } from "@/features/analytics/client";
 import { IntercitySummary } from "./intercity-summary";
 import { PremiumTripImages } from "./premium-trip-images";
+import { PreTripAdviceView } from "./pre-trip-advice-view";
+import { resolvePreTripAdvice } from "./pre-trip-advice";
 
 const method = {
   walk: "步行",
@@ -27,7 +29,7 @@ function routePreview(day: DayPlan) {
   return names.join(" → ");
 }
 function friendlySummary(value:string){
-  const clean=value.replace(/根据你的需求|根据用户需求|综合考虑(?:了)?|进行(?:了)?(?:路线)?优化|覆盖(?:了)?代表性地点/g,"").replace(/最具代表性的/g,"很有辨识度的").replace(/代表性/g,"经典").replace(/建立城市(?:感|印象)/g,"先看看城市全貌").replace(/高含金量/g,"值得去").replace(/核心体验/g,"重点").replace(/适合作为/g,"可以放在").replace(/\s+/g," ").trim();
+  const clean=value.replace(/mixed|null|undefined|day\.date|[a-z]+_[a-z_]+/gi,"").replace(/根据你的需求|根据用户需求|综合考虑(?:了)?|进行(?:了)?(?:路线)?优化|覆盖(?:了)?代表性地点/g,"").replace(/最具代表性的/g,"很有辨识度的").replace(/代表性/g,"经典").replace(/建立城市(?:感|印象)/g,"先看看城市全貌").replace(/高含金量/g,"值得去").replace(/核心体验/g,"重点").replace(/适合作为/g,"可以放在").replace(/\s+/g," ").trim();
   return clean.split(/(?<=[。！？])/u).filter(Boolean).slice(0,4).join("");
 }
 function friendlyReason(value:string){return friendlySummary(value).split(/(?<=[。！？])/u).filter(Boolean)[0]?.slice(0,70)||"顺路安排，到了就能直接开始体验。";}
@@ -164,7 +166,7 @@ export function TripPlanView({
             ))}
           </div>
           <section className="mt-3 rounded-2xl bg-[#f4f6f1] p-4">
-            <h2 className="text-sm font-bold text-[#245b46]">这次这样玩</h2>
+            <h2 className="text-sm font-bold text-[#245b46]">为你考虑了什么</h2>
             <div className="mt-2 space-y-1 text-sm leading-6 text-[#65706a]">{friendlyWhy(plan,input).map(line=><p key={line}>{line}</p>)}</div>
           </section>
           {priorities.length > 0 && (
@@ -173,10 +175,11 @@ export function TripPlanView({
             </p>
           )}
           {tripId && tripVersion && (
-            <PremiumTripImages tripId={tripId} tripVersion={tripVersion} canEdit={Boolean(canEdit)} destination={plan.destination.city} daysCount={plan.days.length}/>
+            <PremiumTripImages tripId={tripId} tripVersion={tripVersion} canEdit={Boolean(canEdit)} destination={plan.destination.city} daysCount={plan.days.length} placement="top"/>
           )}
         </div>
       </section>
+      <PreTripAdviceView advice={resolvePreTripAdvice(plan,input)} />
       {(notice?.length || canUndo) && (
         <div className="page-shell mt-6 flex flex-col gap-3 rounded-2xl bg-[#eaf2ed] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -291,6 +294,7 @@ export function TripPlanView({
             </div>
           </article>
         ))}
+        {tripId && tripVersion && <PremiumTripImages tripId={tripId} tripVersion={tripVersion} canEdit={Boolean(canEdit)} destination={plan.destination.city} daysCount={plan.days.length} placement="bottom"/>}
         {tripId && (
           <section className="rounded-3xl border border-[#245b46]/15 bg-[#eaf2ed] p-6 text-center">
             <h2 className="text-xl font-bold text-[#204f3c]">
