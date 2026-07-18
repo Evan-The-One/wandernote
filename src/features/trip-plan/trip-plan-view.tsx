@@ -143,7 +143,7 @@ export function TripPlanView({
             {displayTripTitle(input)}
           </p>
           <div className="mt-6 space-y-2 text-sm font-medium leading-6 text-white/75 sm:text-base">
-            {plan.days.slice(0,3).map(day=><p key={day.dayNumber}>{routePreview(day)}</p>)}
+            {plan.days.map(day=><p key={day.dayNumber} className="grid grid-cols-[3.75rem_1fr] gap-2"><strong className="text-white">Day {day.dayNumber}</strong><span>{routePreview(day)}</span></p>)}
           </div>
         </div>
       </section>
