@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     if (!await hasBetaAccess(serverConfig.betaAccessCode)) throw new HttpError(403, "请输入有效的Beta测试访问码", "BETA_ACCESS_REQUIRED");
     const processingStartedAt = performance.now();
     const input = tripInputSchema.safeParse(await readJsonBody(request));
-    if (!input.success) throw new HttpError(400, input.error.issues[0]?.message || "旅行需求格式无效", "INVALID_TRIP_INPUT");
+    if (!input.success) throw new HttpError(400, "旅行需求格式无效，请检查填写内容", "INVALID_TRIP_INPUT");
     const { visitorId } = await databaseStage(() => ensureVisitor());
     const idempotencyKey=request.headers.get("idempotency-key")?.trim();
     if(!idempotencyKey||idempotencyKey.length<16||idempotencyKey.length>100) throw new HttpError(400,"请刷新页面后重新提交","INVALID_IDEMPOTENCY_KEY");
