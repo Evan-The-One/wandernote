@@ -7,7 +7,7 @@ export type TripPlanQualityCode =
   | "BUDGET_PRECISION" | "BUDGET_LIMIT" | "BUDGET_RECONCILIATION" | "BUDGET_EXPLANATION"
   | "FUZZY_PLACE" | "MAIN_ACTIVITY_LIMIT" | "MAIN_ACTIVITY_MINIMUM" | "WALKING_LIMIT" | "DEPARTURE_TIME"
   | "DUPLICATE_ACTIVITY" | "REPEATED_LOCATION" | "TOO_MANY_CITIES" | "UNREALISTIC_TRANSFER" | "PROVINCE_TRIP_NOT_EXPANDED" | "TRANSFER_DAY_MISCLASSIFIED" | "STYLE_CONSTRAINT_CONFLICT" | "COMPANION_CONSTRAINT_CONFLICT"
-  | "UNREQUESTED_COFFEE_OVERUSE" | "LATE_LUNCH" | "GENERIC_PLAN_RATIONALE" | "INTERNAL_FIELD_LEAK" | "PERSONAL_RATIONALE_TOO_LONG" | "PERSONAL_RATIONALE_TOO_MANY_PARAGRAPHS";
+  | "UNREQUESTED_COFFEE_OVERUSE" | "UNREQUESTED_SPECIFIC_HOTEL" | "LATE_LUNCH" | "GENERIC_PLAN_RATIONALE" | "INTERNAL_FIELD_LEAK" | "PERSONAL_RATIONALE_TOO_LONG" | "PERSONAL_RATIONALE_TOO_MANY_PARAGRAPHS";
 
 export type TripPlanQualityIssue = {
   code: TripPlanQualityCode;
@@ -23,6 +23,27 @@ export type TripPlanQualityResult = { valid: boolean; issues: TripPlanQualityIss
 
 const mainActivityTypes = new Set<Activity["type"]>(["attraction", "shopping", "entertainment"]);
 const fuzzyPlaceTerms = ["某类", "相关区域", "同类博物馆", "同类场馆", "一类亲子空间", "一类的室内", "熊猫主题参观", "主题参观", "某个景点", "待定"];
+const hotelBrands = "香格里拉|万豪|希尔顿|洲际|凯悦|喜来登|威斯汀|丽思卡尔顿|文华东方|四季|亚朵|全季|如家|汉庭|锦江|华住|君悦|柏悦|悦榕庄|安缦|半岛|华尔道夫|瑰丽";
+const specificHotelPattern = new RegExp(`[\\u4e00-\\u9fa5A-Za-z·]{0,12}(?:${hotelBrands})[\\u4e00-\\u9fa5A-Za-z·]{0,10}(?:大酒店|酒店|宾馆|民宿)?`, "g");
+
+export function sanitizeUnrequestedHotels(plan: TripPlan, input: TripInput) {
+  const requested = input.additionalRequirements || "";
+  const fallback = `${plan.strategy.recommendedStayArea || input.destination.city}附近住宿`;
+  let replacements = 0;
+  function sanitize(value: unknown): unknown {
+    if (typeof value === "string") return value.replace(specificHotelPattern, (match) => {
+      if (requested.includes(match) || [...match.matchAll(new RegExp(hotelBrands, "g"))].some((brand) => requested.includes(brand[0]))) return match;
+      replacements += 1;
+      return fallback;
+    });
+    if (Array.isArray(value)) return value.map(sanitize);
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitize(item)]));
+    return value;
+  }
+  const sanitized = sanitize(plan) as TripPlan;
+  if (replacements) console.info("deterministic_quality_repair", JSON.stringify({ issues: ["UNREQUESTED_SPECIFIC_HOTEL"], replacements }));
+  return { plan: sanitized, replacements };
+}
 
 function minutes(value: string) {
   const [hours, mins] = value.split(":").map(Number);
@@ -49,6 +70,7 @@ export function classifyPlanningDay(input:TripInput,day:TripPlan["days"][number]
 
 /** Corrects arithmetic fields deterministically; semantic quality rules remain unchanged. */
 export function normalizeTripPlanForQuality(plan: TripPlan, input: TripInput): TripPlan {
+  plan = sanitizeUnrequestedHotels(plan, input).plan;
   const rationaleSentences=plan.summary.split(/(?<=[。！？])/u).filter(Boolean); const concrete=new RegExp(`${input.destination.city}|第\\d天|\\d天|步行|自驾|高铁|地铁|公交|打车|酒店|落脚`);
   const summary=(rationaleSentences.filter(sentence=>!/(少走回头路|不用一直赶路|减少折返|把时间留给|根据你的需求|综合考虑|代表性地点|核心体验|建立城市感)/.test(sentence)||concrete.test(sentence)).slice(0,3).join("")||plan.summary).replace(/mixed|null|undefined|day\.date|[a-z]+_[a-z_]+/gi,"").slice(0,160);
   const coffeeRequested=input.detailPreferences.includes("coffee")||/咖啡|coffee/i.test(input.additionalRequirements||"");

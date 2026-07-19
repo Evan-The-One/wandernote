@@ -9,13 +9,13 @@ import {
   formatPriority,
   formatActivityCount,
 } from "./display-formatters";
-import { DayImageExport } from "./day-image-export";
 import { DayRoute, summarizeDayRoute } from "./day-route";
 import { trackEvent } from "@/features/analytics/client";
 import { IntercitySummary } from "./intercity-summary";
 import { PremiumTripImages } from "./premium-trip-images";
 import { PreTripAdviceView } from "./pre-trip-advice-view";
 import { resolvePreTripAdvice } from "./pre-trip-advice";
+import { SafeEmphasis } from "./safe-emphasis";
 
 const method = {
   walk: "步行",
@@ -167,7 +167,7 @@ export function TripPlanView({
           </div>
           <section className="mt-3 rounded-2xl bg-[#f4f6f1] p-4">
             <h2 className="text-sm font-bold text-[#245b46]">为你考虑了什么</h2>
-            <div className="mt-2 space-y-1 text-sm leading-6 text-[#65706a]">{friendlyWhy(plan,input).map(line=><p key={line}>{line}</p>)}</div>
+            <div className="mt-2 space-y-1 text-sm leading-6 text-[#65706a]">{friendlyWhy(plan,input).map(line=><p key={line}><SafeEmphasis text={line} candidates={[plan.destination.city,input.departureCity,plan.strategy.recommendedStayArea,...plan.days.flatMap(day=>day.activities.map(activity=>activity.area)),"步行","公共交通","自驾","打车"]}/></p>)}</div>
           </section>
           {priorities.length > 0 && (
             <p className="mt-3 text-xs text-[#707a74]">
@@ -179,7 +179,6 @@ export function TripPlanView({
           )}
         </div>
       </section>
-      <PreTripAdviceView advice={resolvePreTripAdvice(plan,input)} />
       {(notice?.length || canUndo) && (
         <div className="page-shell mt-6 flex flex-col gap-3 rounded-2xl bg-[#eaf2ed] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -201,7 +200,6 @@ export function TripPlanView({
         </div>
       )}
       <div className="page-shell mt-8 space-y-6">
-        <IntercitySummary input={input}/>
         {plan.days.map((day) => (
           <article
             key={day.dayNumber}
@@ -260,14 +258,6 @@ export function TripPlanView({
                 <p>交通方式：<strong className="text-[#26352e]">{summarizeDayRoute(day).transport}</strong></p>
                 <p>预计：<strong className="text-[#26352e]">{summarizeDayRoute(day).walking}{day.estimatedCost !== null ? `，花费约 ¥${day.estimatedCost}` : ""}</strong></p>
               </div>
-              <div className="mt-4 flex justify-end">
-                <DayImageExport
-                  day={day}
-                  destination={plan.destination.city}
-                  tripTitle={displayTripTitle(input)}
-                  tripId={tripId}
-                />
-              </div>
               <div className="mt-5 rounded-2xl bg-[#fff7e9] p-4">
                 <p className="text-sm font-bold text-[#9a6223]">出发前知道</p>
                 <ul className="mt-2 space-y-1 text-sm leading-6 text-[#785f41]">
@@ -295,6 +285,8 @@ export function TripPlanView({
           </article>
         ))}
         {tripId && tripVersion && <PremiumTripImages tripId={tripId} tripVersion={tripVersion} canEdit={Boolean(canEdit)} destination={plan.destination.city} daysCount={plan.days.length} placement="bottom"/>}
+        <IntercitySummary input={input}/>
+        <PreTripAdviceView advice={resolvePreTripAdvice(plan,input)} />
         {tripId && (
           <section className="rounded-3xl border border-[#245b46]/15 bg-[#eaf2ed] p-6 text-center">
             <h2 className="text-xl font-bold text-[#204f3c]">

@@ -50,15 +50,15 @@ export async function releaseReservedPoints(args: { userId: string; points: numb
   });
 }
 
-export async function grantPoints(args: { userId: string; points: number; businessKey: string; source: string }) {
+export async function grantPoints(args: { userId: string; points: number; businessKey: string; source: string; reason?: string; note?: string; administrator?: string }) {
   if (args.points <= 0 || args.points > 1000) throw new HttpError(400, "点数数量无效", "INVALID_POINT_AMOUNT");
   return withDatabaseTransaction(async tx => {
     const existing = await tx.select().from(pointLedger).where(eq(pointLedger.businessKey, args.businessKey)).limit(1);
-    if (existing[0]) return existing[0].balanceAfter;
+    if (existing[0]) return { balance: existing[0].balanceAfter, balanceBefore: existing[0].balanceAfter - existing[0].amount, ledgerId: existing[0].id, reused: true };
     const account = await lockedAccount(tx, args.userId); const balance = account.availablePoints + args.points;
     await tx.update(pointAccounts).set({ availablePoints: balance, lifetimeGranted: account.lifetimeGranted + args.points, updatedAt: new Date() }).where(eq(pointAccounts.userId, args.userId));
-    await tx.insert(pointLedger).values({ userId: args.userId, type: "grant", amount: args.points, balanceAfter: balance, businessKey: args.businessKey, metadata: { source: args.source } });
-    return balance;
+    const [ledger] = await tx.insert(pointLedger).values({ userId: args.userId, type: "grant", amount: args.points, balanceAfter: balance, businessKey: args.businessKey, metadata: { source: args.source, reason: args.reason || "", note: args.note || "", administrator: args.administrator || "admin" } }).returning({ id: pointLedger.id });
+    return { balance, balanceBefore: account.availablePoints, ledgerId: ledger!.id, reused: false };
   });
 }
 

@@ -149,6 +149,9 @@ export function AnalyticsAdmin({
         <Link href="/admin/assets" className="rounded-full border px-4 py-2">
           视觉素材
         </Link>
+        <Link href="/admin/points" className="rounded-full border px-4 py-2">
+          发放点数
+        </Link>
         <button
           onClick={logout}
           className="ml-auto rounded-full border px-4 py-2"

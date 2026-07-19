@@ -1,4 +1,15 @@
-import type { Metadata } from "next";
+import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
-export const metadata:Metadata={title:"关于一键出发"};
-export default function AboutPage(){const email=process.env.PUBLIC_CONTACT_EMAIL;return <main className="page-shell py-12 sm:py-16"><article className="card mx-auto max-w-3xl rounded-3xl p-6 sm:p-10"><div className="text-center"><BrandMark align="center"/><h1 className="mt-7 text-3xl font-bold">关于一键出发</h1></div><p className="mt-7 leading-8">一键出发是一款 AI 旅行规划助手。选择目的地、天数和旅行偏好，即可生成适合自己的旅行计划。</p><blockquote className="mt-5 rounded-2xl bg-[#eaf2ed] p-5 text-lg font-bold text-[#245b46]">不是帮用户做更多攻略，而是帮用户省掉做攻略这件事。</blockquote><h2 className="mt-8 text-xl font-bold">我们的产品原则</h2><ol className="mt-4 list-decimal space-y-2 pl-5 leading-7"><li>用户能少填，就不要让他多填。</li><li>AI 能决定，就不要让用户决定。</li><li>每一个功能，都要让用户更快出发。</li><li>不做攻略工具，只做出发助手。</li><li>用户能少看，就不要让他多读。</li></ol><p className="mt-8 text-sm leading-7 text-[#65706a]">产品仍在测试和持续优化。行程由 AI 生成，营业时间、票价、交通、预约和天气等重要信息请在出发前再次确认。</p>{email&&<p className="mt-4 text-sm">联系：<a className="text-[#245b46] underline" href={`mailto:${email}`}>{email}</a></p>}</article></main>}
+
+export default function AboutPage() {
+  const email = process.env.PUBLIC_CONTACT_EMAIL;
+  return <main className="page-shell py-12 sm:py-16"><article className="card mx-auto max-w-3xl rounded-3xl p-6 text-center sm:p-10">
+    <BrandMark align="center" />
+    <h1 className="mt-7 text-3xl font-bold">关于一键出发</h1>
+    <p className="mx-auto mt-7 max-w-xl text-xl font-bold leading-9 text-[#204f3c]">一键出发，帮你跳过查攻略，把旅行直接安排好。</p>
+    <p className="mx-auto mt-4 max-w-xl leading-8 text-[#65706a]">告诉我们目的地、天数和偏好，系统会生成清晰可执行的每日路线，并可进一步生成精美旅行海报。</p>
+    <Link href="/#plan" className="mx-auto mt-8 inline-flex min-h-12 w-full max-w-sm items-center justify-center rounded-full bg-[#245b46] px-7 py-3 font-bold text-white shadow-[0_12px_28px_rgba(36,91,70,.18)]">开始一键定制旅行</Link>
+    <p className="mt-8 text-sm leading-7 text-[#65706a]">产品仍在测试和持续优化。行程由 AI 生成，营业时间、票价、交通、预约和天气等重要信息请在出发前再次确认。</p>
+    <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm"><Link href="/privacy" className="underline">隐私政策</Link><Link href="/terms" className="underline">服务协议</Link>{email && <a href={`mailto:${email}`} className="text-[#245b46] underline">联系我们</a>}</div>
+  </article></main>;
+}
