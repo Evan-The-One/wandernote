@@ -4,7 +4,7 @@ import { EmailLoginForm } from "@/features/auth/email-login-form";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ returnTo?: string }> }) {
   const { returnTo } = await searchParams;
-  const safeReturn = returnTo?.startsWith("/trip/") ? returnTo : "/";
+  const safeReturn = returnTo?.startsWith("/trip/") || returnTo === "/account" ? returnTo : "/";
   return (
     <main className="min-h-screen bg-[#f7f5ee] px-5 py-12 text-[#183f31]">
       <div className="mx-auto max-w-md">

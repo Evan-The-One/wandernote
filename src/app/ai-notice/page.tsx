@@ -1,0 +1,1 @@
+import{LegalPage}from"@/components/legal-page";export default function Page(){return <LegalPage title="AI 生成内容说明" sections={[{title:"AI 参与范围",content:<p>OpenAI 模型参与生成和修复旅行计划，并为海报生成景点或活动视觉示意。行程顺序、中文排版、点数和权限由程序控制。</p>},{title:"不是实时信息",content:<p>AI 不代表实时地图、票价、班次、天气或营业状态。海报小图是视觉示意，不保证与现场完全一致。</p>},{title:"安全使用",content:<p>出发前请核实交通、预约、票价、开放时间和安全提示。发现地点或路线不准确时，请先调整行程或提交反馈。</p>}]}/>}

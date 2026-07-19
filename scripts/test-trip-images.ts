@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { timelinePosterV2SpecSchema, travelPosterSpecSchema, tripImageTemplateSpecSchema, type TripImageAspectRatio } from "../src/schemas/trip-image";
 import { randomUUID } from "node:crypto";
-import { buildPremiumImagePagePlan } from "../src/features/trip-plan/premium-image-renderer";
+import { buildPremiumImagePagePlan, posterAdviceLayout } from "../src/features/trip-plan/premium-image-renderer";
+import { posterPointCost } from "../src/config/commerce";
+import { normalizePlaceName } from "../src/server/database/trip-images";
 
 function spec(daysCount: number, ratio: TripImageAspectRatio, activities = 4) {
   return tripImageTemplateSpecSchema.parse({
@@ -38,3 +40,10 @@ for(const daysCount of [1,2,3,4,5,6,7]){
   assert.equal(parsed.success,true,`${daysCount}天V2时间轴海报应通过`);assert.equal(pages.length,Math.ceil(daysCount/2));if(daysCount===2)assert.equal(pages[0]!.days.length,2);
 }
 console.log("Trip image and travel poster schemas passed (legacy ratios; AI poster 1–7 days). ");
+assert.deepEqual([1,2,3,4,5,6,7].map(posterPointCost),[1,1,2,2,3,3,4],"点数必须与海报页数一致");
+assert.equal(normalizePlaceName("杭州市 · 西湖风景区"),"西湖");
+assert.equal(normalizePlaceName("西湖景区"),"西湖");
+const adviceLayout=posterAdviceLayout();
+assert.equal(adviceLayout.columns,3);assert.equal(adviceLayout.rows,2);
+assert.ok(adviceLayout.x+adviceLayout.width<=1024,"建议区不得横向溢出");
+assert.ok(adviceLayout.y+adviceLayout.height<1480,"建议区不得覆盖品牌区");

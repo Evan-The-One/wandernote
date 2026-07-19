@@ -1,0 +1,1 @@
+import{hasAdminAccess}from"@/server/auth/admin";import{AssetsAdmin}from"@/features/admin/assets-admin";import{redirect}from"next/navigation";export const dynamic="force-dynamic";export default async function Page(){if(!await hasAdminAccess())redirect('/admin/analytics');return <AssetsAdmin/>}

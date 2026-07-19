@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { getDatabase, withDatabaseTransaction } from "@/server/database/client";
-import { emailLoginTokens, trips, userSessions, users } from "@/server/database/schema";
+import { emailLoginTokens, trips, userLegalAcceptances, userSessions, users } from "@/server/database/schema";
 import { findVisitor } from "./visitor";
 
 const COOKIE = "yjchufa_user_session";
@@ -29,7 +29,7 @@ export async function sendLoginLink(rawEmail: string, request: Request, returnTo
   const token = randomBytes(32).toString("base64url");
   await db.insert(emailLoginTokens).values({ email, tokenHash: hash(token), expiresAt: new Date(Date.now() + 15 * 60_000) });
   const origin = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
-  const safeReturn = returnTo.startsWith("/trip/") ? returnTo : "/";
+  const safeReturn = returnTo.startsWith("/trip/") || returnTo === "/account" ? returnTo : "/";
   const url = `${origin}/api/auth/email/verify?token=${encodeURIComponent(token)}&returnTo=${encodeURIComponent(safeReturn)}`;
   await fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ from: process.env.AUTH_EMAIL_FROM, to: [email], subject: "登录一键出发", html: `<p>点击下面的链接登录一键出发。链接 15 分钟内有效，且只能使用一次。</p><p><a href="${url}">登录并继续生成旅行海报</a></p><p>如果不是你本人操作，请忽略这封邮件。</p>` }) });
 }
@@ -44,6 +44,7 @@ export async function verifyLoginToken(token: string) {
     await tx.update(emailLoginTokens).set({ usedAt: new Date() }).where(eq(emailLoginTokens.id, entry.id));
     const [account] = await tx.insert(users).values({ email: entry.email, verifiedAt: new Date(), lastLoginAt: new Date() }).onConflictDoUpdate({ target: users.email, set: { verifiedAt: new Date(), lastLoginAt: new Date(), status: "active" } }).returning({ id: users.id, email: users.email });
     await tx.insert(userSessions).values({ userId: account.id, tokenHash: hash(rawSession), expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60_000) });
+    await tx.insert(userLegalAcceptances).values([{userId:account.id,documentType:"privacy",version:"2026-07-19"},{userId:account.id,documentType:"terms",version:"2026-07-19"}]).onConflictDoNothing({target:[userLegalAcceptances.userId,userLegalAcceptances.documentType,userLegalAcceptances.version]});
     if (visitor) await tx.update(trips).set({ userId: account.id }).where(and(eq(trips.visitorId, visitor.visitorId), isNull(trips.userId)));
     return account;
   });

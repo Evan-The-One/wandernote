@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { DayPlan, TripInput, TripPlan } from "@/types/trip";
 
 export const visitors = pgTable("visitors", {
@@ -122,3 +122,54 @@ export const entitlementLedger = pgTable("entitlement_ledger", {
   index("entitlement_ledger_visitor_type_idx").on(table.visitorId, table.creditType, table.createdAt),
   index("entitlement_ledger_principal_type_idx").on(table.principalType, table.principalId, table.creditType, table.createdAt),
 ]);
+
+export const pointAccounts = pgTable("point_accounts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  availablePoints: integer("available_points").notNull().default(0),
+  reservedPoints: integer("reserved_points").notNull().default(0),
+  lifetimeGranted: integer("lifetime_granted").notNull().default(0),
+  lifetimeConsumed: integer("lifetime_consumed").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("point_accounts_user_unique").on(table.userId)]);
+
+export const pointLedger = pgTable("point_ledger", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), amount: integer("amount").notNull(),
+  balanceAfter: integer("balance_after").notNull(), businessKey: text("business_key").notNull(),
+  tripId: uuid("trip_id").references(() => trips.id, { onDelete: "set null" }),
+  taskId: uuid("task_id").references(() => tripImageTasks.id, { onDelete: "set null" }),
+  metadata: jsonb("metadata").$type<Record<string, string | number | boolean | null>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("point_ledger_business_key_unique").on(table.businessKey), index("point_ledger_user_created_idx").on(table.userId, table.createdAt)]);
+
+export const paymentOrders = pgTable("payment_orders", {
+  id: uuid("id").defaultRandom().primaryKey(), userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), providerOrderId: text("provider_order_id"), packageId: text("package_id").notNull(),
+  points: integer("points").notNull(), amountCents: integer("amount_cents").notNull(), currency: text("currency").notNull().default("CNY"),
+  status: text("status").notNull().default("pending"), idempotencyKey: text("idempotency_key").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(), completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => [uniqueIndex("payment_orders_idempotency_unique").on(table.idempotencyKey), uniqueIndex("payment_orders_provider_order_unique").on(table.provider, table.providerOrderId)]);
+
+export const placeVisualAssets = pgTable("place_visual_assets", {
+  id: uuid("id").defaultRandom().primaryKey(), publicAssetId: uuid("public_asset_id").defaultRandom().notNull(),
+  region: text("region"), destination: text("destination").notNull(), canonicalPlaceName: text("canonical_place_name").notNull(),
+  normalizedPlaceName: text("normalized_place_name").notNull(), aliases: jsonb("aliases").$type<string[]>().notNull().default([]),
+  activityCategory: text("activity_category").notNull(), visualStyleVersion: text("visual_style_version").notNull(), imageModel: text("image_model").notNull(), promptVersion: text("prompt_version").notNull(),
+  assetDataUrl: text("asset_data_url").notNull(), contentHash: text("content_hash").notNull(), reviewStatus: text("review_status").notNull().default("pending"),
+  isGeneric: boolean("is_generic").notNull().default(false), generatedCostUsd: text("generated_cost_usd").notNull().default("0"), reuseCount: integer("reuse_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(), updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("place_visual_assets_public_unique").on(table.publicAssetId), uniqueIndex("place_visual_assets_cache_unique").on(table.destination, table.normalizedPlaceName, table.activityCategory, table.visualStyleVersion, table.imageModel, table.promptVersion), index("place_visual_assets_review_idx").on(table.reviewStatus, table.updatedAt)]);
+
+export const legalDocuments = pgTable("legal_documents", {
+  id: uuid("id").defaultRandom().primaryKey(), documentType: text("document_type").notNull(), version: text("version").notNull(), publishedAt: timestamp("published_at", { withTimezone: true }).defaultNow().notNull(), active: boolean("active").notNull().default(true),
+}, (table) => [uniqueIndex("legal_documents_type_version_unique").on(table.documentType, table.version)]);
+
+export const userLegalAcceptances = pgTable("user_legal_acceptances", {
+  id: uuid("id").defaultRandom().primaryKey(), userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }), documentType: text("document_type").notNull(), version: text("version").notNull(), acceptedAt: timestamp("accepted_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("user_legal_acceptances_unique").on(table.userId, table.documentType, table.version)]);
+
+export const accountDeletionRequests = pgTable("account_deletion_requests", {
+  id: uuid("id").defaultRandom().primaryKey(), userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }), status: text("status").notNull().default("pending"), requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow().notNull(), completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => [index("account_deletion_requests_user_idx").on(table.userId, table.requestedAt)]);
