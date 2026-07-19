@@ -141,6 +141,12 @@ export const tripPlanSchema = z.object({
   updatedAt: z.string(),
 });
 
+/** OpenAI strict output requires all properties to be required. Stored legacy
+ * plans may omit preTripAdvice, while newly generated plans must include it. */
+export const generatedTripPlanSchema = tripPlanSchema.extend({
+  preTripAdvice: preTripAdviceSchema,
+});
+
 export const adjacentDayContextSchema = z.object({
   dayNumber: z.number().int().positive(),
   date: z.string().nullable(),

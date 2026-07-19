@@ -17,10 +17,10 @@ export async function assertDailyLimit(visitorId: string, type: "full_generation
   if (row.value >= limit) throw new HttpError(429, type === "full_generation" ? "今天的2次免费生成已经用完了，明天再来看看。" : "今天的2次整天调整已经用完了，可以尝试只调整其中几个活动。", "DAILY_LIMIT_REACHED");
 }
 
-export async function createTripAndJob(visitorId: string, input: TripInput) {
+export async function createTripAndJob(visitorId: string, input: TripInput, userId: string | null = null) {
   try {
     return await withDatabaseTransaction(async (tx) => {
-      const [trip] = await tx.insert(trips).values({ visitorId, inputJson: input }).returning({ id: trips.id });
+      const [trip] = await tx.insert(trips).values({ visitorId, userId, inputJson: input }).returning({ id: trips.id });
       const [job] = await tx.insert(generationJobs).values({ visitorId, tripId: trip.id, type: "full_generation", status: "running" }).returning({ id: generationJobs.id });
       return { tripId: trip.id, jobId: job.id };
     });

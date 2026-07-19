@@ -26,6 +26,8 @@ const errorMessages: Record<string, string> = {
   OPENAI_AUTH_ERROR: "AI服务配置异常，管理员正在处理。",
   OPENAI_QUOTA_ERROR: "AI服务额度暂时不足，请稍后再试。",
   OPENAI_TIMEOUT: "AI这次思考时间过长，请直接重试。",
+  GENERATION_SCHEMA_INVALID: "路线生成结构暂时异常，这次不会扣除次数，请稍后重试。",
+  GENERATION_MODEL_UNAVAILABLE: "路线暂时没生成成功，这次不会扣除次数，请稍后重试。",
   DATABASE_ERROR: "计划暂时无法保存，请稍后重试。",
   FUNCTION_TIMEOUT: "生成时间超过服务器限制，请直接重试。",
   VALIDATION_FAILED: "这次行程没有通过我们的质量检查，换个玩法再试一次吧。",
@@ -51,6 +53,7 @@ export function GeneratingView() {
   const router = useRouter();
   const started = useRef(false);
   const [error, setError] = useState("");
+  const [requestId, setRequestId] = useState("");
   const [retryKey, setRetryKey] = useState(0);
   const [summary, setSummary] = useState<TripInput | null>(null);
 
@@ -88,8 +91,10 @@ export function GeneratingView() {
         });
         const payload = (await response.json()) as {
           tripId?: string;
-          error?: { code?: string; message?: string };
+          requestId?: string;
+          error?: { code?: string; message?: string; requestId?: string };
         };
+        setRequestId(payload.error?.requestId || payload.requestId || response.headers.get("x-request-id") || "");
         if (!response.ok)
           throw new Error(
             errorMessages[payload.error?.code || ""] ||
@@ -121,6 +126,7 @@ export function GeneratingView() {
   function retry() {
     started.current = false;
     setError("");
+    setRequestId("");
     setRetryKey((value) => value + 1);
   }
 
@@ -146,6 +152,7 @@ export function GeneratingView() {
           </div>
           <h1 className="mt-4 text-2xl font-bold">这次没有安排成功</h1>
           <p className="mt-3 leading-7 text-[#65706a]">{error}</p>
+          {requestId ? <p className="mt-2 text-xs text-[#87918c]">问题编号：{requestId.toUpperCase()}</p> : null}
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <Link
               href="/#plan"

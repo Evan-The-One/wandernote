@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { tripInputSchema, tripPlanSchema } from "../src/schemas/trip";
+import { generatedTripPlanSchema, tripInputSchema, tripPlanSchema } from "../src/schemas/trip";
+import { z } from "zod";
 import { validateTripPlanQuality } from "../src/server/validation/trip-plan-quality";
 import { validateDayRevisionQuality } from "../src/server/validation/day-revision-quality";
 import { sanitizeUserFacingData } from "../src/lib/sanitize-user-facing-text";
@@ -34,6 +35,9 @@ assert.equal(formatActivityCount(2,2),"约 2 个");
 assert.equal(formatActivityCount(3,4),"约 3–4 个");
 for(const days of [5,6,7]) assert.equal(tripInputSchema.safeParse({...baseInput,days}).success,true);
 assert.equal(tripInputSchema.safeParse({...baseInput,days:8}).success,false);
+const generatedJsonSchema = z.toJSONSchema(generatedTripPlanSchema) as { properties?:Record<string,unknown>; required?:string[] };
+assert.ok(generatedJsonSchema.required?.includes("preTripAdvice"), "strict OpenAI schema must require preTripAdvice");
+assert.equal(tripPlanSchema.safeParse(plan).success, true, "legacy stored plans may omit preTripAdvice");
 const shanghaiHangzhou=estimateIntercityTransport({...baseInput,departureCity:"上海"});
 assert.match(shanghaiHangzhou?.duration||"",/约1～1.5小时/);
 assert.equal(estimateIntercityTransport({...baseInput,departureCity:null}),null);

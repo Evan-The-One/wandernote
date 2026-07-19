@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { tripPlanSchema } from "@/schemas/trip";
+import { generatedTripPlanSchema, tripPlanSchema } from "@/schemas/trip";
 import type { TripInput, TripPlan } from "@/types/trip";
 import { extractResponseText, parseJsonResponse } from "./json";
 import { buildRepairPrompt, buildTripPlannerPrompt, TRIP_PLANNER_SYSTEM_PROMPT } from "./prompt";
@@ -70,7 +70,12 @@ export async function requestStructuredModel(input: string, schema: z.ZodType, s
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) throw new AiGenerationError("AI服务认证失败，请联系管理员", "OPENAI_AUTH_ERROR", 503);
       if (response.status === 429) throw new AiGenerationError("AI服务额度或频率已达上限，请稍后重试", "OPENAI_QUOTA_ERROR", 503);
-      throw new AiGenerationError("AI服务暂时不可用，请稍后重试", "UNKNOWN_ERROR", 502);
+      const providerError = (payload.error || {}) as { type?: string; code?: string; param?: string };
+      console.warn("openai_request_rejected", JSON.stringify({ status: response.status, type: providerError.type || "unknown", code: providerError.code || "unknown", param: providerError.param || null, schemaName }));
+      if (response.status === 400 && (providerError.param === "text.format.schema" || providerError.code === "invalid_json_schema" || providerError.type === "invalid_request_error"))
+        throw new AiGenerationError("生成结构暂时无法使用，请稍后重试", "GENERATION_SCHEMA_INVALID", 503);
+      if (response.status >= 500) throw new AiGenerationError("路线生成服务暂时不可用，请稍后重试", "GENERATION_MODEL_UNAVAILABLE", 503);
+      throw new AiGenerationError("路线暂时没生成成功，这次不会扣除次数，请稍后重试", "GENERATION_MODEL_UNAVAILABLE", 502);
     }
     const durationMs = Math.round(performance.now() - startedAt);
     const usage = (payload.usage || {}) as { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number }; output_tokens_details?: { reasoning_tokens?: number } };
@@ -80,11 +85,11 @@ export async function requestStructuredModel(input: string, schema: z.ZodType, s
   } catch (error) {
     if (error instanceof AiConfigurationError || error instanceof AiGenerationError) throw error;
     if (error instanceof Error && error.name === "AbortError") throw new AiGenerationError("AI生成超时，请稍后重试", "OPENAI_TIMEOUT", 504);
-    throw new AiGenerationError("无法连接AI服务，请稍后重试", "UNKNOWN_ERROR", 502);
+    throw new AiGenerationError("无法连接AI服务，请稍后重试", "GENERATION_MODEL_UNAVAILABLE", 502);
   } finally { clearTimeout(timeout); }
 }
 
-async function requestWithProviderRetry(input:string,schema:z.ZodType,schemaName:string,instructions:string,metrics:AiGenerationMetrics,onUsage?:UsageHandler,repairAttempt=false){try{return await requestStructuredModel(input,schema,schemaName,instructions,onUsage,repairAttempt);}catch(error){if(!(error instanceof AiGenerationError)||!["OPENAI_QUOTA_ERROR","UNKNOWN_ERROR"].includes(error.code))throw error;metrics.providerRetryCount+=1;await new Promise(resolve=>setTimeout(resolve,750));return requestStructuredModel(input,schema,schemaName,instructions,onUsage,repairAttempt);}}
+async function requestWithProviderRetry(input:string,schema:z.ZodType,schemaName:string,instructions:string,metrics:AiGenerationMetrics,onUsage?:UsageHandler,repairAttempt=false){try{return await requestStructuredModel(input,schema,schemaName,instructions,onUsage,repairAttempt);}catch(error){if(!(error instanceof AiGenerationError)||!["OPENAI_QUOTA_ERROR","GENERATION_MODEL_UNAVAILABLE"].includes(error.code))throw error;metrics.providerRetryCount+=1;await new Promise(resolve=>setTimeout(resolve,750));return requestStructuredModel(input,schema,schemaName,instructions,onUsage,repairAttempt);}}
 
 function validatePlan(raw: string, input: TripInput, metrics: AiGenerationMetrics, normalize = false): TripPlan {
   const parseStartedAt = performance.now();
@@ -113,7 +118,7 @@ function validationSummary(error: unknown) {
 export async function generateTripPlan(input: TripInput, inputProcessingMs = 0, onUsage?: UsageHandler, allowAiRepair = true): Promise<TripPlan> {
   const totalStartedAt = performance.now();
   const metrics: AiGenerationMetrics = { inputProcessingMs, firstModelCallMs: 0, jsonParseMs: 0, zodValidationMs: 0, qualityValidationMs: 0, repairModelCallMs: 0, repairValidationMs: 0, repairUsed: false, providerRetryCount:0, totalMs: 0 };
-  const first = await requestWithProviderRetry(buildTripPlannerPrompt(input), tripPlanSchema, "trip_plan", TRIP_PLANNER_SYSTEM_PROMPT,metrics,onUsage);
+  const first = await requestWithProviderRetry(buildTripPlannerPrompt(input), generatedTripPlanSchema, "trip_plan", TRIP_PLANNER_SYSTEM_PROMPT,metrics,onUsage);
   metrics.firstModelCallMs = first.durationMs;
   try {
     const plan = validatePlan(first.raw, input, metrics, true);
@@ -128,7 +133,7 @@ export async function generateTripPlan(input: TripInput, inputProcessingMs = 0, 
       ? firstError.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ")
       : Array.isArray(firstError) ? firstError
       : firstError instanceof Error ? firstError.message : "未知结构错误";
-    const repair = await requestWithProviderRetry(buildRepairPrompt(first.raw, issues), tripPlanSchema, "trip_plan_repair", TRIP_PLANNER_SYSTEM_PROMPT,metrics,onUsage,true);
+    const repair = await requestWithProviderRetry(buildRepairPrompt(first.raw, issues), generatedTripPlanSchema, "trip_plan_repair", TRIP_PLANNER_SYSTEM_PROMPT,metrics,onUsage,true);
     metrics.repairModelCallMs = repair.durationMs;
     const repairValidationStartedAt = performance.now();
     try {

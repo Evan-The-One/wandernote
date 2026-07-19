@@ -11,6 +11,8 @@ export type PublicErrorCode =
   | "OPENAI_TIMEOUT" | "DATABASE_ERROR" | "FUNCTION_TIMEOUT" | "VALIDATION_FAILED" | "JSON_PARSE_FAILED" | "SCHEMA_VALIDATION_FAILED" | "QUALITY_VALIDATION_FAILED" | "UNKNOWN_ERROR"
   | "DAILY_AI_BUDGET_EXCEEDED" | "GLOBAL_CONCURRENCY_LIMIT" | "RATE_LIMITED";
 
+export type ApiErrorContext = { requestId?: string; stage?: string };
+
 export async function readJsonBody(request: Request): Promise<unknown> {
   assertTrustedMutation(request);
   const contentType = request.headers.get("content-type")?.toLowerCase() || "";
@@ -57,10 +59,11 @@ export function secureEqual(left: string, right: string) {
   return timingSafeEqual(a, b);
 }
 
-export function apiError(error: unknown) {
+export function apiError(error: unknown, context: ApiErrorContext = {}) {
+  const requestId = context.requestId;
   if (error instanceof HttpError) {
-    if (error.status >= 500 || error.code === "VALIDATION_FAILED") console.warn("api_request_rejected", JSON.stringify({ code: error.code, status: error.status }));
-    return Response.json({ error: { code: error.code, message: error.message } }, { status: error.status });
+    if (error.status >= 500 || error.code === "VALIDATION_FAILED") console.warn("api_request_rejected", JSON.stringify({ requestId, stage: context.stage, code: error.code, status: error.status }));
+    return Response.json({ error: { code: error.code, message: error.message, requestId } }, { status: error.status, headers: requestId ? { "x-request-id": requestId } : undefined });
   }
   const message = error instanceof Error ? error.message : "服务暂时不可用，请稍后重试";
   const isDatabase = /database|postgres|neon|connection|DATABASE_URL|数据库/i.test(`${error instanceof Error ? error.name : ""} ${message}`);
@@ -69,10 +72,12 @@ export function apiError(error: unknown) {
   const publicMessage = isDatabase ? "攻略暂时无法保存，请稍后重试" : isTimeout ? "生成时间超过服务器限制，请直接重试" : "服务暂时不可用，请稍后重试";
   console.error("api_request_failed", JSON.stringify({
     name: error instanceof Error ? error.name : "Unknown",
+    requestId,
+    stage: context.stage,
     code,
     detail: redactDiagnostic(message),
   }));
-  return Response.json({ error: { code, message: publicMessage } }, { status: isTimeout ? 504 : 500 });
+  return Response.json({ error: { code, message: publicMessage, requestId } }, { status: isTimeout ? 504 : 500, headers: requestId ? { "x-request-id": requestId } : undefined });
 }
 
 function redactDiagnostic(message: string) {
