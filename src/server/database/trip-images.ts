@@ -12,7 +12,7 @@ import { genericVisualDataUrl } from "@/server/images/generic-visuals";
 import { posterPointCost } from "@/config/commerce";
 
 export const PREMIUM_IMAGE_TEMPLATE_VERSION = "classic_timeline_v1";
-export const TRAVEL_POSTER_VERSION = "readable_visuals_v3";
+export const TRAVEL_POSTER_VERSION = "readable_visuals_v3_1";
 const CREDIT_TYPE = "premium_trip_image";
 let imageTablesInitialized = false;
 
@@ -46,7 +46,7 @@ function serializeTask(row: typeof tripImageTasks.$inferSelect) {
 }
 
 const POSTER_PROMPT_VERSION = "activity_visual_v2";
-const VISUAL_STYLE_VERSION = "editorial_thumb_v1";
+const VISUAL_STYLE_VERSION = "editorial_thumb_v2";
 type PosterCategory = "attraction" | "food" | "hotel" | "transport" | "rest" | "shopping" | "entertainment";
 function categoryFor(name:string,type:string,note=""):PosterCategory {const text=`${name} ${note}`;if(type==="meal"||/早餐|午餐|晚餐|夜宵|下午茶|咖啡|美食|小吃|餐厅|用餐/.test(text))return "food";if(/酒店|民宿|办理入住|入住|住宿|回酒店|取行李|寄存行李|整理行李|退房/.test(text))return "hotel";if(/出发|抵达|返程|回程|高铁|飞机|自驾|火车|打车|步行|地铁/.test(text))return "transport";if(type==="rest"||/休息|午休|等待/.test(text))return "rest";if(type==="shopping"||/商圈|购物/.test(text))return "shopping";if(type==="entertainment"||/夜景|夜游/.test(text))return "entertainment";return "attraction"; }
 function cleanNote(value:string){return compact(value.replace(/根据你的需求|综合考虑|代表性地点|核心体验|高含金量|方便后续|也更适合/g,""),32);}
