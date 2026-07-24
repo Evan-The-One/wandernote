@@ -13,7 +13,7 @@ import { posterPointCost } from "@/config/commerce";
 import { sanitizeUnrequestedHotels } from "@/server/validation/trip-plan-quality";
 
 export const PREMIUM_IMAGE_TEMPLATE_VERSION = "classic_timeline_v1";
-export const TRAVEL_POSTER_VERSION = "semantic_visuals_v5";
+export const TRAVEL_POSTER_VERSION = "semantic_visuals_v5_1";
 const CREDIT_TYPE = "premium_trip_image";
 let imageTablesInitialized = false;
 

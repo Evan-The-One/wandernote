@@ -55,6 +55,8 @@ assert.equal(classifyActivityVisual({name:"回酒店休息与取行李",type:"ho
 assert.equal(classifyActivityVisual({name:"办理入住",type:"hotel"}).visualCategory,"hotel_checkin");
 assert.equal(classifyActivityVisual({name:"昆山出发自驾前往杭州西湖湖滨一带酒店",type:"transport",note:"抵达后办理入住"}).visualCategory,"self_drive_departure");
 assert.equal(classifyActivityVisual({name:"湖滨步行街",type:"shopping",note:"沿街慢走"}).visualCategory,"walking_street");
+assert.equal(classifyActivityVisual({name:"河坊街",type:"attraction",note:"适合慢逛、看老字号和顺路解决晚餐"}).visualCategory,"historic_street");
+assert.equal(classifyActivityVisual({name:"河坊街附近晚餐",type:"meal",note:"吃完直接返程"}).visualCategory,"dinner_generic");
 assert.equal(classifyActivityVisual({name:"回酒店取行李",type:"hotel"}).visualCategory,"luggage_pickup");
 assert.equal(isAllowedVisualFallback("self_drive_departure","hotel_room"),false);
 assert.equal(isAllowedVisualFallback("walking_street","hotel_room"),false);

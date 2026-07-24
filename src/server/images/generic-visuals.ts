@@ -68,23 +68,31 @@ const exactFallbacks: Record<GenericVisualCategory, GenericVisualCategory[]> = {
 };
 
 export function classifyActivityVisual(input: ActivityVisualInput): ActivityVisualClassification {
+  const name = input.name;
   const text = [input.name, input.note, input.area, input.tags?.join(" "), input.dayTheme].filter(Boolean).join(" ");
   const context = [input.previousName, input.nextName].filter(Boolean).join(" ");
   let visualCategory: GenericVisualCategory | null = null;
 
-  // Strong actions come first. A title such as “自驾前往杭州，入住酒店” must remain a driving scene.
-  if (/自驾|开车|驾车|高速/.test(text) && /出发|启程|前往|返程|回程|在途|车程/.test(text)) visualCategory = "self_drive_departure";
-  else if (/高铁|动车|火车|铁路|火车站/.test(text)) visualCategory = "train_travel";
-  else if (/飞机|机场|航班|候机/.test(text)) visualCategory = "airplane_travel";
+  // The activity title is authoritative. Notes often mention the next meal or hotel and must not override it.
+  if (/自驾|开车|驾车|高速/.test(name) && /出发|启程|前往|返程|回程|在途|车程/.test(name)) visualCategory = "self_drive_departure";
+  else if (/高铁|动车|火车|铁路|火车站/.test(name)) visualCategory = "train_travel";
+  else if (/飞机|机场|航班|候机/.test(name)) visualCategory = "airplane_travel";
+  else if (/取行李|取回行李|寄存行李|整理行李|收拾行李|退房|返程准备/.test(name)) visualCategory = "luggage_pickup";
+  else if (/办理入住|酒店前台|入住酒店|先入住|到酒店放行李|抵达住宿地/.test(name)) visualCategory = "hotel_checkin";
+  else if (/回酒店休息|酒店稍作休息|入住后休息|返回住宿地|晚上回酒店|酒店休息|午休/.test(name)) visualCategory = "hotel_room";
+  else if (/早餐|早午餐/.test(name)) visualCategory = "breakfast_generic";
+  else if (/晚餐|晚饭|夜宵|夜间用餐/.test(name)) visualCategory = "dinner_generic";
+  else if (/午餐|中饭|中午用餐|午间小吃/.test(name) || input.type === "meal") visualCategory = "lunch_generic";
+  else if (/咖啡|咖啡馆|下午茶|饮品/.test(name)) visualCategory = "cafe_generic";
+  else if (/步行街|商业街|商圈|夜间逛街|沿街慢走/.test(name)) visualCategory = "walking_street";
+  else if (/老城厢|梧桐街区|历史文化街区|古城街道|老街|胡同|(?:坊|巷|弄|街)$/.test(name)) visualCategory = "historic_street";
+  // Strong actions in notes can supplement an ambiguous title, but never outrank a concrete title match above.
+  else if (/自驾|开车|驾车|高速/.test(text) && /出发|启程|前往|返程|回程|在途|车程/.test(text)) visualCategory = "self_drive_departure";
   else if (/取行李|取回行李|寄存行李|整理行李|收拾行李|退房|返程准备/.test(text)) visualCategory = "luggage_pickup";
   else if (/办理入住|酒店前台|入住酒店|先入住|到酒店放行李|抵达住宿地/.test(text)) visualCategory = "hotel_checkin";
   else if (/回酒店休息|酒店稍作休息|入住后休息|返回住宿地|晚上回酒店|酒店休息|午休/.test(text)) visualCategory = "hotel_room";
-  else if (/早餐|早午餐/.test(text)) visualCategory = "breakfast_generic";
   else if (/晚餐|晚饭|夜宵|夜间用餐/.test(text)) visualCategory = "dinner_generic";
-  else if (/午餐|中饭|中午用餐|午间小吃/.test(text) || input.type === "meal") visualCategory = "lunch_generic";
-  else if (/咖啡|咖啡馆|下午茶|饮品/.test(text)) visualCategory = "cafe_generic";
-  else if (/步行街|商业街|商圈|夜间逛街|沿街慢走/.test(text)) visualCategory = "walking_street";
-  else if (/老城厢|梧桐街区|历史文化街区|古城街道|老街|胡同/.test(text)) visualCategory = "historic_street";
+  else if (/午餐|中饭|中午用餐|午间小吃/.test(text)) visualCategory = "lunch_generic";
   else if (/街区闲逛|街区散步|城市漫步|街区慢逛/.test(text)) visualCategory = "city_stroll";
   else if (/步行前往|徒步\s*\d+|短距离步行/.test(text)) visualCategory = "city_walking";
   else if (/返程|回程/.test(text)) visualCategory = "return_trip";
