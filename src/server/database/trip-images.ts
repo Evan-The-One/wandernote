@@ -12,7 +12,7 @@ import { genericVisualDataUrl } from "@/server/images/generic-visuals";
 import { posterPointCost } from "@/config/commerce";
 
 export const PREMIUM_IMAGE_TEMPLATE_VERSION = "classic_timeline_v1";
-export const TRAVEL_POSTER_VERSION = "shaoxing_timeline_v2";
+export const TRAVEL_POSTER_VERSION = "readable_visuals_v3";
 const CREDIT_TYPE = "premium_trip_image";
 let imageTablesInitialized = false;
 
@@ -48,12 +48,12 @@ function serializeTask(row: typeof tripImageTasks.$inferSelect) {
 const POSTER_PROMPT_VERSION = "activity_visual_v2";
 const VISUAL_STYLE_VERSION = "editorial_thumb_v1";
 type PosterCategory = "attraction" | "food" | "hotel" | "transport" | "rest" | "shopping" | "entertainment";
-function categoryFor(name:string,type:string):PosterCategory { if(type==="meal"||/早餐|午餐|晚餐|美食|小吃/.test(name))return "food";if(/酒店|入住|住宿/.test(name))return "hotel";if(/出发|抵达|返程|高铁|飞机|自驾|火车/.test(name))return "transport";if(type==="rest"||/休息|午休/.test(name))return "rest";if(type==="shopping")return "shopping";if(type==="entertainment")return "entertainment";return "attraction"; }
-function cleanNote(value:string){return compact(value.replace(/根据你的需求|综合考虑|代表性地点|核心体验|高含金量/g,""),64);}
+function categoryFor(name:string,type:string,note=""):PosterCategory {const text=`${name} ${note}`;if(type==="meal"||/早餐|午餐|晚餐|夜宵|下午茶|咖啡|美食|小吃|餐厅|用餐/.test(text))return "food";if(/酒店|民宿|办理入住|入住|住宿|回酒店|取行李|寄存行李|整理行李|退房/.test(text))return "hotel";if(/出发|抵达|返程|回程|高铁|飞机|自驾|火车|打车|步行|地铁/.test(text))return "transport";if(type==="rest"||/休息|午休|等待/.test(text))return "rest";if(type==="shopping"||/商圈|购物/.test(text))return "shopping";if(type==="entertainment"||/夜景|夜游/.test(text))return "entertainment";return "attraction"; }
+function cleanNote(value:string){return compact(value.replace(/根据你的需求|综合考虑|代表性地点|核心体验|高含金量|方便后续|也更适合/g,""),32);}
 function posterDays(plan: ReturnType<typeof tripPlanSchema.parse>) {
   return plan.days.map((day) => {
-    const merged=day.activities.reduce<typeof day.activities>((items,activity)=>{if(items.length>=6&&activity.type==="rest")return items;return [...items,activity]},[]).slice(0,7);
-    return { dayNumber:day.dayNumber,date:day.date,title:compact(day.title||day.theme,42),city:compact(day.activities.find(a=>a.area)?.area||plan.destination.city,32),tips:day.dayTips.slice(0,2).map(t=>compact(t,56)),activities:merged.map(activity=>({time:activity.startTime===activity.endTime?activity.startTime:`${activity.startTime}–${activity.endTime}`,name:compact(activity.name,36),note:cleanNote(activity.reason),category:categoryFor(activity.name,activity.type)})) };
+    const merged=day.activities.reduce<typeof day.activities>((items,activity)=>{if(items.length>=6&&activity.type==="rest")return items;return [...items,activity]},[]).slice(0,6);
+    return { dayNumber:day.dayNumber,date:day.date,title:compact(day.title||day.theme,42),city:compact(day.activities.find(a=>a.area)?.area||plan.destination.city,32),tips:day.dayTips.slice(0,2).map(t=>compact(t,56)),activities:merged.map(activity=>({time:activity.startTime===activity.endTime?activity.startTime:`${activity.startTime}–${activity.endTime}`,name:compact(activity.name,36),note:cleanNote(activity.reason),category:categoryFor(activity.name,activity.type,activity.reason)})) };
   });
 }
 function splitPosterPages<T>(days:T[]){const pages:T[][]=[];for(let index=0;index<days.length;index+=2)pages.push(days.slice(index,index+2));return pages;}
