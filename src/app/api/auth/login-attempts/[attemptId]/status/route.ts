@@ -1,0 +1,2 @@
+import { getLoginAttemptStatus } from "@/server/auth/user";
+export async function GET(_:Request,{params}:{params:Promise<{attemptId:string}>}){const {attemptId}=await params;if(!attemptId||attemptId.length>100)return Response.json({error:{message:"登录状态无效"}},{status:404});const status=await getLoginAttemptStatus(attemptId);return status?Response.json(status):Response.json({error:{message:"登录状态无效"}},{status:404});}

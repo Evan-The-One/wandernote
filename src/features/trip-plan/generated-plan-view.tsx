@@ -28,6 +28,7 @@ export function GeneratedPlanView({ tripId }: { tripId: string }) {
     }
   }, [tripId]);
   useEffect(() => { queueMicrotask(() => void load()); }, [load]);
+  useEffect(() => { const refresh=()=>void load(); window.addEventListener("yjchufa-auth-completed",refresh); return()=>window.removeEventListener("yjchufa-auth-completed",refresh); }, [load]);
 
   async function undo() {
     if (!data?.plan) return; setUndoing(true);

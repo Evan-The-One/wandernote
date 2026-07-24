@@ -36,6 +36,13 @@
       "when": 1784448000000,
       "tag": "0004_points_assets_compliance",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784851200000,
+      "tag": "0005_login_attempts",
+      "breakpoints": true
     }
   ]
 }

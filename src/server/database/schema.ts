@@ -34,6 +34,27 @@ export const trips = pgTable("trips", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("trips_visitor_updated_idx").on(table.visitorId, table.updatedAt)]);
 
+export const loginAttempts = pgTable("login_attempts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  attemptTokenHash: text("attempt_token_hash").notNull(),
+  emailNormalized: text("email_normalized").notNull(),
+  tripId: uuid("trip_id").references(() => trips.id, { onDelete: "set null" }),
+  visitorId: uuid("visitor_id").references(() => visitors.id, { onDelete: "set null" }),
+  returnTo: text("return_to").notNull().default("/"),
+  pendingAction: text("pending_action"),
+  status: text("status").notNull().default("pending"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  consumedTokenId: uuid("consumed_token_id").references(() => emailLoginTokens.id, { onDelete: "set null" }),
+  failureCode: text("failure_code"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("login_attempts_token_unique").on(table.attemptTokenHash),
+  index("login_attempts_trip_created_idx").on(table.tripId, table.createdAt),
+  index("login_attempts_expires_idx").on(table.expiresAt),
+]);
+
 export const dayRevisions = pgTable("day_revisions", {
   id: uuid("id").defaultRandom().primaryKey(),
   tripId: uuid("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),

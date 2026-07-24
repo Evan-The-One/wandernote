@@ -16,6 +16,7 @@ import { PremiumTripImages } from "./premium-trip-images";
 import { PreTripAdviceView } from "./pre-trip-advice-view";
 import { resolvePreTripAdvice } from "./pre-trip-advice";
 import { SafeEmphasis } from "./safe-emphasis";
+import { buildPersonalizationSummary } from "./personalization-summary";
 
 const method = {
   walk: "步行",
@@ -34,12 +35,6 @@ function friendlySummary(value:string){
 }
 function friendlyReason(value:string){return friendlySummary(value).split(/(?<=[。！？])/u).filter(Boolean)[0]?.slice(0,70)||"顺路安排，到了就能直接开始体验。";}
 function dayAreas(destination:string,areas:string){return areas.includes(destination)?areas:`${destination}·${areas}`;}
-function friendlyWhy(plan:TripPlan,input:TripInput){
-  const generated=friendlySummary(plan.summary).split(/(?<=[。！？])/u).filter(Boolean).filter(line=>!/(少走回头路|不用一直赶路|减少折返|把时间留给)/.test(line)||new RegExp(`${plan.destination.city}|DAY|第\\d天|步行|自驾|高铁|地铁|公交|打车|\\d天`).test(line));
-  if(generated.length>=2)return generated.slice(0,4);
-  const first=plan.days[0]?summarizeDayRoute(plan.days[0]).areas:"";const second=plan.days[1]?summarizeDayRoute(plan.days[1]).areas:null;
-  return [`${plan.destination.city}${plan.days.length}天，第一天安排${first}${second?`，第二天前往${second}`:""}。`,input.departureCity?`从${input.departureCity}出发，首日和返程日已按大交通预留时间。`:`行程按${plan.days.length}天的实际活动时间展开。`];
-}
 function stayLabel(minutes:number){if(minutes<=45)return "约30–45分钟";if(minutes<=75)return "约60分钟";if(minutes<=105)return "约60–90分钟";if(minutes<=150)return "约90–120分钟";return `约${Math.round(minutes/30)*30}分钟`;}
 function displayTripTitle(input:TripInput){const prefix=`${input.destination.city}${input.days}日`;const suffix:Record<TripInput["travelStyle"],string>={fast_paced:"高效打卡路线",slow:"慢游路线",lazy:"轻松游路线",food:"美食漫游路线",romantic:"城市约会路线",family:"亲子轻松路线"};return `${prefix}${suffix[input.travelStyle]}`;}
 
@@ -92,6 +87,7 @@ export function TripPlanView({
       priorityOptions.find((item) => item.value === value)?.label ||
       formatPriority(value),
   );
+  const personalization=useMemo(()=>buildPersonalizationSummary(plan,input),[plan,input]);
   async function share() {
     if (!tripId) return;
     trackEvent("share_clicked", { pageName: "trip", tripId });
@@ -167,7 +163,7 @@ export function TripPlanView({
           </div>
           <section className="mt-3 rounded-2xl bg-[#f4f6f1] p-4">
             <h2 className="text-sm font-bold text-[#245b46]">为你考虑了什么</h2>
-            <div className="mt-2 space-y-1 text-sm leading-6 text-[#65706a]">{friendlyWhy(plan,input).map(line=><p key={line}><SafeEmphasis text={line} candidates={[plan.destination.city,input.departureCity,plan.strategy.recommendedStayArea,...plan.days.flatMap(day=>day.activities.map(activity=>activity.area)),"步行","公共交通","自驾","打车"]}/></p>)}</div>
+            <div className="mt-2 space-y-2 text-sm leading-6 text-[#65706a]">{personalization.map(item=><p key={item.text}><SafeEmphasis text={item.text} spans={item.emphasis}/></p>)}</div>
           </section>
           {priorities.length > 0 && (
             <p className="mt-3 text-xs text-[#707a74]">

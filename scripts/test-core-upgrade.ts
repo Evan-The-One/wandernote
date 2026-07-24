@@ -7,6 +7,7 @@ import { sanitizeUserFacingData } from "../src/lib/sanitize-user-facing-text";
 import { identifyDestination } from "../src/features/trip-input/destination-config";
 import { formatActivityCount } from "../src/features/trip-plan/display-formatters";
 import { estimateIntercityTransport } from "../src/features/trip-plan/intercity-transport";
+import { buildPersonalizationSummary, validatePersonalizationSummary } from "../src/features/trip-plan/personalization-summary";
 
 const baseInput = tripInputSchema.parse({ schemaVersion: "0.2", destination: { city: "杭州", country: "中国" }, days: 1, travelStyle: "fast_paced", datePreference: { type: "undecided", startDate: null, approximateText: null }, budget: { mode: "unrestricted", amount: null, scope: null, includesAccommodation: null, includesIntercityTransport: null, currency: "CNY" }, priorities: ["great_food", "culture"], departureCity: null, travelers: { adults: 1, children: 0 }, transportPreference: "mixed", dayTripPreference: false, additionalRequirements: null });
 assert.equal(baseInput.companionType, "undecided"); assert.equal(baseInput.travelers.seniors, 0); assert.equal(baseInput.preferredDepartureTime, null);
@@ -41,4 +42,11 @@ assert.equal(tripPlanSchema.safeParse(plan).success, true, "legacy stored plans 
 const shanghaiHangzhou=estimateIntercityTransport({...baseInput,departureCity:"上海"});
 assert.match(shanghaiHangzhou?.duration||"",/约1～1.5小时/);
 assert.equal(estimateIntercityTransport({...baseInput,departureCity:null}),null);
+const lateDeparture=tripInputSchema.parse({...baseInput,preferredDepartureTime:"13:00",departureCity:"上海",transportPreference:"public_transport"});
+const personalized=buildPersonalizationSummary(plan,lateDeparture);
+assert.ok(personalized.length<=2);
+assert.match(personalized[0]!.text,/13:00后出发/);
+assert.equal(validatePersonalizationSummary(personalized).length,0);
+assert.ok(personalized.every(item=>item.emphasis.length<=4));
+assert.ok(personalized.flatMap(item=>item.emphasis).every(span=>span.end-span.start<=24));
 console.log("Core upgrade contract tests passed (migration defaults, time rules, fast-paced density and exceptions).");

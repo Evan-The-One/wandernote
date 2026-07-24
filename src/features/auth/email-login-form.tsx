@@ -36,7 +36,7 @@ export function EmailLoginForm({ returnTo = "/" }: { returnTo?: string }) {
       <label className="mt-4 flex items-start gap-2 text-xs leading-5 text-[#526159]"><input type="checkbox" checked={accepted} onChange={event=>setAccepted(event.target.checked)} className="mt-1"/><span>我已阅读并同意 <Link className="underline" href="/terms">服务协议</Link> 和 <Link className="underline" href="/privacy">隐私政策</Link></span></label>
       <button type="submit" disabled={!email || !accepted || sending} className="mt-4 min-h-12 w-full rounded-full bg-[#245b46] px-5 py-3 font-bold text-white disabled:opacity-45">{sending ? "正在发送…" : "发送登录链接"}</button>
       {message && <p className="mt-4 rounded-2xl bg-[#eef3ec] p-4 text-sm leading-6 text-[#245b46]" role="status">{message}</p>}
-      <p className="mt-4 text-xs leading-5 text-[#707a74]">链接15分钟内有效且只能使用一次。登录后会自动认领当前浏览器中尚未归属账户的攻略。</p>
+      <p className="mt-4 text-xs leading-5 text-[#707a74]">链接15分钟内有效且只能使用一次。若从攻略页发起登录，只会认领该次登录绑定的攻略。</p>
     </form>
   );
 }

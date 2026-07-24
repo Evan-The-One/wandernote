@@ -1,15 +1,3 @@
 import type { ReactNode } from "react";
-
-export function SafeEmphasis({ text, candidates }: { text: string; candidates: Array<string | null | undefined> }) {
-  const usable = [...new Set(candidates.map((item) => item?.trim()).filter((item): item is string => Boolean(item && item.length >= 2 && item.length <= 20 && text.includes(item))))]
-    .sort((a, b) => b.length - a.length)
-    .filter((item, index, values) => !values.slice(0, index).some((parent) => parent.includes(item)))
-    .slice(0, 4);
-  const max = Math.floor(text.length * 0.3);
-  const allowed = usable.reduce<string[]>((selected, item) => selected.reduce((sum, value) => sum + value.length, 0) + item.length <= max ? [...selected, item] : selected, []);
-  if (!allowed.length) return text;
-  const pattern = new RegExp(`(${allowed.map(escapeRegExp).join("|")})`, "g");
-  return <>{text.split(pattern).map((part, index): ReactNode => allowed.includes(part) ? <strong key={`${part}-${index}`} className="font-semibold text-[#26352e]">{part}</strong> : part)}</>;
-}
-
-function escapeRegExp(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+export type EmphasisSpan={start:number;end:number;reason:"user_constraint"|"route_decision"|"stay_decision"|"transport_decision"|"companion_decision"};
+export function SafeEmphasis({text,spans}:{text:string;spans:EmphasisSpan[]}){const safe=spans.filter(span=>Number.isInteger(span.start)&&Number.isInteger(span.end)&&span.start>=0&&span.end>span.start&&span.end<=text.length&&span.end-span.start<=24).sort((a,b)=>a.start-b.start).filter((span,index,all)=>index===0||span.start>=all[index-1]!.end).slice(0,4);if(!safe.length)return text;const nodes:ReactNode[]=[];let cursor=0;for(const span of safe){if(span.start>cursor)nodes.push(text.slice(cursor,span.start));nodes.push(<strong key={`${span.start}-${span.end}`} className="font-semibold text-[#26352e]">{text.slice(span.start,span.end)}</strong>);cursor=span.end;}if(cursor<text.length)nodes.push(text.slice(cursor));return <>{nodes}</>;}
