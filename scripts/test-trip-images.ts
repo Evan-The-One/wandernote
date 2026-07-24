@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { timelinePosterV2SpecSchema, travelPosterSpecSchema, tripImageTemplateSpecSchema, type TripImageAspectRatio } from "../src/schemas/trip-image";
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { buildPremiumImagePagePlan, posterAdviceLayout } from "../src/features/trip-plan/premium-image-renderer";
 import { posterPointCost } from "../src/config/commerce";
 import { normalizePlaceName } from "../src/server/database/trip-images";
+import { genericVisualCategories, genericVisualCategory } from "../src/server/images/generic-visuals";
 
 function spec(daysCount: number, ratio: TripImageAspectRatio, activities = 4) {
   return tripImageTemplateSpecSchema.parse({
@@ -47,3 +49,9 @@ const adviceLayout=posterAdviceLayout();
 assert.equal(adviceLayout.columns,3);assert.equal(adviceLayout.rows,2);
 assert.ok(adviceLayout.x+adviceLayout.width<=1024,"建议区不得横向溢出");
 assert.ok(adviceLayout.y+adviceLayout.height<1480,"建议区不得覆盖品牌区");
+assert.equal(genericVisualCategory("人民广场附近午餐","food"),"lunch_generic");
+assert.equal(genericVisualCategory("外滩附近晚餐","food"),"dinner_generic");
+assert.equal(genericVisualCategory("回酒店休息与取行李","hotel"),"luggage_pickup");
+assert.equal(genericVisualCategory("办理入住","hotel"),"hotel_checkin");
+assert.equal(genericVisualCategory("自驾出发","transport"),"self_drive_departure");
+for(const category of genericVisualCategories)assert.ok(existsSync(`public/poster-assets/generic-real-v1/${category}.webp`),`缺少真实通用素材 ${category}`);
