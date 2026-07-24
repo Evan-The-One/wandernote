@@ -24,18 +24,34 @@ export type TripPlanQualityResult = { valid: boolean; issues: TripPlanQualityIss
 const mainActivityTypes = new Set<Activity["type"]>(["attraction", "shopping", "entertainment"]);
 const fuzzyPlaceTerms = ["某类", "相关区域", "同类博物馆", "同类场馆", "一类亲子空间", "一类的室内", "熊猫主题参观", "主题参观", "某个景点", "待定"];
 const hotelBrands = "香格里拉|万豪|希尔顿|洲际|凯悦|喜来登|威斯汀|丽思卡尔顿|文华东方|四季|亚朵|全季|如家|汉庭|锦江|华住|君悦|柏悦|悦榕庄|安缦|半岛|华尔道夫|瑰丽";
-const specificHotelPattern = new RegExp(`[\\u4e00-\\u9fa5A-Za-z·]{0,12}(?:${hotelBrands})[\\u4e00-\\u9fa5A-Za-z·]{0,10}(?:大酒店|酒店|宾馆|民宿)?`, "g");
+const hotelBrandPattern = new RegExp(`(?:${hotelBrands})(?:大酒店|酒店|宾馆|民宿)?`, "g");
+
+function allowedHotelNames(requirements: string) {
+  const allowed = new Set<string>();
+  const explicit = /(?:住在?|入住|已订|预订|酒店是|住宿是)\s*([^，。；;\n]{2,30}(?:大酒店|酒店|宾馆|民宿))/g;
+  for (const match of requirements.matchAll(explicit)) allowed.add(match[1]!.trim());
+  return [...allowed];
+}
 
 export function sanitizeUnrequestedHotels(plan: TripPlan, input: TripInput) {
   const requested = input.additionalRequirements || "";
-  const fallback = `${plan.strategy.recommendedStayArea || input.destination.city}附近住宿`;
+  const allowed = allowedHotelNames(requested);
+  const stayArea = (plan.strategy.recommendedStayArea || `${input.destination.city}核心区域`).replace(/(?:酒店|住宿)$/, "");
+  const fallback = `${stayArea}附近酒店`;
   let replacements = 0;
   function sanitize(value: unknown): unknown {
-    if (typeof value === "string") return value.replace(specificHotelPattern, (match) => {
-      if (requested.includes(match) || [...match.matchAll(new RegExp(hotelBrands, "g"))].some((brand) => requested.includes(brand[0]))) return match;
+    if (typeof value === "string") {
+      const destinationBrandPattern = new RegExp(`${input.destination.city}(?:${hotelBrands})(?:大酒店|酒店|宾馆|民宿)?`, "g");
+      return value.replace(destinationBrandPattern, (match) => {
+        if (allowed.some((name) => name.includes(match) || match.includes(name))) return match;
+        replacements += 1;
+        return fallback;
+      }).replace(hotelBrandPattern, (match) => {
+      if (allowed.some((name) => name.includes(match) || match.includes(name))) return match;
       replacements += 1;
       return fallback;
-    });
+      }).replace(new RegExp(`(?:${fallback})(?:大酒店|酒店|宾馆|民宿)`, "g"), fallback);
+    }
     if (Array.isArray(value)) return value.map(sanitize);
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitize(item)]));
     return value;

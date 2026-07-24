@@ -4,6 +4,7 @@ import { dayRevisions, feedback, generationJobs, trips } from "./schema";
 import { dayPlanSchema, tripInputSchema, tripPlanSchema } from "@/schemas/trip";
 import type { DayPlan, TripInput, TripPlan } from "@/types/trip";
 import { HttpError } from "@/server/http";
+import { sanitizeUnrequestedHotels } from "@/server/validation/trip-plan-quality";
 
 export function startOfShanghaiDay(now = new Date()) {
   const shanghai = new Date(now.getTime() + 8 * 60 * 60 * 1000);
@@ -51,7 +52,7 @@ export async function getTrip(id: string) {
   const input = tripInputSchema.safeParse(row.inputJson);
   const plan = row.currentPlanJson ? tripPlanSchema.safeParse(row.currentPlanJson) : null;
   if (!input.success || (row.status === "completed" && !plan?.success)) throw new HttpError(500, "攻略数据暂时无法读取", "INVALID_STORED_TRIP");
-  return { ...row, input: input.data, plan: plan?.success ? plan.data : null };
+  return { ...row, input: input.data, plan: plan?.success ? sanitizeUnrequestedHotels(plan.data, input.data).plan : null };
 }
 
 export async function getRecentTrip(visitorId: string) {

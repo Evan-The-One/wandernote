@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { buildPremiumImagePagePlan, posterAdviceLayout } from "../src/features/trip-plan/premium-image-renderer";
 import { posterPointCost } from "../src/config/commerce";
 import { normalizePlaceName } from "../src/server/database/trip-images";
-import { genericVisualCategories, genericVisualCategory } from "../src/server/images/generic-visuals";
+import { classifyActivityVisual, genericVisualCandidates, genericVisualCategories, genericVisualCounts, isAllowedVisualFallback } from "../src/server/images/generic-visuals";
 
 function spec(daysCount: number, ratio: TripImageAspectRatio, activities = 4) {
   return tripImageTemplateSpecSchema.parse({
@@ -49,9 +49,16 @@ const adviceLayout=posterAdviceLayout();
 assert.equal(adviceLayout.columns,3);assert.equal(adviceLayout.rows,2);
 assert.ok(adviceLayout.x+adviceLayout.width<=1024,"建议区不得横向溢出");
 assert.ok(adviceLayout.y+adviceLayout.height<1480,"建议区不得覆盖品牌区");
-assert.equal(genericVisualCategory("人民广场附近午餐","food"),"lunch_generic");
-assert.equal(genericVisualCategory("外滩附近晚餐","food"),"dinner_generic");
-assert.equal(genericVisualCategory("回酒店休息与取行李","hotel"),"luggage_pickup");
-assert.equal(genericVisualCategory("办理入住","hotel"),"hotel_checkin");
-assert.equal(genericVisualCategory("自驾出发","transport"),"self_drive_departure");
-for(const category of genericVisualCategories)assert.ok(existsSync(`public/poster-assets/generic-real-v1/${category}.webp`),`缺少真实通用素材 ${category}`);
+assert.equal(classifyActivityVisual({name:"人民广场附近午餐",type:"meal"}).visualCategory,"lunch_generic");
+assert.equal(classifyActivityVisual({name:"外滩附近晚餐",type:"meal"}).visualCategory,"dinner_generic");
+assert.equal(classifyActivityVisual({name:"回酒店休息与取行李",type:"hotel"}).visualCategory,"luggage_pickup");
+assert.equal(classifyActivityVisual({name:"办理入住",type:"hotel"}).visualCategory,"hotel_checkin");
+assert.equal(classifyActivityVisual({name:"昆山出发自驾前往杭州西湖湖滨一带酒店",type:"transport",note:"抵达后办理入住"}).visualCategory,"self_drive_departure");
+assert.equal(classifyActivityVisual({name:"湖滨步行街",type:"shopping",note:"沿街慢走"}).visualCategory,"walking_street");
+assert.equal(classifyActivityVisual({name:"回酒店取行李",type:"hotel"}).visualCategory,"luggage_pickup");
+assert.equal(isAllowedVisualFallback("self_drive_departure","hotel_room"),false);
+assert.equal(isAllowedVisualFallback("walking_street","hotel_room"),false);
+assert.equal(isAllowedVisualFallback("lunch_generic","hotel_room"),false);
+const counts=genericVisualCounts();
+assert.equal(counts.hotel_room,3);assert.equal(counts.self_drive_departure,3);assert.equal(counts.walking_street,3);
+for(const category of genericVisualCategories)for(const candidate of genericVisualCandidates(category))assert.ok(existsSync(`public/poster-assets/generic-real-v2/${candidate.key}.webp`),`缺少真实通用素材 ${candidate.key}`);
