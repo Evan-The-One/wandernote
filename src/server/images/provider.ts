@@ -5,7 +5,7 @@ export type PosterImageResult = { dataUrl: string; model: string; estimatedCostU
 export interface ImageGenerationProvider {
   readonly name: string;
   readonly enabled: boolean;
-  generatePosterBackground(input: { prompt: string; size: "1024x1536" | "1024x1024"; quality?: "low" | "medium" | "high" }): Promise<PosterImageResult>;
+  generatePosterBackground(input: { prompt: string; size: "1024x1536" | "1024x1024"; quality?: "low" | "medium" | "high"; externalId?: string }): Promise<PosterImageResult>;
 }
 
 const PRICE_BY_QUALITY = { low: 0.005, medium: 0.041, high: 0.165 } as const;
@@ -18,8 +18,10 @@ export function createOpenAIImageProvider(): ImageGenerationProvider {
   return {
     name: "openai",
     enabled: Boolean(apiKey),
-    async generatePosterBackground({ prompt, size, quality: requestedQuality }) {
+    async generatePosterBackground({ prompt, size, quality: requestedQuality, externalId }) {
       if (!apiKey) throw Object.assign(new Error("图片服务尚未配置"), { code: "IMAGE_PROVIDER_DISABLED" });
+      const { moderateImagePrompt } = await import("@/server/payments/moderation");
+      await moderateImagePrompt(prompt, externalId || `poster-${Date.now()}`);
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 110_000);
       try {

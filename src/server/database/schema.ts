@@ -170,8 +170,19 @@ export const paymentOrders = pgTable("payment_orders", {
   provider: text("provider").notNull(), providerOrderId: text("provider_order_id"), packageId: text("package_id").notNull(),
   points: integer("points").notNull(), amountCents: integer("amount_cents").notNull(), currency: text("currency").notNull().default("CNY"),
   status: text("status").notNull().default("pending"), idempotencyKey: text("idempotency_key").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(), completedAt: timestamp("completed_at", { withTimezone: true }),
-}, (table) => [uniqueIndex("payment_orders_idempotency_unique").on(table.idempotencyKey), uniqueIndex("payment_orders_provider_order_unique").on(table.provider, table.providerOrderId)]);
+  providerCheckoutId: text("provider_checkout_id"), priceSnapshot: jsonb("price_snapshot").$type<Record<string, string | number>>().notNull().default({}),
+  metadata: jsonb("metadata").$type<Record<string, string | number | boolean | null>>().notNull().default({}),
+  refundedPoints: integer("refunded_points").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(), updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }), fulfilledAt: timestamp("fulfilled_at", { withTimezone: true }),
+}, (table) => [uniqueIndex("payment_orders_idempotency_unique").on(table.idempotencyKey), uniqueIndex("payment_orders_provider_order_unique").on(table.provider, table.providerOrderId), uniqueIndex("payment_orders_provider_checkout_unique").on(table.provider, table.providerCheckoutId)]);
+
+export const paymentWebhookEvents = pgTable("payment_webhook_events", {
+  id: uuid("id").defaultRandom().primaryKey(), provider: text("provider").notNull(), providerEventId: text("provider_event_id").notNull(),
+  eventType: text("event_type").notNull(), orderId: uuid("order_id").references(() => paymentOrders.id, { onDelete: "set null" }),
+  status: text("status").notNull().default("received"), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+}, (table) => [uniqueIndex("payment_webhook_events_provider_event_unique").on(table.provider, table.providerEventId), index("payment_webhook_events_created_idx").on(table.createdAt)]);
 
 export const placeVisualAssets = pgTable("place_visual_assets", {
   id: uuid("id").defaultRandom().primaryKey(), publicAssetId: uuid("public_asset_id").defaultRandom().notNull(),

@@ -157,7 +157,7 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
         missing.push(activity);
       }
       if(!missing.length)continue;
-      const generated=await provider.generatePosterBackground({prompt:visualPrompt(plan.destination.city,missing),size:"1024x1024",quality:"low"});estimatedCostUsd+=generated.estimatedCostUsd;
+      const generated=await provider.generatePosterBackground({prompt:visualPrompt(plan.destination.city,missing),size:"1024x1024",quality:"low",externalId:`poster:${prepared.task.id}:day:${day.dayNumber}`});estimatedCostUsd+=generated.estimatedCostUsd;
       const crops=await cropContactSheet(generated.dataUrl,missing.length);
       for(let index=0;index<missing.length;index++){
         const activity=missing[index]!,contentHash=createHash("sha256").update(crops[index]!).digest("hex");

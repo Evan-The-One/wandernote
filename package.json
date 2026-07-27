@@ -15,6 +15,7 @@
     "test:core-upgrade": "tsx scripts/test-core-upgrade.ts",
     "test:quality-cost": "tsx scripts/test-quality-cost.ts",
     "test:trip-images": "tsx scripts/test-trip-images.ts",
+    "test:payments": "tsx scripts/test-creem-payments.ts",
     "test:qr": "tsx scripts/test-qr-code.ts",
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "test:ai": "node scripts/test-ai-cases.mjs",
@@ -24,11 +25,12 @@
     "@neondatabase/serverless": "^1.1.0",
     "@tailwindcss/postcss": "4.3.2",
     "drizzle-orm": "^0.45.2",
-    "next": "16.2.10",
+    "next": "16.2.12",
+    "postcss": "^8.5.19",
     "qrcode": "^1.5.4",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
