@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   serverExternalPackages: ["sharp"],
   outputFileTracingIncludes: {
-    "/api/trips/[id]/images": [
+    "/*": [
       "./node_modules/@img/sharp-linux-x64/**/*",
       "./node_modules/@img/sharp-libvips-linux-x64/**/*",
     ],
