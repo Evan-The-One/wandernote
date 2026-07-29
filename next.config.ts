@@ -5,6 +5,13 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
   productionBrowserSourceMaps: false,
+  serverExternalPackages: ["sharp"],
+  outputFileTracingIncludes: {
+    "/api/trips/[id]/images": [
+      "./node_modules/@img/sharp-linux-x64/**/*",
+      "./node_modules/@img/sharp-libvips-linux-x64/**/*",
+    ],
+  },
   async headers() {
     return [{
       source: "/:path*",
