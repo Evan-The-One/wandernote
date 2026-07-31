@@ -220,6 +220,9 @@ export function TripForm() {
   const [requirements, setRequirements] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [generationAccessMode, setGenerationAccessMode] = useState<
+    "normal" | "tester_unlimited"
+  >("normal");
   const [inspirationsExpanded, setInspirationsExpanded] = useState(false);
   const [clearConfirm, setClearConfirm] = useState(false);
   const [toast, setToast] = useState("");
@@ -231,6 +234,26 @@ export function TripForm() {
     city: string;
     nearby: string;
   } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const refreshAccess = () => {
+      void fetch("/api/auth/session", { cache: "no-store" })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((payload) => {
+          if (active && payload?.generationAccessMode === "tester_unlimited")
+            setGenerationAccessMode("tester_unlimited");
+          else if (active) setGenerationAccessMode("normal");
+        })
+        .catch(() => undefined);
+    };
+    refreshAccess();
+    window.addEventListener("yjchufa-auth-changed", refreshAccess);
+    return () => {
+      active = false;
+      window.removeEventListener("yjchufa-auth-changed", refreshAccess);
+    };
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -1001,7 +1024,11 @@ export function TripForm() {
           )}
           {submitting ? "正在准备你的旅行……" : "一键生成我的定制旅行"}
         </button>
-        <p className="mt-2 text-center text-xs text-[#707a74]">每天可免费生成2次</p>
+        <p className="mt-2 text-center text-xs text-[#707a74]">
+          {generationAccessMode === "tester_unlimited"
+            ? "测试权限：攻略生成与修改次数不限"
+            : "每天可免费生成2次"}
+        </p>
       </div>
       <p className="text-center text-xs leading-5 text-[#778079]">
         AI规划不含实时天气、票价或营业数据，出发前请再次确认。
