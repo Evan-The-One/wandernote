@@ -43,6 +43,20 @@
       "when": 1784851200000,
       "tag": "0005_login_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785410000000,
+      "tag": "0006_creem_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785490000000,
+      "tag": "0007_tester_generation_access",
+      "breakpoints": true
     }
   ]
 }

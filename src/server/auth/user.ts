@@ -23,6 +23,8 @@ async function ensureUserAuthTables() {
   const db = getDatabase();
   await db.execute(sql.raw(`CREATE TABLE IF NOT EXISTS users (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),email text NOT NULL UNIQUE,verified_at timestamptz,status text NOT NULL DEFAULT 'active',created_at timestamptz NOT NULL DEFAULT now(),last_login_at timestamptz)`));
   await db.execute(sql.raw(`CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users(email)`));
+  await db.execute(sql.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS generation_access_mode text NOT NULL DEFAULT 'normal'`));
+  await db.execute(sql.raw(`ALTER TABLE users ADD COLUMN IF NOT EXISTS generation_access_updated_at timestamptz`));
   await db.execute(sql.raw(`CREATE TABLE IF NOT EXISTS user_sessions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,token_hash text NOT NULL UNIQUE,expires_at timestamptz NOT NULL,created_at timestamptz NOT NULL DEFAULT now())`));
   await db.execute(sql.raw(`CREATE UNIQUE INDEX IF NOT EXISTS user_sessions_token_unique ON user_sessions(token_hash)`));
   await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS user_sessions_user_idx ON user_sessions(user_id)`));
@@ -46,7 +48,7 @@ export async function currentUser() {
   const raw = (await cookies()).get(COOKIE)?.value;
   if (!raw) return null;
   const [row] = await getDatabase()
-    .select({ id: users.id, email: users.email })
+    .select({ id: users.id, email: users.email, generationAccessMode: users.generationAccessMode })
     .from(userSessions)
     .innerJoin(users, eq(userSessions.userId, users.id))
     .where(and(eq(userSessions.tokenHash, hash(raw)), gt(userSessions.expiresAt, new Date()), eq(users.status, "active")))
@@ -212,6 +214,18 @@ export async function getLoginAttemptStatus(attemptToken: string) {
 export async function signOutUser() {
   const store = await cookies();
   const raw = store.get(COOKIE)?.value;
-  if (raw) await getDatabase().delete(userSessions).where(eq(userSessions.tokenHash, hash(raw)));
-  store.delete(COOKIE);
+  let revoked = false;
+  if (raw) {
+    const deleted = await getDatabase().delete(userSessions).where(eq(userSessions.tokenHash, hash(raw))).returning({ id: userSessions.id });
+    revoked = deleted.length > 0;
+  }
+  store.set(COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+  });
+  return { revoked };
 }

@@ -7,6 +7,7 @@ import { createRevisionJob, finishRevisionJob, getTrip, replaceDayAndBudget, sav
 import { apiError, HttpError, readJsonBody } from "@/server/http";
 import { assertAiRequestAllowed, assertRevisionModeLimit, recordAiUsage } from "@/server/ai/guard";
 import { recordAnalyticsEvent } from "@/server/database/analytics";
+import { resolveGenerationAccess } from "@/server/auth/generation-access";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -25,10 +26,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = persistedRevisionSchema.safeParse(await readJsonBody(request));
     if (!body.success) throw new HttpError(400, body.error.issues[0]?.message || "修改请求无效", "INVALID_REVISION");
     const { id } = await params; const [visitor, user] = await Promise.all([ensureVisitor(), currentUser()]); const trip = await getTrip(id);
+    const access = await resolveGenerationAccess(user?.id);
     if (trip.visitorId !== visitor.visitorId && (!user || trip.userId !== user.id)) throw new HttpError(403, "分享访客只能查看，不能修改这份攻略", "EDIT_FORBIDDEN");
     if (!trip.plan || trip.status !== "completed") throw new HttpError(409, "攻略尚未生成完成", "TRIP_NOT_READY");
     if (trip.version !== body.data.version) throw new HttpError(409, "攻略已在其他窗口更新，请刷新后重试", "VERSION_CONFLICT");
-    await assertRevisionModeLimit(visitor.visitorId,body.data.mode);
+    const enforceRevisionLimit = body.data.mode === "full_day"
+      ? access.enforceDailyWholeDayRevisionLimit
+      : access.enforceDailyPartialRevisionLimit;
+    if (enforceRevisionLimit) await assertRevisionModeLimit(visitor.visitorId,body.data.mode);
+    else await recordAnalyticsEvent({visitorId:visitor.visitorId,tripId:id,eventName:"tester_revision_started",status:"started",metadata:{mode:body.data.mode,generationAccessMode:access.mode}}).catch(()=>undefined);
     const guard=await assertAiRequestAllowed(request,visitor.visitorId,body.data.mode==="full_day"?"day_revision":"partial_revision");
     const index = trip.plan.days.findIndex((day) => day.dayNumber === body.data.targetDayNumber);
     const currentDay = trip.plan.days[index];
@@ -42,7 +48,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     jobId = await createRevisionJob(visitor.visitorId, id);
     const aiRequest = { schemaVersion: "0.2" as const, originalInput: trip.input, strategy: trip.plan.strategy, budget: trip.plan.budget, targetDayNumber: currentDay.dayNumber, currentDay, previousDay: adjacent(trip.plan.days[index - 1]), nextDay: adjacent(trip.plan.days[index + 1]), otherDaysCostTotal: trip.input.budget.mode === "custom" ? trip.plan.days.reduce((sum, day) => day.dayNumber === currentDay.dayNumber ? sum : sum + (day.estimatedCost ?? 0), 0) : null, instruction: body.data.instruction, mode: body.data.mode, selectedActivityIds: selectedIds };
-    const result = await reviseDay(aiRequest,usage=>recordAiUsage(visitor.visitorId,id,jobId!,usage),!guard.softBudgetReached);
+    const result = await reviseDay(aiRequest,usage=>recordAiUsage(visitor.visitorId,id,jobId!,usage,true,access.mode),!guard.softBudgetReached);
     const updatedPlan = replaceDayAndBudget(trip.plan, result.updatedDay);
     await saveRevision({ tripId: id, visitorId: trip.visitorId, expectedVersion: body.data.version, instruction: body.data.instruction, previousDay: currentDay, updatedDay: result.updatedDay, summary: result.changeSummary, updatedPlan, jobId, durationMs: Math.round(performance.now() - startedAt) });
     await recordAnalyticsEvent({visitorId:visitor.visitorId,tripId:id,eventName:body.data.mode==="full_day"?"day_revision_completed":"partial_revision_completed",status:"completed",metadata:{}}).catch(()=>undefined);

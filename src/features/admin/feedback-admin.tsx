@@ -114,6 +114,9 @@ export function FeedbackAdmin({
         >
           用户反馈
         </Link>
+        <Link href="/admin/test-users" className="rounded-full border px-4 py-2">
+          测试用户
+        </Link>
         <button
           onClick={async () => {
             await fetch("/api/admin/auth", { method: "DELETE" });

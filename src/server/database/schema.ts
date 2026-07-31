@@ -11,7 +11,10 @@ export const visitors = pgTable("visitors", {
 
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(), email: text("email").notNull(), verifiedAt: timestamp("verified_at", { withTimezone: true }),
-  status: text("status").notNull().default("active"), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(), lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  status: text("status").notNull().default("active"),
+  generationAccessMode: text("generation_access_mode", { enum: ["normal", "tester_unlimited"] }).notNull().default("normal"),
+  generationAccessUpdatedAt: timestamp("generation_access_updated_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(), lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
 }, (table) => [uniqueIndex("users_email_unique").on(table.email)]);
 
 export const userSessions = pgTable("user_sessions", {

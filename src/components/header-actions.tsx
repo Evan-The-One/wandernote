@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { logoutCurrentAccount } from "@/features/auth/logout";
 
 type MenuPosition = { top: number; right: number };
 
@@ -22,7 +23,14 @@ export function HeaderActions() {
   };
 
   useEffect(() => {
-    fetch("/api/auth/session",{cache:"no-store"}).then(response=>response.ok?response.json():null).then(value=>setAuthenticated(Boolean(value?.authenticated))).catch(()=>setAuthenticated(false));
+    const refresh=()=>fetch("/api/auth/session",{cache:"no-store"}).then(response=>response.ok?response.json():null).then(value=>setAuthenticated(Boolean(value?.authenticated))).catch(()=>setAuthenticated(false));
+    void refresh();
+    let channel:BroadcastChannel|null=null;
+    try{channel=new BroadcastChannel("yjchufa-auth");channel.addEventListener("message",refresh);}catch{/* unsupported */}
+    const storage=(event:StorageEvent)=>{if(event.key==="yjchufa:auth-state"||event.key==="yjchufa:auth-completed")void refresh();};
+    const visible=()=>{if(document.visibilityState==="visible")void refresh();};
+    window.addEventListener("storage",storage);window.addEventListener("yjchufa-auth-changed",refresh);document.addEventListener("visibilitychange",visible);
+    return()=>{channel?.close();window.removeEventListener("storage",storage);window.removeEventListener("yjchufa-auth-changed",refresh);document.removeEventListener("visibilitychange",visible);};
   },[]);
 
   useEffect(() => {
@@ -75,6 +83,7 @@ export function HeaderActions() {
         document.getElementById("sample-trip")?.scrollIntoView({ behavior: "smooth" });
       }} />
       <MenuButton label="清空当前选择" onClick={() => action("clear-trip-input")} danger />
+      {authenticated&&<MenuButton label="退出登录" onClick={() => { setOpen(false); if(confirm("退出当前账号？")) void logoutCurrentAccount().then(()=>{setAuthenticated(false);location.href="/?loggedOut=1";}); }} danger />}
     </div>
   </>
   ) : null;

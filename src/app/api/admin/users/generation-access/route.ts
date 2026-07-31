@@ -1,0 +1,19 @@
+import { createHash } from "node:crypto";
+import { and, count, eq, gte } from "drizzle-orm";
+import { z } from "zod";
+import { hasAdminAccess } from "@/server/auth/admin";
+import { ensureVisitor } from "@/server/auth/visitor";
+import { getDatabase, withDatabaseTransaction } from "@/server/database/client";
+import { analyticsEvents, generationJobs, trips, users } from "@/server/database/schema";
+import { startOfShanghaiDay } from "@/server/database/trips";
+import { apiError, assertTrustedMutation, HttpError, readJsonBody } from "@/server/http";
+
+const attempts = new Map<string, number[]>();
+const updateSchema = z.object({ email:z.string().trim().email().max(254).transform(value=>value.toLowerCase()), mode:z.enum(["normal","tester_unlimited"]), reason:z.string().trim().min(4).max(100) });
+function maskEmail(email:string){const[name,domain]=email.split("@");return `${name!.slice(0,2)}***@${domain}`;}
+function rateLimit(request:Request){const source=(request.headers.get("x-forwarded-for")||"admin").split(",")[0]!.trim();const key=createHash("sha256").update(`tester-access:${source}`).digest("hex").slice(0,24);const now=Date.now();const recent=(attempts.get(key)||[]).filter(value=>now-value<10*60_000);if(recent.length>=20)throw new HttpError(429,"操作过于频繁，请稍后再试","RATE_LIMITED");recent.push(now);attempts.set(key,recent);}
+async function requireAdmin(){if(!await hasAdminAccess())throw new HttpError(401,"未授权","ADMIN_REQUIRED");}
+
+export async function GET(request:Request){try{await requireAdmin();const email=new URL(request.url).searchParams.get("email")?.trim().toLowerCase();if(!email)throw new HttpError(400,"请输入用户邮箱","INVALID_USER_LOOKUP");const db=getDatabase();const[account]=await db.select({id:users.id,email:users.email,verifiedAt:users.verifiedAt,mode:users.generationAccessMode,updatedAt:users.generationAccessUpdatedAt}).from(users).where(and(eq(users.email,email),eq(users.status,"active"))).limit(1);if(!account?.verifiedAt)throw new HttpError(404,"该邮箱尚未注册","USER_NOT_FOUND");const[usage]=await db.select({value:count()}).from(generationJobs).innerJoin(trips,eq(generationJobs.tripId,trips.id)).where(and(eq(trips.userId,account.id),gte(generationJobs.createdAt,startOfShanghaiDay())));return Response.json({user:{maskedEmail:maskEmail(account.email),mode:account.mode,todayGenerationRequests:usage.value,updatedAt:account.updatedAt?.toISOString()??null}});}catch(error){return apiError(error);}}
+
+export async function POST(request:Request){try{assertTrustedMutation(request);await requireAdmin();rateLimit(request);const parsed=updateSchema.safeParse(await readJsonBody(request));if(!parsed.success)throw new HttpError(400,"参数无效","INVALID_GENERATION_ACCESS");const visitor=await ensureVisitor();const db=getDatabase();const[account]=await db.select({id:users.id,email:users.email,verifiedAt:users.verifiedAt,mode:users.generationAccessMode}).from(users).where(and(eq(users.email,parsed.data.email),eq(users.status,"active"))).limit(1);if(!account?.verifiedAt)throw new HttpError(404,"该邮箱尚未注册","USER_NOT_FOUND");const auditId=crypto.randomUUID();const targetUserHash=createHash("sha256").update(account.id).digest("hex").slice(0,16);await withDatabaseTransaction(async tx=>{await tx.update(users).set({generationAccessMode:parsed.data.mode,generationAccessUpdatedAt:new Date()}).where(eq(users.id,account.id));await tx.insert(analyticsEvents).values({visitorId:visitor.visitorId,eventName:parsed.data.mode==="tester_unlimited"?"tester_generation_access_granted":"tester_generation_access_revoked",status:"completed",metadata:{auditId,administrator:"access_code_admin",targetUserHash,beforeMode:account.mode,afterMode:parsed.data.mode,reason:parsed.data.reason}});});return Response.json({ok:true,auditId,user:{maskedEmail:maskEmail(account.email),mode:parsed.data.mode}});}catch(error){return apiError(error);}}
