@@ -131,7 +131,8 @@ export function TripPlanView({
           </div>
         </section>
       )}
-      <section className="bg-[#204f3c] py-14 text-white sm:py-20">
+      <section className="relative overflow-hidden bg-[var(--brand-primary-deep)] py-14 text-white sm:py-20">
+        <div className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-[var(--brand-lively)]/15 blur-3xl"/>
         <div className="page-shell">
           <p className="text-sm font-semibold text-white/65">
             {plan.destination.city} · {plan.days.length}天
@@ -146,8 +147,8 @@ export function TripPlanView({
         </div>
       </section>
       <section className="page-shell mt-6">
-        <div className="card rounded-3xl p-5 sm:p-8">
-          <p className="text-sm font-bold text-[#287057]">
+        <div className="card rounded-[var(--radius-feature)] p-5 sm:p-8">
+          <p className="text-sm font-semibold text-[var(--brand-primary)]">
             我帮你这样安排
           </p>
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -155,15 +156,15 @@ export function TripPlanView({
               ["每天安排", understanding.mainActivities],
               ["整体强度", understanding.intensity],
             ].map(([label, value]) => (
-              <div key={label} className="min-w-0 rounded-2xl bg-[#f4f6f1] p-3">
-                <p className="text-xs font-bold text-[#7b847e]">{label}</p>
+              <div key={label} className="min-w-0 rounded-2xl bg-[var(--background-soft)] p-3">
+                <p className="text-xs font-semibold text-[var(--text-secondary)]">{label}</p>
                 <p className="mt-1 truncate text-sm font-semibold">{value}</p>
               </div>
             ))}
           </div>
-          <section className="mt-3 rounded-2xl bg-[#f4f6f1] p-4">
-            <h2 className="text-sm font-bold text-[#245b46]">为你考虑了什么</h2>
-            <div className="mt-2 space-y-2 text-sm leading-6 text-[#65706a]">{personalization.map(item=><p key={item.text}><SafeEmphasis text={item.text} spans={item.emphasis}/></p>)}</div>
+          <section className="mt-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--background-soft)] p-4 sm:p-5">
+            <h2 className="text-base font-semibold text-[var(--brand-primary-deep)]">为你考虑了什么</h2>
+            <div className="mt-2 space-y-2 text-[15px] leading-7 text-[var(--text-secondary)]">{personalization.map(item=><p key={item.text}><SafeEmphasis text={item.text} spans={item.emphasis}/></p>)}</div>
           </section>
           {priorities.length > 0 && (
             <p className="mt-3 text-xs text-[#707a74]">
@@ -199,12 +200,12 @@ export function TripPlanView({
         {plan.days.map((day) => (
           <article
             key={day.dayNumber}
-            className="card overflow-hidden rounded-3xl"
+            className="card overflow-hidden rounded-[var(--radius-card)]"
           >
             <header className="border-b border-black/5 p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-bold text-[#287057]">
+                  <p className="text-sm font-semibold tracking-wide text-[var(--brand-primary)]">
                     DAY {day.dayNumber}
                     {day.date ? ` · ${day.date}` : ""}
                   </p>

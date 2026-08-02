@@ -60,7 +60,7 @@ export default function Detail() {
     <View className="muted">{trip.input.destination.city} · {trip.input.days}天</View>
     <View className="card">
       <View className="section-title">为你考虑了什么</View>
-      {trip.personalization?.length ? trip.personalization.map(paragraph => <View className="muted" key={paragraph.text} style={{ marginTop: "12rpx" }}>{paragraph.segments.map((segment, index) => <Text key={`${index}-${segment.text}`} style={segment.emphasized ? { fontWeight: 700, color: "#1f5e48" } : undefined}>{segment.text}</Text>)}</View>) : <View className="muted">{fallback}</View>}
+      {trip.personalization?.length ? trip.personalization.map(paragraph => <View className="muted" key={paragraph.text} style={{ marginTop: "12rpx" }}>{paragraph.segments.map((segment, index) => <Text key={`${index}-${segment.text}`} style={segment.emphasized ? { fontWeight: 650, color: "#174f3b" } : undefined}>{segment.text}</Text>)}</View>) : <View className="muted">{fallback}</View>}
     </View>
     <View className="card" onClick={() => Taro.navigateTo({ url: `/packagePoster/confirm/index?tripId=${id}&days=${trip.input.days}` })}>
       <View className="section-title">生成精美旅行海报</View><View className="muted">先看示例，再决定是否使用点数生成</View>

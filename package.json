@@ -29,6 +29,7 @@
     "miniapp:test": "pnpm --dir apps/miniprogram test",
     "test:miniapp-backend": "tsx scripts/test-miniapp-contracts.ts",
     "test:miniapp-phase3": "tsx scripts/test-miniapp-phase3.ts",
+    "test:brand-theme": "node scripts/test-brand-theme.mjs",
     "check:miniapp-network": "node scripts/check-miniapp-network.mjs"
   },
   "dependencies": {

@@ -26,10 +26,10 @@ const LEGACY_INPUT_KEY = "wandernote:demo-input";
 const INPUT_KEY = "yijianchufa:trip-input";
 
 const inputClass =
-  "focus-ring mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-base shadow-sm placeholder:text-black/30";
-const selectedCard = "border-[#245b46] bg-[#eaf2ed] text-[#183b2e] shadow-sm";
-const plainCard = "border-black/8 bg-white hover:border-[#245b46]/40";
-const coreQuestionClass = "text-xl font-semibold tracking-tight sm:text-2xl";
+  "focus-ring mt-2 min-h-12 w-full rounded-[var(--radius-control)] border border-[var(--border-soft)] bg-white px-4 py-3 text-base text-[var(--text-primary)] shadow-sm placeholder:text-[var(--text-muted)]";
+const selectedCard = "border-[var(--brand-primary)] bg-[var(--brand-soft)] text-[var(--brand-primary-deep)] shadow-sm ring-1 ring-[var(--brand-primary)]/10";
+const plainCard = "border-[var(--border-soft)] bg-white text-[var(--text-primary)] hover:border-[var(--brand-primary)]/45 hover:bg-[var(--background-soft)]";
+const coreQuestionClass = "text-xl font-semibold tracking-[-.025em] text-[var(--text-strong)] sm:text-2xl";
 
 function NumberStepper({
   label,
@@ -509,7 +509,7 @@ export function TripForm() {
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      <section className="card rounded-[2rem] p-5 sm:p-8">
+      <section className="card rounded-[var(--radius-feature)] p-5 sm:p-8">
         <label className={`block ${coreQuestionClass}`}>
           你想去哪里？ <span className="text-[#c55e3d]">*</span>
           <span className="mt-2 flex items-center gap-2">
@@ -1009,12 +1009,12 @@ export function TripForm() {
           {error}
         </p>
       )}
-      <div className="sticky bottom-3 z-10 rounded-[1.6rem] border border-black/5 bg-[#f7f8f3]/90 p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+      <div className="sticky bottom-3 z-10 rounded-[1.6rem] border border-[var(--border-soft)] bg-[color:rgba(246,250,245,.92)] p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
         <button
           type="submit"
           disabled={submitting}
           aria-live="polite"
-          className="focus-ring flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-[#245b46] px-4 py-4 text-base font-bold text-white shadow-lg shadow-[#245b46]/15 transition active:scale-[.99] disabled:cursor-wait disabled:bg-[#3f7661] sm:px-8 sm:text-lg"
+          className="btn-primary focus-ring flex w-full gap-2 whitespace-nowrap px-4 py-4 text-base disabled:cursor-wait disabled:opacity-60 sm:px-8 sm:text-lg"
         >
           {submitting && (
             <span
@@ -1024,13 +1024,13 @@ export function TripForm() {
           )}
           {submitting ? "正在准备你的旅行……" : "一键生成我的定制旅行"}
         </button>
-        <p className="mt-2 text-center text-xs text-[#707a74]">
+        <p className="mt-2 text-center text-xs text-[var(--text-secondary)]">
           {generationAccessMode === "tester_unlimited"
             ? "测试权限：攻略生成与修改次数不限"
             : "每天可免费生成2次"}
         </p>
       </div>
-      <p className="text-center text-xs leading-5 text-[#778079]">
+      <p className="text-center text-xs leading-5 text-[var(--text-secondary)]">
         AI规划不含实时天气、票价或营业数据，出发前请再次确认。
       </p>
       {toast && (

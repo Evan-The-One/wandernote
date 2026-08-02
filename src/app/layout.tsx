@@ -24,7 +24,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="zh-CN" data-scroll-behavior="smooth">
       <body>
         <PageTracker />
-        <header className="border-b border-black/5 bg-[#f7f8f3]/90 backdrop-blur">
+        <header className="sticky top-0 z-50 border-b border-[var(--border-soft)] bg-[color:rgba(246,250,245,.9)] backdrop-blur-xl">
           <div className="page-shell flex h-16 items-center justify-between">
             <BrandMark href="/" />
             <HeaderActions />

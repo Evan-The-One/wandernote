@@ -8,13 +8,14 @@ import { serverConfig } from "@/server/config";
 export default async function Home() {
   const betaOpen = await hasBetaAccess(serverConfig.betaAccessCode);
   return <main>
-    <section id="plan" className="relative overflow-hidden py-12 sm:py-20">
-      <div className="absolute -right-24 top-8 h-80 w-80 rounded-full bg-[#dbe9d7] blur-3xl" />
-      <div className="absolute -left-24 bottom-0 h-64 w-64 rounded-full bg-[#f3d9ad] blur-3xl" />
+    <section id="plan" className="relative overflow-hidden py-10 sm:py-20">
+      <div className="pointer-events-none absolute -right-24 top-8 h-80 w-80 rounded-full bg-[var(--brand-lively)]/25 blur-3xl" />
+      <div className="pointer-events-none absolute -left-24 bottom-0 h-64 w-64 rounded-full bg-[var(--accent-warm)]/16 blur-3xl" />
       <div className="page-shell relative">
         <div className="mb-6 max-w-3xl">
-          <span className="inline-flex rounded-full border border-[#245b46]/15 bg-white/70 px-3 py-1.5 text-sm font-semibold text-[#245b46]">AI 私人旅行管家</span>
-          <h1 className="mt-4 font-bold leading-tight tracking-[-.04em]"><span className="block whitespace-nowrap text-[clamp(1.65rem,7.2vw,3rem)]">不用查攻略，只需 3 步</span><span className="mt-1 block whitespace-nowrap text-[clamp(1.8rem,7.7vw,3.3rem)] text-[#245b46]">一键定制专属旅行</span></h1>
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-strong)] bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-[var(--brand-primary)] shadow-sm"><i className="h-2 w-2 rounded-full bg-[var(--accent-warm)]"/>AI 私人旅行管家</span>
+          <h1 className="mt-5 font-bold leading-[1.16] tracking-[-.045em] text-[var(--text-strong)]"><span className="block whitespace-nowrap text-[clamp(1.75rem,7.2vw,3.15rem)]">不用查攻略，只需 3 步</span><span className="mt-1 block whitespace-nowrap text-[clamp(1.95rem,7.7vw,3.55rem)] text-[var(--brand-primary)]">一键定制专属旅行</span></h1>
+          <p className="mt-4 max-w-xl text-[15px] leading-7 text-[var(--text-secondary)] sm:text-base">告诉我去哪、玩几天、喜欢什么节奏，剩下的交给一键出发。</p>
         </div>
         <BetaAccessGate initialOpen={betaOpen}><TripForm /></BetaAccessGate>
         <HangzhouSamplePreview />
@@ -26,7 +27,7 @@ export default async function Home() {
         ["01", "三项就能出发", "目的地、天数和玩法选好，就可以直接生成。"],
         ["02", "按天安排清楚", "每一天都有主题、时间轴、交通和行动建议。"],
         ["03", "一句话就能改", "哪天不满意，只调整当天，其他日期保持不变。"],
-      ].map(([number,title,body]) => <article key={number} className="card rounded-3xl p-7"><span className="text-sm font-bold text-[#d48a35]">{number}</span><h3 className="mt-8 text-xl font-bold">{title}</h3><p className="mt-3 leading-7 text-[#65706a]">{body}</p></article>)}</div>
+      ].map(([number,title,body]) => <article key={number} className="card group rounded-[var(--radius-card)] p-7 transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-feature)]"><span className="inline-flex rounded-lg bg-[var(--warning-soft)] px-2.5 py-1 text-sm font-bold text-[var(--warning)]">{number}</span><h3 className="mt-7 text-xl font-semibold text-[var(--text-strong)]">{title}</h3><p className="mt-3 leading-7 text-[var(--text-secondary)]">{body}</p></article>)}</div>
     </section>
   </main>;
 }
