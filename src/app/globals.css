@@ -178,7 +178,7 @@ select:focus-visible {
   .app-hero-title { font-size:clamp(1.85rem,8.3vw,2.15rem); }
   #plan { padding-top:12px; }
   #plan > .app-container { gap:10px; }
-  .home-hero-art { height:142px; object-fit:contain; }
+  .home-hero-art { height:120px; object-fit:contain; }
   #plan:has(.app-trip-form[data-step="2"]) .home-hero,
   #plan:has(.app-trip-form[data-step="3"]) .home-hero { display:none; }
   .app-trip-form { scroll-margin-top:8px; padding-bottom:12px; }
