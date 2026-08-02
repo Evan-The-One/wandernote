@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { DayPlan } from "@/types/trip";
 import { hangzhouSample } from "./hangzhou-sample";
 import { DayRoute } from "./day-route";
+import {AppIcon} from "@/components/app-icons";
 
 function sampleRoute(
   day: (typeof hangzhouSample.days)[number],
@@ -46,27 +47,21 @@ export function HangzhouSamplePreview() {
     );
   }
   return (
-    <section id="sample-trip" className="mt-12 scroll-mt-24 sm:mt-16" aria-labelledby="sample-title">
-      <div className="mb-5">
-        <span className="rounded-full bg-[var(--warning-soft)] px-3 py-1 text-xs font-semibold text-[var(--warning)]">
-          示例攻略
-        </span>
-        <h2 id="sample-title" className="mt-3 text-2xl font-bold tracking-[-.03em] text-[var(--text-strong)] sm:text-3xl">
-          看看生成后的旅行计划
-        </h2>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">杭州三日安排示例</p>
-      </div>
-      <div className="card overflow-hidden rounded-[var(--radius-feature)]">
-        <header className="bg-[var(--brand-primary-deep)] p-5 text-white sm:p-8">
-          <p className="text-sm text-white/65">杭州 · 3天</p>
-          <h3 className="mt-2 text-2xl font-bold">{hangzhouSample.title}</h3>
-          <div className="mt-4 flex flex-wrap gap-3 text-sm text-white/80">
+    <section id="sample-trip" className="mt-7 scroll-mt-24" aria-labelledby="sample-title">
+      <h2 id="sample-title" className="sr-only">杭州三日安排示例</h2>
+      <div className="app-card-primary overflow-hidden">
+        <header className="relative overflow-hidden border-b border-[var(--border-soft)] bg-white p-5 sm:p-8">
+          <span className="icon-bubble is-warm absolute right-5 top-5"><AppIcon name="route"/></span>
+          <p className="text-sm font-semibold text-[var(--brand-primary)]">杭州 · 3天</p>
+          <h3 className="mt-2 pr-14 text-2xl font-bold text-[var(--text-strong)]">{hangzhouSample.title}</h3>
+          <div className="mt-3 flex flex-wrap gap-3 text-sm text-[var(--text-secondary)]">
             <span>{hangzhouSample.style}</span>
             <span>{hangzhouSample.priorities.join("、")}</span>
           </div>
         </header>
         <div className="p-5 sm:p-8">
           <DayRoute day={sampleRoute(hangzhouSample.days[0])} />
+          {!expanded&&<div className="mt-5 grid gap-2 sm:grid-cols-3">{hangzhouSample.days.map(day=><div key={day.day} className="rounded-2xl bg-[var(--background-soft)] p-3"><strong className="text-xs text-[var(--brand-primary)]">DAY {day.day}</strong><p className="mt-1 text-sm font-semibold">{day.route.split(" → ").slice(0,3).join(" → ")}</p></div>)}</div>}
           {expanded && (
             <div className="mt-6 space-y-4 border-t pt-6">
               {hangzhouSample.days.map((day) => (

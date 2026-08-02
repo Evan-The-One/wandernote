@@ -175,6 +175,7 @@ export function TripForm() {
   const destinationRef = useRef<HTMLInputElement>(null);
   const minDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [destination, setDestination] = useState("");
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [destinationSelection, setDestinationSelection] = useState<
     TripInput["destination"] | null
   >(null);
@@ -488,6 +489,8 @@ export function TripForm() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    if(step===1){if(destination.trim())setStep(2);return;}
+    if(step===2){setStep(3);return;}
     const identified = identifyDestination(destination);
     if (destinationSelection && destinationSelection.city === destination) {
       startGeneration(destinationSelection);
@@ -508,10 +511,15 @@ export function TripForm() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-6">
-      <section className="card rounded-[var(--radius-feature)] p-5 sm:p-8">
+    <form onSubmit={submit} className="app-trip-form space-y-4">
+      <div className="flex items-center justify-between px-1">
+        <div><p className="text-sm font-bold text-[var(--brand-primary)]">{step} / 3</p><p className="mt-0.5 text-sm text-[var(--text-secondary)]">{step===1?"先选目的地":step===2?"再决定玩多久":"最后选个喜欢的玩法"}</p></div>
+        <div className="flex gap-2" aria-label={`当前第${step}步，共3步`}>{[1,2,3].map(value=><i key={value} className={`h-2.5 rounded-full transition-all ${value===step?"w-8 bg-[var(--brand-primary)]":"w-2.5 bg-[var(--brand-soft)]"}`}/>)}</div>
+      </div>
+      <section className="app-card-primary min-h-[420px] p-5 sm:p-7">
+        {step===1&&<div className="animate-[planning-enter_.3s_ease-out]">
         <label className={`block ${coreQuestionClass}`}>
-          你想去哪里？ <span className="text-[#c55e3d]">*</span>
+          去哪儿？ <span className="text-[#c55e3d]">*</span>
           <span className="mt-2 flex items-center gap-2">
             <input
               ref={destinationRef}
@@ -586,10 +594,12 @@ export function TripForm() {
             />
           </div>
         </div>
+        <button type="button" disabled={!destination.trim()} onClick={()=>setStep(2)} className="btn-primary mt-7 w-full px-5 py-3.5 disabled:opacity-45">选好了，继续</button>
+        </div>}
 
-        <div className="mt-8">
+        {step===2&&<div className="animate-[planning-enter_.3s_ease-out]">
           <p className={coreQuestionClass}>
-            准备玩几天？ <span className="text-[#c55e3d]">*</span>
+            玩几天？ <span className="text-[#c55e3d]">*</span>
           </p>
           <div className="mt-3 grid grid-cols-4 gap-1.5 sm:gap-2">
             {[1, 2, 3].map((value) => (
@@ -633,16 +643,16 @@ export function TripForm() {
               {daysError && <span className="mt-2 block text-xs font-semibold text-red-700">{daysError}</span>}
             </label>
           )}
-        </div>
+          <div className="mt-8 grid grid-cols-[.72fr_1.28fr] gap-3"><button type="button" onClick={()=>setStep(1)} className="btn-secondary px-4">上一步</button><button type="button" onClick={()=>setStep(3)} className="btn-primary px-4">继续选玩法</button></div>
+        </div>}
 
-        <div className="mt-8">
+        {step===3&&<div className="animate-[planning-enter_.3s_ease-out]">
           <p className={coreQuestionClass}>
-            选一种喜欢的玩法 <span className="text-[#c55e3d]">*</span>
+            想怎么玩？ <span className="text-[#c55e3d]">*</span>
           </p>
           <div className="mt-4 space-y-6">
             <section>
-              <h3 className="font-bold">想怎么玩？</h3>
-              <p className="mt-1 text-xs text-[#707a74]">选择整体旅行节奏</p>
+              <p className="text-sm text-[#707a74]">先选整体节奏，再加最多两个重点</p>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 {travelStyles.map((item) => (
                   <button
@@ -735,10 +745,11 @@ export function TripForm() {
               )}
             </section>
           </div>
-        </div>
+          <button type="button" onClick={()=>setStep(2)} className="btn-ghost mt-6 inline-flex min-h-11 items-center px-2">← 返回上一步</button>
+        </div>}
       </section>
 
-      <details
+      {step===3&&<details
         id="trip-extras"
         className="card group rounded-[2rem] p-3 sm:p-4"
       >
@@ -999,7 +1010,7 @@ export function TripForm() {
             />
           </label>
         </div>
-      </details>
+      </details>}
 
       {error && (
         <p
@@ -1009,7 +1020,7 @@ export function TripForm() {
           {error}
         </p>
       )}
-      <div className="sticky bottom-3 z-10 rounded-[1.6rem] border border-[var(--border-soft)] bg-[color:rgba(246,250,245,.92)] p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+      {step===3&&<div className="sticky bottom-[78px] z-10 rounded-[1.6rem] border border-[var(--border-soft)] bg-[color:rgba(246,250,245,.94)] p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
         <button
           type="submit"
           disabled={submitting}
@@ -1029,7 +1040,7 @@ export function TripForm() {
             ? "测试权限：攻略生成与修改次数不限"
             : "每天可免费生成2次"}
         </p>
-      </div>
+      </div>}
       <p className="text-center text-xs leading-5 text-[var(--text-secondary)]">
         AI规划不含实时天气、票价或营业数据，出发前请再次确认。
       </p>

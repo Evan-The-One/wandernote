@@ -30,6 +30,7 @@
     "test:miniapp-backend": "tsx scripts/test-miniapp-contracts.ts",
     "test:miniapp-phase3": "tsx scripts/test-miniapp-phase3.ts",
     "test:brand-theme": "node scripts/test-brand-theme.mjs",
+    "test:app-shell": "node scripts/test-app-shell.mjs",
     "check:miniapp-network": "node scripts/check-miniapp-network.mjs"
   },
   "dependencies": {

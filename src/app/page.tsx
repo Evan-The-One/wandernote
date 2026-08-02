@@ -1,33 +1,36 @@
-import { SectionHeading } from "@/components/section-heading";
 import { BetaAccessGate } from "@/features/beta/beta-access-gate";
 import { TripForm } from "@/features/trip-input/trip-form";
 import { HangzhouSamplePreview } from "@/features/trip-plan/hangzhou-sample-preview";
 import { hasBetaAccess } from "@/server/auth/visitor";
 import { serverConfig } from "@/server/config";
+import {TravelJourneyIllustration} from "@/components/travel-illustrations";
+import {AppIcon,type AppIconName} from "@/components/app-icons";
 
 export default async function Home() {
   const betaOpen = await hasBetaAccess(serverConfig.betaAccessCode);
+  const values:[AppIconName,string,string,string][]=[
+    ["sparkles","三项就能出发","目的地、天数和玩法选好，剩下的交给我们。","is-warm"],
+    ["route","按天安排清楚","路线、时间和交通，都整理在每天的行程里。",""],
+    ["edit","一句话就能改","只改不满意的部分，不必从头再来。","is-blue"],
+  ];
   return <main>
-    <section id="plan" className="relative overflow-hidden py-10 sm:py-20">
-      <div className="pointer-events-none absolute -right-24 top-8 h-80 w-80 rounded-full bg-[var(--brand-lively)]/25 blur-3xl" />
-      <div className="pointer-events-none absolute -left-24 bottom-0 h-64 w-64 rounded-full bg-[var(--accent-warm)]/16 blur-3xl" />
-      <div className="page-shell relative">
-        <div className="mb-6 max-w-3xl">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border-strong)] bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-[var(--brand-primary)] shadow-sm"><i className="h-2 w-2 rounded-full bg-[var(--accent-warm)]"/>AI 私人旅行管家</span>
-          <h1 className="mt-5 font-bold leading-[1.16] tracking-[-.045em] text-[var(--text-strong)]"><span className="block whitespace-nowrap text-[clamp(1.75rem,7.2vw,3.15rem)]">不用查攻略，只需 3 步</span><span className="mt-1 block whitespace-nowrap text-[clamp(1.95rem,7.7vw,3.55rem)] text-[var(--brand-primary)]">一键定制专属旅行</span></h1>
-          <p className="mt-4 max-w-xl text-[15px] leading-7 text-[var(--text-secondary)] sm:text-base">告诉我去哪、玩几天、喜欢什么节奏，剩下的交给一键出发。</p>
+    <section id="plan" className="relative overflow-hidden py-6 sm:py-14 lg:py-20">
+      <div className="app-container relative grid items-center gap-8 lg:grid-cols-[.9fr_1.1fr] lg:gap-14">
+        <div className="px-1 pt-2 lg:sticky lg:top-28 lg:self-start">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-[var(--brand-primary)] shadow-sm"><i className="h-2 w-2 rounded-full bg-[var(--accent-warm)]"/>AI 私人旅行管家</span>
+          <h1 className="app-hero-title mt-5 text-[var(--text-strong)]">不用查攻略<br/><span className="text-[var(--brand-primary)]">告诉我去哪儿</span><br/>行程直接安排好</h1>
+          <p className="mt-4 max-w-md text-base leading-7 text-[var(--text-secondary)]">少填一点，早点出发。三步生成一份可以直接照着玩的旅行计划。</p>
+          <TravelJourneyIllustration className="mt-6 w-full max-w-[500px] drop-shadow-[0_18px_36px_rgba(23,79,59,.08)]"/>
         </div>
         <BetaAccessGate initialOpen={betaOpen}><TripForm /></BetaAccessGate>
-        <HangzhouSamplePreview />
       </div>
     </section>
-    <section className="page-shell py-16 sm:py-20">
-      <SectionHeading eyebrow="这几天这样玩" title="不是景点清单，是属于你的旅行节奏" description="从每日顺序、餐饮安排到交通建议，把分散的信息整理成一份清晰、好读、随时可以调整的计划。" />
-      <div className="mt-10 grid gap-5 md:grid-cols-3">{[
-        ["01", "三项就能出发", "目的地、天数和玩法选好，就可以直接生成。"],
-        ["02", "按天安排清楚", "每一天都有主题、时间轴、交通和行动建议。"],
-        ["03", "一句话就能改", "哪天不满意，只调整当天，其他日期保持不变。"],
-      ].map(([number,title,body]) => <article key={number} className="card group rounded-[var(--radius-card)] p-7 transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-feature)]"><span className="inline-flex rounded-lg bg-[var(--warning-soft)] px-2.5 py-1 text-sm font-bold text-[var(--warning)]">{number}</span><h3 className="mt-7 text-xl font-semibold text-[var(--text-strong)]">{title}</h3><p className="mt-3 leading-7 text-[var(--text-secondary)]">{body}</p></article>)}</div>
+    <section className="app-container py-12 sm:py-16">
+      <div className="flex items-end justify-between gap-6"><div><p className="text-sm font-bold text-[var(--warning)]">生成后的样子</p><h2 className="app-section-title mt-2">先看一眼，再决定去哪儿</h2></div></div>
+      <HangzhouSamplePreview />
+    </section>
+    <section className="app-container pb-16 pt-4 sm:pb-24">
+      <div className="grid gap-7 md:grid-cols-3">{values.map(([icon,title,body,tone])=><article key={title} className="flex gap-4 md:block"><span className={`icon-bubble shrink-0 ${tone}`}><AppIcon name={icon}/></span><div><h3 className="mt-1 text-lg font-semibold text-[var(--text-strong)] md:mt-4">{title}</h3><p className="mt-1.5 leading-7 text-[var(--text-secondary)]">{body}</p></div></article>)}</div>
     </section>
   </main>;
 }

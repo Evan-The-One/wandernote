@@ -17,6 +17,7 @@ import { PreTripAdviceView } from "./pre-trip-advice-view";
 import { resolvePreTripAdvice } from "./pre-trip-advice";
 import { SafeEmphasis } from "./safe-emphasis";
 import { buildPersonalizationSummary } from "./personalization-summary";
+import {AppIcon} from "@/components/app-icons";
 
 const method = {
   walk: "步行",
@@ -131,26 +132,26 @@ export function TripPlanView({
           </div>
         </section>
       )}
-      <section className="relative overflow-hidden bg-[var(--brand-primary-deep)] py-14 text-white sm:py-20">
-        <div className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-[var(--brand-lively)]/15 blur-3xl"/>
-        <div className="page-shell">
-          <p className="text-sm font-semibold text-white/65">
+      <section className="page-shell pt-6 sm:pt-10">
+        <div className="relative overflow-hidden rounded-[26px] border border-[var(--border-soft)] bg-white p-6 shadow-[var(--shadow-feature)] sm:p-10">
+          <div className="pointer-events-none absolute -right-12 -top-16 h-52 w-52 rounded-full bg-[var(--brand-lively)]/35"/>
+          <div className="pointer-events-none absolute right-12 top-12 hidden h-24 w-40 sm:block" aria-hidden="true"><svg viewBox="0 0 160 90" fill="none" className="h-full w-full"><path d="M6 70c28-47 53-43 73-10 18 30 40 14 75-43" stroke="#B9DB8A" strokeWidth="18" strokeLinecap="round"/><path d="M6 70c28-47 53-43 73-10 18 30 40 14 75-43" stroke="#1F6B4F" strokeWidth="2.5" strokeDasharray="6 8" strokeLinecap="round"/><circle cx="7" cy="69" r="6" fill="#F2C14E"/></svg></div>
+          <p className="relative text-sm font-semibold text-[var(--brand-primary)]">
             {plan.destination.city} · {plan.days.length}天
           </p>
-          <h1 className="mt-3 text-4xl font-bold sm:text-6xl">这几天这样玩</h1>
-          <p className="mt-3 text-xl font-semibold text-white/85">
+          <h1 className="relative mt-3 text-3xl font-bold tracking-[-.04em] text-[var(--text-strong)] sm:text-5xl">这几天这样玩</h1>
+          <p className="relative mt-3 text-lg font-semibold text-[var(--text-secondary)] sm:text-xl">
             {displayTripTitle(input)}
           </p>
-          <div className="mt-6 space-y-2 text-sm font-medium leading-6 text-white/75 sm:text-base">
-            {plan.days.map(day=><p key={day.dayNumber} className="grid grid-cols-[3.75rem_1fr] gap-2"><strong className="text-white">Day {day.dayNumber}</strong><span>{routePreview(day)}</span></p>)}
+          <div className="relative mt-6 max-w-2xl space-y-2 text-sm font-medium leading-6 text-[var(--text-secondary)] sm:text-base">
+            {plan.days.map(day=><p key={day.dayNumber} className="grid grid-cols-[3.75rem_1fr] gap-2"><strong className="text-[var(--brand-primary-deep)]">Day {day.dayNumber}</strong><span>{routePreview(day)}</span></p>)}
           </div>
+          {tripId&&<button onClick={share} className="btn-secondary relative mt-6 gap-2 px-4 py-2 text-sm"><AppIcon name="share"/>分享行程</button>}
         </div>
       </section>
-      <section className="page-shell mt-6">
-        <div className="card rounded-[var(--radius-feature)] p-5 sm:p-8">
-          <p className="text-sm font-semibold text-[var(--brand-primary)]">
-            我帮你这样安排
-          </p>
+      <section className="page-shell mt-5">
+        <div className="app-card-secondary p-5 sm:p-7">
+          <div className="flex items-center gap-3"><span className="icon-bubble is-warm"><AppIcon name="sparkles"/></span><div><p className="text-sm font-semibold text-[var(--brand-primary)]">我帮你这样安排</p><p className="text-xs text-[var(--text-secondary)]">先看重点，再开始每天的路线</p></div></div>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {[
               ["每天安排", understanding.mainActivities],
@@ -196,11 +197,13 @@ export function TripPlanView({
           )}
         </div>
       )}
-      <div className="page-shell mt-8 space-y-6">
+      <div className="page-shell mt-7"><nav className="mb-4 flex gap-2 overflow-x-auto pb-1" aria-label="每日行程">{plan.days.map(day=><a key={day.dayNumber} href={`#day-${day.dayNumber}`} className="btn-secondary shrink-0 px-4 py-2 text-sm">Day {day.dayNumber}</a>)}</nav></div>
+      <div className="page-shell space-y-6">
         {plan.days.map((day) => (
           <article
             key={day.dayNumber}
-            className="card overflow-hidden rounded-[var(--radius-card)]"
+            id={`day-${day.dayNumber}`}
+            className="app-card-primary scroll-mt-24 overflow-hidden"
           >
             <header className="border-b border-black/5 p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">

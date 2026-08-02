@@ -13,8 +13,8 @@ for(const [name,value] of Object.entries(tokens)){
   assert(web.toLowerCase().includes(value.toLowerCase()),`Web theme is missing ${name}`);
   assert(mini.toLowerCase().includes(value.toLowerCase()),`Miniapp theme is missing ${name}`);
 }
-assert.match(web,/MiSans.*HarmonyOS Sans SC.*PingFang SC/);
-assert.match(mini,/HarmonyOS Sans SC.*PingFang SC/);
+assert.match(web,/system-ui.*PingFang SC.*HarmonyOS Sans SC.*MiSans/);
+assert.match(mini,/system-ui.*PingFang SC.*HarmonyOS Sans SC.*MiSans/);
 assert.match(web,/prefers-reduced-motion/);
 assert.match(mini,/prefers-reduced-motion/);
 assert.match(web,/\.btn-primary/);

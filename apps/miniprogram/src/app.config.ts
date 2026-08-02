@@ -10,7 +10,7 @@ export default defineAppConfig({
     color: "#718078", selectedColor: "#1f6248", backgroundColor: "#fffdf7", borderStyle: "white",
     list: [
       { pagePath: "pages/start/index", text: "出发" },
-      { pagePath: "pages/trips/index", text: "我的行程" },
+      { pagePath: "pages/trips/index", text: "行程" },
       { pagePath: "pages/account/index", text: "我的" },
     ],
   },

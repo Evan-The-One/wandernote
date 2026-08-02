@@ -1,2 +1,2 @@
 import {redirect} from "next/navigation";import {currentUser} from "@/server/auth/user";import {AccountClient} from "@/features/account/account-client";
-export const dynamic="force-dynamic";export default async function AccountPage(){if(!await currentUser())redirect('/login?returnTo=/account');return <main className="page-shell max-w-3xl py-10"><AccountClient contactEmail={process.env.PUBLIC_CONTACT_EMAIL||null}/></main>}
+export const dynamic="force-dynamic";export default async function AccountPage(){if(!await currentUser())redirect('/login?returnTo=/account');return <main className="app-container max-w-5xl py-7 sm:py-12"><AccountClient contactEmail={process.env.PUBLIC_CONTACT_EMAIL||null}/></main>}

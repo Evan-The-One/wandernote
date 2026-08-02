@@ -1,21 +1,27 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 import { EmailLoginForm } from "@/features/auth/email-login-form";
+import {LoginIllustration} from "@/components/travel-illustrations";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ returnTo?: string }> }) {
   const { returnTo } = await searchParams;
   const safeReturn = returnTo?.startsWith("/trip/") || returnTo === "/account" ? returnTo : "/";
   return (
-    <main className="min-h-screen bg-transparent px-5 py-12 text-[var(--text-primary)] sm:py-16">
-      <div className="mx-auto max-w-md">
-        <div className="flex justify-center"><BrandMark size="header" /></div>
-        <section className="card mt-8 rounded-[var(--radius-feature)] p-6 sm:p-8">
+    <main className="app-container grid min-h-[calc(100vh-72px)] items-center gap-8 py-8 text-[var(--text-primary)] lg:grid-cols-2 lg:gap-16 lg:py-16">
+      <section className="px-1">
+        <div className="lg:hidden"><BrandMark size="header" /></div>
+        <LoginIllustration className="mt-7 w-full lg:mt-0"/>
+        <h1 className="app-hero-title mt-7 text-[var(--text-strong)]">回来继续<br/><span className="text-[var(--brand-primary)]">你的下一段旅行</span></h1>
+        <p className="mt-4 max-w-md text-base leading-7 text-[var(--text-secondary)]">登录后，你的行程、点数和海报都会保存下来。</p>
+      </section>
+      <div className="lg:max-w-md">
+        <section className="app-card-primary p-6 sm:p-8">
           <span className="inline-flex rounded-full bg-[var(--background-soft)] px-3 py-1 text-xs font-semibold text-[var(--brand-primary)]">在不同设备继续旅行</span>
-          <h1 className="mt-4 text-3xl font-bold tracking-[-.03em] text-[var(--text-strong)]">邮箱登录</h1>
-          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">普通攻略仍可匿名使用。登录后可以保存历史行程、查看点数，并继续生成旅行海报。</p>
+          <h2 className="mt-4 text-2xl font-bold tracking-[-.03em] text-[var(--text-strong)]">邮箱登录</h2>
+          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">无需密码，我们会发送一封安全登录邮件。</p>
           <EmailLoginForm returnTo={safeReturn} />
         </section>
-        <Link href={safeReturn} className="btn-ghost mx-auto mt-6 block w-fit text-sm">返回攻略</Link>
+        <Link href={safeReturn} className="btn-ghost mx-auto mt-6 block w-fit text-sm">暂不登录，返回旅行</Link>
       </div>
     </main>
   );

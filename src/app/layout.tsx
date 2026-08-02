@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { BrandMark } from "@/components/brand-mark";
-import { HeaderActions } from "@/components/header-actions";
 import "./globals.css";
 import { PageTracker } from "@/features/analytics/page-tracker";
-import { SiteFooter } from "@/components/site-footer";
+import { AppShell } from "@/components/app-shell";
+import { Suspense } from "react";
 
 const configuredProductionUrl = process.env.NEXT_PUBLIC_APP_URL
   || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://wandernote-beryl.vercel.app");
@@ -24,14 +23,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="zh-CN" data-scroll-behavior="smooth">
       <body>
         <PageTracker />
-        <header className="sticky top-0 z-50 border-b border-[var(--border-soft)] bg-[color:rgba(246,250,245,.9)] backdrop-blur-xl">
-          <div className="page-shell flex h-16 items-center justify-between">
-            <BrandMark href="/" />
-            <HeaderActions />
-          </div>
-        </header>
-        {children}
-        <SiteFooter contactEmail={contactEmail}/>
+        <Suspense><AppShell contactEmail={contactEmail}>{children}</AppShell></Suspense>
       </body>
     </html>
   );
