@@ -64,6 +64,13 @@
       "when": 1785620000000,
       "tag": "0008_wechat_miniapp_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785630000000,
+      "tag": "0009_miniapp_sharing",
+      "breakpoints": true
     }
   ]
 }

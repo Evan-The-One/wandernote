@@ -81,6 +81,10 @@ export const trips = pgTable("trips", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("trips_visitor_updated_idx").on(table.visitorId, table.updatedAt)]);
 
+export const tripShares = pgTable("trip_shares", {
+  id: uuid("id").defaultRandom().primaryKey(), tripId: uuid("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }), createdBy: uuid("created_by").notNull().references(() => users.id, { onDelete: "cascade" }), tokenHash: text("token_hash").notNull(), status: text("status", { enum: ["active", "revoked"] }).notNull().default("active"), optionalExpiresAt: timestamp("optional_expires_at", { withTimezone: true }), revokedAt: timestamp("revoked_at", { withTimezone: true }), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("trip_shares_token_unique").on(table.tokenHash), index("trip_shares_trip_status_idx").on(table.tripId, table.status, table.createdAt)]);
+
 export const loginAttempts = pgTable("login_attempts", {
   id: uuid("id").defaultRandom().primaryKey(),
   attemptTokenHash: text("attempt_token_hash").notNull(),

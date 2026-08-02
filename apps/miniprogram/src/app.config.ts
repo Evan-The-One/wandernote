@@ -1,7 +1,7 @@
 export default defineAppConfig({
   pages: ["pages/start/index", "pages/trips/index", "pages/account/index"],
   subPackages: [
-    { root: "packageTrip", pages: ["detail/index", "generating/index", "edit/index"] },
+    { root: "packageTrip", pages: ["detail/index", "shared/index", "generating/index", "edit/index"] },
     { root: "packagePoster", pages: ["examples/index", "confirm/index", "progress/index", "viewer/index"] },
     { root: "packageAccount", pages: ["points/index", "settings/index", "bind-email/index", "legal/index"] },
   ],

@@ -1,29 +1,28 @@
 # Web 与微信小程序功能对照
 
-| 能力 | Web | 小程序开发版 | 说明 |
-|---|---|---|---|
-| 生成行程 | 已实现 | 已实现（待 AppID 联调） | 异步 job、幂等、冷启动恢复 |
-| 查看行程 | 已实现 | 已实现 | 按账户做所有权校验 |
-| 整体修改 | 已实现 | 部分实现 | 当前实现整天修改；整份重规划待真机联调 |
-| 单日修改 | 已实现 | 已实现（待 AppID 联调） | 复用 AI revision 与额度规则 |
-| 局部修改 | 已实现 | 部分实现 | 服务协议可复用，首版 UI 尚未开放活动多选 |
-| 为你考虑了什么 | 已实现 | 已实现 | 结构化文本展示；强调分段后续复用 Web segments |
-| 出发与返程 | 已实现 | 部分实现 | 数据保留，专用紧凑组件待视觉联调 |
-| 出发前看一眼 | 已实现 | 已实现 | AI 提示保留 |
-| 海报示例 | 已实现 | 已实现 | 静态资源，不扣点、不调用 AI |
-| 海报生成/状态/查看 | 已实现 | 部分实现 | 页面与任务流程已建；Bearer 适配接口仍需 AppID 联调 |
-| 海报保存 | 已实现 | 部分实现 | 原生相册授权流程已建；真实签名下载待联调 |
-| 点数余额/记录 | 已实现 | 已实现 | 同一 `userId`、同一账本 |
-| 我的行程 | 已实现 | 已实现 | 分页摘要 |
-| 删除行程 | 已实现 | 已实现 | 所有者限定 |
-| 分享行程 | 已实现 | 部分实现 | 原生分享 UI 已建；可撤销 shareToken 适配待完成 |
-| 分享只读 | 已实现 | 部分实现 | 后端已有只读规则；小程序专用 token 入口待联调 |
-| 微信登录 | 不适用 | 已实现（待凭据验收） | code 仅由服务端换取身份，不返回 session_key |
-| 绑定邮箱 | 已实现登录 | 部分实现 | UI/数据结构已建；跨账户事务合并待生产演练 |
-| 退出登录 | 已实现 | 已实现 | 仅撤销当前小程序 Session |
-| 测试用户权限 | 已实现 | 已实现 | 共享 `generationAccessMode`，不绕过安全与海报点数 |
-| 联系支持/法律页 | 已实现 | 已实现 | 邮箱读取统一公开配置，未配置时安全降级 |
-| 账户注销 | 已实现 | 部分实现 | 法律入口保留；小程序提交入口待 AppID 联调 |
-| 微信支付 | 不适用 | 因外部资质待验收 | Provider 与契约预留，真实支付严格关闭 |
+状态只使用：`implemented_and_tested`、`implemented_waiting_real_appid`、`implemented_waiting_real_device`、`blocked`、`not_applicable`。
 
-“部分实现”不是上线完成。上线前必须关闭所有表中列出的接口与真机差距。
+| 能力 | 小程序状态 | 说明 |
+|---|---|---|
+| 微信登录 | implemented_waiting_real_appid | code 服务端交换、身份哈希、可撤销短 Session、自动续期已实现 |
+| 退出登录 | implemented_waiting_real_appid | 撤销当前小程序 Session |
+| 生成行程/进度恢复 | implemented_waiting_real_appid | 异步 job、幂等、冷启动恢复 |
+| 我的行程/详情/删除 | implemented_waiting_real_appid | 所有权校验与分页摘要 |
+| 修改单个活动 | implemented_waiting_real_appid | 快捷意图 + 自由补充，复用 selected_activities revision |
+| 修改整天 | implemented_waiting_real_appid | 复用 full_day revision 与额度 |
+| 重新安排整份 | blocked | 需新增非覆盖式完整版本记录，当前 Trip 只有 currentPlanJson |
+| 撤销最近修改 | implemented_waiting_real_appid | 乐观版本锁与所有权校验 |
+| 结构化重点强调 | implemented_waiting_real_appid | 服务端从 Web 同一确定性摘要生成结构化 segments，小程序安全 Text 渲染；历史内容回退纯文本 |
+| 出发与返程/出发前提醒 | implemented_waiting_real_appid | 数据保留，视觉需真机复核 |
+| 海报示例 | implemented_and_tested | 静态资源，不调用 AI、不扣点 |
+| 海报页数/点数/生成任务 | blocked | Web 服务可复用，但 Bearer 异步适配尚未安全拆分 |
+| 私有海报短期下载 | blocked | 当前输出是结构化海报规格，不是服务端合成 JPEG |
+| 多页查看与相册保存 | blocked | 等待服务端高清文件与真实设备权限测试 |
+| 点数余额与记录 | implemented_waiting_real_appid | Web/小程序同一 userId、同一账本 |
+| 分享/只读/撤销 | implemented_waiting_real_appid | 哈希 shareToken、只读接口、撤销已实现 |
+| 绑定邮箱与账户合并 | blocked | 未开放；点数账本与订单合并尚无可证明安全的事务方案 |
+| 联系支持与法律页面 | implemented_waiting_real_device | 统一 PUBLIC_CONTACT_EMAIL，未配置时安全降级 |
+| 账户注销入口 | blocked | Web 有申请接口，小程序 Bearer 适配未完成 |
+| 微信支付 | not_applicable | 首发无支付；分类未确认，全部开关关闭 |
+
+`blocked` 项不会在首发体验版中伪装成可用按钮。支付之外的核心阻断项完成前，不应提交正式审核版。

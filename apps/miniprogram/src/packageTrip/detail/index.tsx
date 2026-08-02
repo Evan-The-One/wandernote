@@ -1,2 +1,72 @@
-import {useEffect,useState} from "react"; import Taro,{useRouter,useShareAppMessage} from "@tarojs/taro"; import {Button,Text,View} from "@tarojs/components"; import {Brand} from "../../components/brand"; import {request} from "../../services/session"; import type{MiniTrip}from"../../services/types";
-export default function Detail(){const{id=""}= {id:String(useRouter().params.tripId||"")},[trip,setTrip]=useState<MiniTrip|null>(null),[error,setError]=useState("");useEffect(()=>{void request<MiniTrip>(`/api/miniapp/trips/${id}`).then(setTrip).catch(e=>setError(e.message))},[id]);useShareAppMessage(()=>({title:trip?`${trip.input.destination.city}${trip.input.days}天行程已经安排好了`:"一键出发旅行计划",path:`/packageTrip/detail/index?tripId=${id}`}));if(error)return <View className="page"><View className="error">{error}</View></View>;if(!trip?.plan)return <View className="page"><Text>正在读取行程…</Text></View>;const rationale=Array.isArray(trip.plan.planningRationale)?trip.plan.planningRationale.join("\n"):trip.plan.planningRationale||trip.plan.summary;return <View className="page"><Brand/><View className="title" style={{marginTop:"28rpx"}}>{trip.plan.title}</View><View className="muted">{trip.input.destination.city} · {trip.input.days}天</View><View className="card"><View className="section-title">为你考虑了什么</View><View className="muted">{rationale}</View></View><View className="card" onClick={()=>Taro.navigateTo({url:`/packagePoster/confirm/index?tripId=${id}&days=${trip.input.days}`})}><View className="section-title">生成精美旅行海报</View><View className="muted">先看示例，再决定是否使用点数生成</View></View>{trip.plan.days.map(day=><View className="card" key={day.dayNumber}><Text className="section-title">DAY {day.dayNumber} · {day.theme}</Text><View className="day">{day.activities.map(activity=><View className="activity" key={activity.id}><View className="activity-time">{activity.startTime}–{activity.endTime}</View><View style={{fontWeight:700}}>{activity.name}</View>{activity.area&&<View className="muted">{activity.area}</View>}{activity.reason&&<View className="muted">{activity.reason}</View>}{activity.transportToNext&&<View className="muted">下一站：{activity.transportToNext.mode}{activity.transportToNext.durationMinutes?`约${activity.transportToNext.durationMinutes}分钟`:""}</View>}</View>)}</View><Button className="secondary" onClick={()=>Taro.navigateTo({url:`/packageTrip/edit/index?tripId=${id}&day=${day.dayNumber}&version=${trip.version}`})}>调整这一天</Button></View>)}<View className="card"><View className="section-title">出发前看一眼</View><View className="muted">行程由AI辅助生成，请结合天气、开放时间和现场情况确认。</View></View><Button className="primary" openType="share">分享只读行程</Button></View>}
+import { useCallback, useEffect, useState } from "react";
+import Taro, { useRouter, useShareAppMessage } from "@tarojs/taro";
+import { Button, Text, View } from "@tarojs/components";
+import { Brand } from "../../components/brand";
+import { request } from "../../services/session";
+import type { MiniTrip } from "../../services/types";
+
+type Share = { shareToken: string; path: string };
+
+export default function Detail() {
+  const id = String(useRouter().params.tripId || "");
+  const [trip, setTrip] = useState<MiniTrip | null>(null);
+  const [share, setShare] = useState<Share | null>(null);
+  const [error, setError] = useState("");
+  const load = useCallback(() => request<MiniTrip>(`/api/miniapp/trips/${id}`).then(setTrip), [id]);
+
+  useEffect(() => { void load().catch((value: Error) => setError(value.message)); }, [load]);
+  useShareAppMessage(() => ({
+    title: trip ? `${trip.input.destination.city}${trip.input.days}天行程已经安排好了` : "一键出发旅行计划",
+    path: share?.path || "/pages/start/index",
+  }));
+
+  async function enableShare() {
+    try {
+      const value = await request<Share>(`/api/miniapp/trips/${id}/share`, { method: "POST", data: {} });
+      setShare(value);
+      await Taro.showToast({ title: "分享已开启", icon: "success" });
+    } catch (value) { setError(value instanceof Error ? value.message : "暂时无法分享"); }
+  }
+  async function revokeShare() {
+    await request(`/api/miniapp/trips/${id}/share`, { method: "DELETE", data: {} });
+    setShare(null);
+    await Taro.showToast({ title: "分享已撤销", icon: "success" });
+  }
+  async function undo() {
+    if (!trip) return;
+    try {
+      await request(`/api/miniapp/trips/${id}/undo`, { method: "POST", data: { version: trip.version } });
+      await load();
+      await Taro.showToast({ title: "已撤销最近修改", icon: "success" });
+    } catch (value) { setError(value instanceof Error ? value.message : "暂时无法撤销"); }
+  }
+
+  if (error) return <View className="page"><View className="error">{error}</View></View>;
+  if (!trip?.plan) return <View className="page"><Text>正在读取行程…</Text></View>;
+  const fallback = Array.isArray(trip.plan.planningRationale) ? trip.plan.planningRationale.join("\n") : trip.plan.planningRationale || trip.plan.summary;
+  return <View className="page">
+    <Brand />
+    <View className="title" style={{ marginTop: "28rpx" }}>{trip.plan.title}</View>
+    <View className="muted">{trip.input.destination.city} · {trip.input.days}天</View>
+    <View className="card">
+      <View className="section-title">为你考虑了什么</View>
+      {trip.personalization?.length ? trip.personalization.map(paragraph => <View className="muted" key={paragraph.text} style={{ marginTop: "12rpx" }}>{paragraph.segments.map((segment, index) => <Text key={`${index}-${segment.text}`} style={segment.emphasized ? { fontWeight: 700, color: "#1f5e48" } : undefined}>{segment.text}</Text>)}</View>) : <View className="muted">{fallback}</View>}
+    </View>
+    <View className="card" onClick={() => Taro.navigateTo({ url: `/packagePoster/confirm/index?tripId=${id}&days=${trip.input.days}` })}>
+      <View className="section-title">生成精美旅行海报</View><View className="muted">先看示例，再决定是否使用点数生成</View>
+    </View>
+    {trip.plan.days.map(day => <View className="card" key={day.dayNumber}>
+      <Text className="section-title">DAY {day.dayNumber} · {day.theme}</Text>
+      <View className="day">{day.activities.map(activity => <View className="activity" key={activity.id} onClick={() => Taro.navigateTo({ url: `/packageTrip/edit/index?tripId=${id}&day=${day.dayNumber}&version=${trip.version}&activityId=${activity.id}` })}>
+        <View className="activity-time">{activity.startTime}–{activity.endTime}</View><View style={{ fontWeight: 700 }}>{activity.name}</View>
+        {activity.area && <View className="muted">{activity.area}</View>}{activity.reason && <View className="muted">{activity.reason}</View>}
+        {activity.transportToNext && <View className="muted">下一站：{activity.transportToNext.mode}{activity.transportToNext.durationMinutes ? `约${activity.transportToNext.durationMinutes}分钟` : ""}</View>}
+        <View className="muted">点按可修改这个活动</View>
+      </View>)}</View>
+      <Button className="secondary" onClick={() => Taro.navigateTo({ url: `/packageTrip/edit/index?tripId=${id}&day=${day.dayNumber}&version=${trip.version}` })}>调整这一天</Button>
+    </View>)}
+    <Button className="secondary" onClick={undo}>撤销最近修改</Button>
+    <View className="card"><View className="section-title">出发前看一眼</View><View className="muted">行程由AI辅助生成，请结合天气、开放时间和现场情况确认。</View></View>
+    {!share ? <Button className="primary" onClick={enableShare}>开启只读分享</Button> : <><Button className="primary" openType="share">分享给好友</Button><Button className="secondary" onClick={revokeShare}>撤销分享</Button></>}
+  </View>;
+}

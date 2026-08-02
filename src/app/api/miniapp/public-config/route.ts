@@ -1,8 +1,7 @@
-import { ensureMiniappAuthTables, miniappConfigured } from "@/server/auth/miniapp";
+import { miniappConfigured } from "@/server/auth/miniapp";
 import { wechatPaymentConfigured, wechatPointPacks } from "@/server/payments/wechat-provider";
 
 export async function GET() {
-  await ensureMiniappAuthTables();
   const contactEmail = process.env.PUBLIC_CONTACT_EMAIL?.trim() || null;
   return Response.json({
     contactEmail,

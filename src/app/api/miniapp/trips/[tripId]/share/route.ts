@@ -1,0 +1,9 @@
+import { createHash, randomBytes } from "node:crypto";
+import { and, desc, eq } from "drizzle-orm";
+import { currentMiniappUser } from "@/server/auth/miniapp";
+import { getDatabase } from "@/server/database/client";
+import { tripShares, trips } from "@/server/database/schema";
+import { apiError, HttpError } from "@/server/http";
+const hash=(value:string)=>createHash("sha256").update(value).digest("hex");
+export async function POST(request:Request,{params}:{params:Promise<{tripId:string}>}){try{const user=await currentMiniappUser(request),{tripId}=await params,db=getDatabase();const[trip]=await db.select({id:trips.id}).from(trips).where(and(eq(trips.id,tripId),eq(trips.userId,user.id))).limit(1);if(!trip)throw new HttpError(404,"没有找到这份行程","TRIP_NOT_FOUND");await db.update(tripShares).set({status:"revoked",revokedAt:new Date()}).where(and(eq(tripShares.tripId,tripId),eq(tripShares.status,"active")));const token=randomBytes(24).toString("base64url");await db.insert(tripShares).values({tripId,createdBy:user.id,tokenHash:hash(token)});return Response.json({shareToken:token,path:`/packageTrip/shared/index?token=${encodeURIComponent(token)}`},{status:201,headers:{"cache-control":"no-store"}})}catch(error){return apiError(error)}}
+export async function DELETE(request:Request,{params}:{params:Promise<{tripId:string}>}){try{const user=await currentMiniappUser(request),{tripId}=await params,db=getDatabase();const[row]=await db.select({id:tripShares.id}).from(tripShares).innerJoin(trips,eq(tripShares.tripId,trips.id)).where(and(eq(tripShares.tripId,tripId),eq(trips.userId,user.id),eq(tripShares.status,"active"))).orderBy(desc(tripShares.createdAt)).limit(1);if(row)await db.update(tripShares).set({status:"revoked",revokedAt:new Date()}).where(eq(tripShares.id,row.id));return Response.json({ok:true})}catch(error){return apiError(error)}}
