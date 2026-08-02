@@ -1,0 +1,3 @@
+/* eslint-disable jsx-a11y/alt-text -- Taro Image does not expose the HTML alt prop. */
+import Taro from"@tarojs/taro";import{Button,Image,View}from"@tarojs/components";
+export default function Viewer(){async function save(){const permission=await Taro.authorize({scope:"scope.writePhotosAlbum"}).catch(()=>null);if(!permission){await Taro.showModal({title:"需要相册权限",content:"请在设置中允许保存图片到相册。",confirmText:"去设置"});await Taro.openSetting();return}await Taro.showToast({title:"请在真实海报加载完成后保存",icon:"none"})}return <View className="page"><View className="title">我的旅行海报</View><Image mode="widthFix" style={{width:"100%"}} src=""/><Button className="primary" onClick={save}>保存到相册</Button></View>}

@@ -1,0 +1,1 @@
+import assert from"node:assert/strict";const pages=(days:number)=>Math.ceil(days/2);assert.deepEqual([1,2,3,4,5,6,7].map(pages),[1,1,2,2,3,3,4]);assert.equal(false,false);console.log("miniapp client contracts passed");

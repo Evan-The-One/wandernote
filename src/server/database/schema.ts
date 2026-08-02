@@ -21,6 +21,50 @@ export const userSessions = pgTable("user_sessions", {
   id: uuid("id").defaultRandom().primaryKey(), userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }), tokenHash: text("token_hash").notNull(), expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [uniqueIndex("user_sessions_token_unique").on(table.tokenHash), index("user_sessions_user_idx").on(table.userId)]);
 
+export const userIdentities = pgTable("user_identities", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider", { enum: ["email", "wechat_miniprogram"] }).notNull(),
+  providerSubjectHash: text("provider_subject_hash").notNull(),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }).defaultNow().notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("user_identities_provider_subject_unique").on(table.provider, table.providerSubjectHash),
+  index("user_identities_user_idx").on(table.userId),
+]);
+
+export const miniappSessions = pgTable("miniapp_sessions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull(),
+  refreshTokenHash: text("refresh_token_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  refreshExpiresAt: timestamp("refresh_expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("miniapp_sessions_token_unique").on(table.tokenHash),
+  uniqueIndex("miniapp_sessions_refresh_unique").on(table.refreshTokenHash),
+  index("miniapp_sessions_user_idx").on(table.userId),
+]);
+
+export const miniappBindingAttempts = pgTable("miniapp_binding_attempts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sourceUserId: uuid("source_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  targetEmailHash: text("target_email_hash").notNull(),
+  targetEmailEncrypted: text("target_email_encrypted").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  status: text("status", { enum: ["pending", "verified", "merged", "expired", "conflict"] }).notNull().default("pending"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("miniapp_binding_attempts_token_unique").on(table.tokenHash),
+  index("miniapp_binding_attempts_source_created_idx").on(table.sourceUserId, table.createdAt),
+]);
+
 export const emailLoginTokens = pgTable("email_login_tokens", {
   id: uuid("id").defaultRandom().primaryKey(), email: text("email").notNull(), tokenHash: text("token_hash").notNull(), expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(), usedAt: timestamp("used_at", { withTimezone: true }), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [uniqueIndex("email_login_tokens_token_unique").on(table.tokenHash), index("email_login_tokens_email_created_idx").on(table.email, table.createdAt)]);

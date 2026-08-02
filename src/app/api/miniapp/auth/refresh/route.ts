@@ -1,0 +1,2 @@
+import { z } from "zod"; import { apiError } from "@/server/http"; import { readMiniappJson, rotateMiniappSession } from "@/server/auth/miniapp";
+const schema=z.object({refreshToken:z.string().min(32).max(128)}); export async function POST(request:Request){try{const body=schema.parse(await readMiniappJson(request));return Response.json(await rotateMiniappSession(body.refreshToken),{headers:{"cache-control":"no-store"}});}catch(error){return apiError(error);}}

@@ -1,0 +1,35 @@
+{
+  "name": "@yjchufa/miniprogram",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:weapp": "taro build --type weapp --watch",
+    "build:weapp": "taro build --type weapp",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "tsx test/contracts.ts"
+  },
+  "dependencies": {
+    "@tarojs/components": "4.1.9",
+    "@tarojs/plugin-framework-react": "4.1.9",
+    "@tarojs/plugin-platform-weapp": "4.1.9",
+    "@tarojs/react": "4.1.9",
+    "@tarojs/runtime": "4.1.9",
+    "@tarojs/shared": "4.1.9",
+    "@tarojs/taro": "4.1.9",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.29.0",
+    "@babel/preset-react": "^7.28.5",
+    "@tarojs/cli": "4.1.9",
+    "babel-preset-taro": "4.1.9",
+    "@tarojs/webpack5-runner": "4.1.9",
+    "@types/react": "19.2.0",
+    "eslint": "9.39.0",
+    "tsx": "4.23.0",
+    "typescript": "5.9.3"
+  }
+}

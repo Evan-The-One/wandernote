@@ -1,0 +1,1 @@
+{"desc":"一键出发小程序页面索引","rules":[{"action":"allow","page":"pages/start/index"},{"action":"disallow","page":"*"}]}

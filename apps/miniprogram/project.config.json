@@ -1,0 +1,8 @@
+{
+  "miniprogramRoot": "dist/",
+  "projectname": "一键出发",
+  "description": "一键出发微信小程序开发版",
+  "appid": "touristappid",
+  "setting": { "es6": true, "minified": true, "urlCheck": true },
+  "compileType": "miniprogram"
+}

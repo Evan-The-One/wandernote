@@ -20,7 +20,13 @@
     "test:qr": "tsx scripts/test-qr-code.ts",
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "test:ai": "node scripts/test-ai-cases.mjs",
-    "test:revisions": "node scripts/test-day-revisions.mjs"
+    "test:revisions": "node scripts/test-day-revisions.mjs",
+    "miniapp:dev": "pnpm --dir apps/miniprogram dev:weapp",
+    "miniapp:build": "pnpm --dir apps/miniprogram build:weapp",
+    "miniapp:typecheck": "pnpm --dir apps/miniprogram typecheck",
+    "miniapp:lint": "pnpm --dir apps/miniprogram lint",
+    "miniapp:test": "pnpm --dir apps/miniprogram test",
+    "test:miniapp-backend": "tsx scripts/test-miniapp-contracts.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

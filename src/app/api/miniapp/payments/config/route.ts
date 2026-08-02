@@ -1,0 +1,1 @@
+export async function GET(){const enabled=process.env.MINIAPP_PAYMENTS_ENABLED==="true"&&process.env.PAYMENT_PROVIDER_WECHAT_ENABLED==="true"&&process.env.WECHAT_PAY_MODE!=="disabled";return Response.json({provider:"wechat_pay",enabled:false,configured:enabled,packages:[],message:"点数购买即将开放"},{headers:{"cache-control":"no-store"}});}

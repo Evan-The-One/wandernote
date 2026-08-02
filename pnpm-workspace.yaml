@@ -1,11 +1,26 @@
-allowBuilds:
-  esbuild: true
-  sharp: true
-  unrs-resolver: true
+packages:
+  - apps/*
+overrides:
+  swiper: 12.1.2
+  postcss: 8.5.19
+  sharp: 0.35.3
+  'brace-expansion@<2': 1.1.17
+  'brace-expansion@>=4 <5.0.8': 5.0.8
 onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - '@swc/core'
+  - '@tarojs/binding'
+  - '@tarojs/cli'
   - esbuild
   - sharp
   - unrs-resolver
-overrides:
-  postcss: 8.5.19
-  sharp: 0.35.3
+allowBuilds:
+  '@parcel/watcher': true
+  '@swc/core': true
+  '@tarojs/binding': true
+  '@tarojs/cli': true
+  core-js: true
+  core-js-pure: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: false

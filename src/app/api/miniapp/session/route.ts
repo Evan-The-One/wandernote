@@ -1,0 +1,2 @@
+import { apiError } from "@/server/http"; import { currentMiniappUser, miniappConfigured } from "@/server/auth/miniapp"; import { getPointSummary } from "@/server/commerce/points";
+export async function GET(request:Request){try{const user=await currentMiniappUser(request);const points=await getPointSummary(user.id);return Response.json({authenticated:true,generationAccessMode:user.generationAccessMode,points:{available:points.balance,reserved:points.reserved},wechatConfigured:miniappConfigured()},{headers:{"cache-control":"no-store"}});}catch(error){return apiError(error);}}
