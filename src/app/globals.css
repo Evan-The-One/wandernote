@@ -198,7 +198,7 @@ select:focus-visible {
   .mobile-route-node:last-child i { display:none; }
   .is-auxiliary .app-container { width:min(100% - 32px,1180px); }
   .is-auxiliary .home-hero-art { height:132px; }
-  .login-illustration { height:138px; object-fit:contain; }
+  .login-illustration { height:104px; object-fit:contain; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
