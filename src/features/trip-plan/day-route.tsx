@@ -16,6 +16,10 @@ function routeNodes(day: Pick<DayPlan, "activities">) {
     .slice(0, 6);
 }
 
+function shortRouteName(name:string){
+  return name.replace(/西湖风景名胜区/g,"西湖").replace(/苏州河步道（静安段）/g,"苏州河步道").replace(/上海博物馆人民广场馆/g,"上海博物馆").replace(/[（(][^）)]{5,}[）)]/g,"").trim();
+}
+
 export function summarizeDayRoute(day: DayPlan) {
   const nodes = routeNodes(day);
   const areas = [...new Set(nodes.map((node) => node.area))].slice(0, 2);
@@ -61,7 +65,10 @@ export function DayRoute({ day }: { day: Pick<DayPlan, "dayNumber" | "activities
       className="mb-5 w-full bg-transparent py-2"
       aria-label={`第${day.dayNumber}天主要地点路线顺序`}
     >
-      <div className="relative mx-auto aspect-[100/36] w-full max-w-[390px]">
+      <div className={`mobile-route-list ${nodes.length>3?"is-scrollable":""}`}>
+        {nodes.map((node,index)=><button key={node.id} type="button" title={node.name} onClick={()=>document.getElementById(`activity-${day.dayNumber}-${node.id}`)?.scrollIntoView({behavior:"smooth",block:"center"})} className="mobile-route-node"><span>{shortRouteName(node.name)}</span>{index<nodes.length-1&&<i aria-hidden="true">→</i>}</button>)}
+      </div>
+      <div className="desktop-route-map relative mx-auto aspect-[100/36] w-full max-w-[390px]">
         <svg aria-hidden="true" viewBox={`0 0 100 ${viewBoxHeight}`} className="absolute inset-0 h-full w-full overflow-visible text-[#8daf9a]">
           {segments.map((segment, index) => (
             <path key={index} d={segment} fill="none" stroke="currentColor" strokeWidth="0.72" strokeDasharray="1.8 2.2" strokeLinecap="round" />

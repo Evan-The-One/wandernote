@@ -10,8 +10,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <main className="app-container grid min-h-[calc(100vh-72px)] items-center gap-8 py-8 text-[var(--text-primary)] lg:grid-cols-2 lg:gap-16 lg:py-16">
       <section className="px-1">
         <div className="lg:hidden"><BrandMark size="header" /></div>
-        <LoginIllustration className="mt-7 w-full lg:mt-0"/>
-        <h1 className="app-hero-title mt-7 text-[var(--text-strong)]">回来继续<br/><span className="text-[var(--brand-primary)]">你的下一段旅行</span></h1>
+        <LoginIllustration className="login-illustration mt-4 w-full lg:mt-0"/>
+        <h1 className="app-hero-title mt-4 text-[var(--text-strong)]">回来继续<br/><span className="text-[var(--brand-primary)]">你的下一段旅行</span></h1>
         <p className="mt-4 max-w-md text-base leading-7 text-[var(--text-secondary)]">登录后，你的行程、点数和海报都会保存下来。</p>
       </section>
       <div className="lg:max-w-md">

@@ -172,6 +172,7 @@ function ChoiceIcon({ name }: { name: string }) {
 
 export function TripForm() {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const destinationRef = useRef<HTMLInputElement>(null);
   const minDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [destination, setDestination] = useState("");
@@ -235,6 +236,12 @@ export function TripForm() {
     city: string;
     nearby: string;
   } | null>(null);
+
+  useEffect(()=>{
+    if(step===1)return;
+    const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(()=>formRef.current?.scrollIntoView({behavior:reduced?"auto":"smooth",block:"start"}));
+  },[step]);
 
   useEffect(() => {
     let active = true;
@@ -511,12 +518,12 @@ export function TripForm() {
   }
 
   return (
-    <form onSubmit={submit} className="app-trip-form space-y-4">
+    <form ref={formRef} data-step={step} onSubmit={submit} className="app-trip-form scroll-mt-3 space-y-3 sm:space-y-4">
       <div className="flex items-center justify-between px-1">
         <div><p className="text-sm font-bold text-[var(--brand-primary)]">{step} / 3</p><p className="mt-0.5 text-sm text-[var(--text-secondary)]">{step===1?"先选目的地":step===2?"再决定玩多久":"最后选个喜欢的玩法"}</p></div>
         <div className="flex gap-2" aria-label={`当前第${step}步，共3步`}>{[1,2,3].map(value=><i key={value} className={`h-2.5 rounded-full transition-all ${value===step?"w-8 bg-[var(--brand-primary)]":"w-2.5 bg-[var(--brand-soft)]"}`}/>)}</div>
       </div>
-      <section className="app-card-primary min-h-[420px] p-5 sm:p-7">
+      <section className="app-card-primary p-4 sm:min-h-[420px] sm:p-7">
         {step===1&&<div className="animate-[planning-enter_.3s_ease-out]">
         <label className={`block ${coreQuestionClass}`}>
           去哪儿？ <span className="text-[#c55e3d]">*</span>
@@ -562,7 +569,7 @@ export function TripForm() {
                   <span className="w-20 shrink-0 text-xs text-[#7b847e]">
                     {group.category}
                   </span>
-                  {group.cities.map((city) => (
+                  {group.cities.slice(0,inspirationsExpanded?group.cities.length:3).map((city) => (
                     <button
                       key={city}
                       type="button"
@@ -594,7 +601,7 @@ export function TripForm() {
             />
           </div>
         </div>
-        <button type="button" disabled={!destination.trim()} onClick={()=>setStep(2)} className="btn-primary mt-7 w-full px-5 py-3.5 disabled:opacity-45">选好了，继续</button>
+        <button type="button" disabled={!destination.trim()} onClick={()=>setStep(2)} className="step-next-button btn-primary mt-7 w-full px-5 py-3.5 disabled:opacity-45">选好了，继续</button>
         </div>}
 
         {step===2&&<div className="animate-[planning-enter_.3s_ease-out]">
@@ -653,20 +660,20 @@ export function TripForm() {
           <div className="mt-4 space-y-6">
             <section>
               <p className="text-sm text-[#707a74]">先选整体节奏，再加最多两个重点</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <div className="mt-3 grid grid-cols-3 gap-2">
                 {travelStyles.map((item) => (
                   <button
                     key={item.value}
                     type="button"
                     aria-pressed={style === item.value}
                     onClick={() => setStyle(item.value)}
-                    className={`focus-ring rounded-2xl border p-3 text-left transition ${style === item.value ? selectedCard : plainCard}`}
+                    className={`choice-card focus-ring relative min-h-20 rounded-2xl border p-2 text-center transition sm:p-3 sm:text-left ${style === item.value ? `${selectedCard} is-selected` : plainCard}`}
                   >
-                    <span className="inline-flex text-[#b98638]">
+                    <span className={`choice-icon choice-icon-${item.icon}`}>
                       <ChoiceIcon name={item.icon} />
                     </span>
-                    <span className="ml-2 font-bold">{item.label}</span>
-                    <p className="mt-2 text-xs leading-5 text-[#707a74]">
+                    <span className="mt-1 block text-sm font-bold sm:ml-2 sm:mt-0 sm:inline">{item.label}</span>
+                    <p className="mt-2 hidden text-xs leading-5 text-[#707a74] sm:block">
                       {item.description}
                     </p>
                   </button>
@@ -692,9 +699,9 @@ export function TripForm() {
                     type="button"
                     aria-pressed={priorities.includes(item.value)}
                     onClick={() => togglePriority(item.value)}
-                    className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold ${priorities.includes(item.value) ? selectedCard : plainCard}`}
+                    className={`choice-card relative rounded-xl border px-2 py-2.5 text-left text-sm font-semibold ${priorities.includes(item.value) ? `${selectedCard} is-selected` : plainCard}`}
                   >
-                    <span className="mr-2 inline-flex align-[-5px] text-[#b98638]">
+                    <span className={`choice-icon choice-icon-${item.icon} mr-2 align-middle`}>
                       <ChoiceIcon name={item.icon} />
                     </span>
                     {item.label}
@@ -1020,7 +1027,7 @@ export function TripForm() {
           {error}
         </p>
       )}
-      {step===3&&<div className="sticky bottom-[78px] z-10 rounded-[1.6rem] border border-[var(--border-soft)] bg-[color:rgba(246,250,245,.94)] p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+      {step===3&&<div className="mobile-action-bar rounded-[1.6rem] border border-[var(--border-soft)] bg-[color:rgba(246,250,245,.96)] p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
         <button
           type="submit"
           disabled={submitting}
