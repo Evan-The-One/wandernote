@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import Taro, { useRouter, useShareAppMessage } from "@tarojs/taro";
 import { Button, Text, View } from "@tarojs/components";
 import { Brand } from "../../components/brand";
-import { request } from "../../services/session";
+import { cryptoId, request } from "../../services/session";
 import type { MiniTrip } from "../../services/types";
 
 type Share = { shareToken: string; path: string };
@@ -40,6 +40,16 @@ export default function Detail() {
       await Taro.showToast({ title: "已撤销最近修改", icon: "success" });
     } catch (value) { setError(value instanceof Error ? value.message : "暂时无法撤销"); }
   }
+  async function replan() {
+    if (!trip) return;
+    const confirmed=await Taro.showModal({title:"重新安排整份行程",content:"会根据当前需求重新安排全部路线，原版本仍会保留。",confirmText:"重新安排"});
+    if(!confirmed.confirm)return;
+    try{
+      const task=await request<{jobId:string}>(`/api/miniapp/trips/${id}/replan`,{method:"POST",header:{"idempotency-key":cryptoId()},data:{version:trip.version}});
+      Taro.setStorageSync("yjchufa-active-job",task.jobId);
+      await Taro.redirectTo({url:`/packageTrip/generating/index?jobId=${task.jobId}`});
+    }catch(value){setError(value instanceof Error?value.message:"暂时无法重新安排")}
+  }
 
   if (error) return <View className="page"><View className="error">{error}</View></View>;
   if (!trip?.plan) return <View className="page"><Text>正在读取行程…</Text></View>;
@@ -65,6 +75,7 @@ export default function Detail() {
       </View>)}</View>
       <Button className="secondary" onClick={() => Taro.navigateTo({ url: `/packageTrip/edit/index?tripId=${id}&day=${day.dayNumber}&version=${trip.version}` })}>调整这一天</Button>
     </View>)}
+    <Button className="secondary" onClick={replan}>重新安排整份行程</Button>
     <Button className="secondary" onClick={undo}>撤销最近修改</Button>
     <View className="card"><View className="section-title">出发前看一眼</View><View className="muted">行程由AI辅助生成，请结合天气、开放时间和现场情况确认。</View></View>
     {!share ? <Button className="primary" onClick={enableShare}>开启只读分享</Button> : <><Button className="primary" openType="share">分享给好友</Button><Button className="secondary" onClick={revokeShare}>撤销分享</Button></>}

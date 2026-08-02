@@ -1,7 +1,7 @@
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { createHash, randomUUID } from "node:crypto";
 import { getDatabase, withDatabaseTransaction, type Transaction } from "./client";
-import { analyticsEvents, entitlementLedger, placeVisualAssets, pointAccounts, pointLedger, tripImageTasks, trips } from "./schema";
+import { analyticsEvents, entitlementLedger, placeVisualAssets, pointAccounts, pointLedger, posterPages, tripImageTasks, trips } from "./schema";
 import { tripImageOutputSchema, tripImageTemplateSpecSchema, travelPosterSpecSchema, type TripImageAspectRatio } from "@/schemas/trip-image";
 import { tripInputSchema, tripPlanSchema } from "@/schemas/trip";
 import { HttpError } from "@/server/http";
@@ -10,23 +10,12 @@ import { resolvePreTripAdvice } from "@/features/trip-plan/pre-trip-advice";
 import { classifyActivityVisual, genericVisualCandidates, genericVisualDataUrl, type GenericVisualCategory } from "@/server/images/generic-visuals";
 import { posterPointCost } from "@/config/commerce";
 import { sanitizeUnrequestedHotels } from "@/server/validation/trip-plan-quality";
+import {POSTER_RENDER_VERSION,renderPosterPages} from "@/server/posters/render";
+import {posterStorageConfigured,storePrivatePoster} from "@/server/posters/storage";
 
 export const PREMIUM_IMAGE_TEMPLATE_VERSION = "classic_timeline_v1";
 export const TRAVEL_POSTER_VERSION = "semantic_visuals_v5_1";
 const CREDIT_TYPE = "premium_trip_image";
-let imageTablesInitialized = false;
-
-export async function ensureTripImageTables() {
-  if (imageTablesInitialized) return;
-  const db = getDatabase();
-  await db.execute(sql.raw(`CREATE TABLE IF NOT EXISTS trip_image_tasks (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), visitor_id uuid NOT NULL REFERENCES visitors(id) ON DELETE CASCADE, trip_id uuid NOT NULL REFERENCES trips(id) ON DELETE CASCADE, trip_version integer NOT NULL, image_type text NOT NULL, aspect_ratio text NOT NULL, template_version text NOT NULL, provider text NOT NULL, status text NOT NULL, idempotency_hash text NOT NULL, output_json jsonb, failure_code text, retry_count integer NOT NULL DEFAULT 0, duration_ms integer, estimated_cost_usd text NOT NULL DEFAULT '0', created_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz)`));
-  await db.execute(sql.raw(`CREATE UNIQUE INDEX IF NOT EXISTS trip_image_tasks_idempotency_unique ON trip_image_tasks(visitor_id,idempotency_hash)`));
-  await db.execute(sql.raw(`CREATE UNIQUE INDEX IF NOT EXISTS trip_image_tasks_cache_unique ON trip_image_tasks(trip_id,trip_version,image_type,aspect_ratio,template_version)`));
-  await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS trip_image_tasks_trip_created_idx ON trip_image_tasks(trip_id,created_at)`));
-  await db.execute(sql.raw(`CREATE TABLE IF NOT EXISTS entitlement_ledger (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), visitor_id uuid NOT NULL REFERENCES visitors(id) ON DELETE CASCADE, credit_type text NOT NULL, direction text NOT NULL, amount integer NOT NULL, source text NOT NULL, business_key text NOT NULL UNIQUE, task_id uuid, created_at timestamptz NOT NULL DEFAULT now())`));
-  await db.execute(sql.raw(`CREATE INDEX IF NOT EXISTS entitlement_ledger_visitor_type_idx ON entitlement_ledger(visitor_id,credit_type,created_at)`));
-  imageTablesInitialized = true;
-}
 
 function compact(value: string, max: number) { return value.replace(/\s+/g, " ").trim().slice(0, max); }
 function createTemplateSpec(tripId: string, tripVersion: number, aspectRatio: TripImageAspectRatio, rawPlan: unknown) {
@@ -96,7 +85,6 @@ async function saveVisualAsset(args:{destination:string;name:string;category:Pos
 }
 
 export async function createTravelPosterTask(args: { tripId: string; visitorId: string; userId: string; aspectRatio: TripImageAspectRatio; idempotencyHash: string; lifetimeLimit: number }) {
-  await ensureTripImageTables();
   const db = getDatabase();
   const prepared = await withDatabaseTransaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${args.userId}))`);
@@ -108,6 +96,7 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
     if (same) return { existing: same, trip: null };
     const [cached] = await tx.select().from(tripImageTasks).where(and(eq(tripImageTasks.tripId, args.tripId), eq(tripImageTasks.tripVersion, trip.version), eq(tripImageTasks.imageType, "travel_poster"), eq(tripImageTasks.aspectRatio, args.aspectRatio), eq(tripImageTasks.templateVersion, TRAVEL_POSTER_VERSION),sql`${tripImageTasks.status} in ('running','succeeded')`)).limit(1);
     if (cached) return { existing: cached, trip: null };
+    if(!posterStorageConfigured())throw new HttpError(503,"海报私有存储尚未配置，暂时不会扣除点数","POSTER_STORAGE_UNAVAILABLE");
     const points = posterPointCost(tripPlanSchema.parse(trip.currentPlanJson).days.length);
     await tx.insert(pointAccounts).values({userId:args.userId}).onConflictDoNothing({target:pointAccounts.userId});
     const [account]=await tx.select().from(pointAccounts).where(eq(pointAccounts.userId,args.userId)).limit(1);
@@ -173,8 +162,15 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
     const hydratedDays=days.map(day=>({...day,activities:day.activities.map(activity=>{const result=results.get(`${day.dayNumber}:${activity.time}:${activity.name}`);if(!result)throw Object.assign(new Error("活动图片缺失"),{code:"POSTER_VISUAL_MISSING"});return {time:activity.time,name:activity.name,note:activity.note,category:activity.category,visualAsset:{id:randomUUID(),cacheKey:result.cacheKey,dataUrl:result.dataUrl,category:result.category,altText:result.altText,reused:result.reused}};})}));
     const hydratedPages=splitPosterPages(hydratedDays).map((page,index)=>({pageNumber:index+1,dayRange:`DAY ${page[0]!.dayNumber}${page.length>1?`–${page.at(-1)!.dayNumber}`:""}`,days:page,tips:[...new Set(page.flatMap(day=>day.tips))].slice(0,6).concat("景点图片为 AI 视觉示意，请以实际现场为准。").slice(0,6)}));
     const output = travelPosterSpecSchema.parse({ kind:"travel_poster",version:TRAVEL_POSTER_VERSION,tripId:args.tripId,tripVersion:prepared.trip.version,aspectRatio:"3:4",width:1024,height:1536,title:compact(plan.title,70),subtitle:compact(plan.summary,90),destination:plan.destination.city,daysCount:days.length,pages:hydratedPages,preTripAdvice:resolvePreTripAdvice(plan,prepared.trip.inputJson),model,quality:"low",estimatedCostUsd });
+    if(!("width" in output))throw Object.assign(new Error("当前模板无法服务端渲染"),{code:"POSTER_RENDER_UNSUPPORTED"});
+    const rendered=await renderPosterPages(output),pageRows=[] as Array<typeof posterPages.$inferInsert>;
+    for(const[pageIndex,jpeg]of rendered.entries()){
+      const checksum=createHash("sha256").update(jpeg).digest("hex"),storageKey=`posters/${args.userId}/${prepared.task.id}/page-${pageIndex+1}-${checksum.slice(0,16)}.jpg`;
+      await storePrivatePoster(storageKey,jpeg);
+      pageRows.push({posterTaskId:prepared.task.id,tripId:args.tripId,tripVersion:prepared.trip.version,userId:args.userId,pageIndex,width:1024,height:1536,fileSize:jpeg.byteLength,checksum,mimeType:"image/jpeg",templateVersion:TRAVEL_POSTER_VERSION,renderVersion:POSTER_RENDER_VERSION,storageKey});
+    }
     const durationMs = Math.round(performance.now() - started);
-    const [saved] = await db.update(tripImageTasks).set({ status: "succeeded", outputJson: output, durationMs, estimatedCostUsd: String(estimatedCostUsd), completedAt: new Date() }).where(eq(tripImageTasks.id, prepared.task.id)).returning();
+    const [saved] = await withDatabaseTransaction(async tx=>{for(const page of pageRows)await tx.insert(posterPages).values(page).onConflictDoNothing({target:[posterPages.posterTaskId,posterPages.pageIndex]});return tx.update(tripImageTasks).set({ status: "succeeded", outputJson: output, durationMs, estimatedCostUsd: String(estimatedCostUsd), completedAt: new Date() }).where(eq(tripImageTasks.id, prepared.task.id)).returning();});
     await withDatabaseTransaction(async tx=>{await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${args.userId}))`);const [account]=await tx.select().from(pointAccounts).where(eq(pointAccounts.userId,args.userId)).limit(1);if(!account)return;await tx.update(pointAccounts).set({reservedPoints:Math.max(0,account.reservedPoints-prepared.points),lifetimeConsumed:account.lifetimeConsumed+prepared.points,updatedAt:new Date()}).where(eq(pointAccounts.userId,args.userId));await tx.insert(pointLedger).values({userId:args.userId,type:"poster_consume",amount:0,balanceAfter:account.availablePoints,businessKey:`${prepared.creditKey}:${prepared.task.id}:consume`,tripId:args.tripId,taskId:prepared.task.id,metadata:{points:prepared.points}}).onConflictDoNothing({target:pointLedger.businessKey});});
     await db.insert(analyticsEvents).values({ visitorId: args.visitorId, tripId: args.tripId, eventName: "travel_poster_succeeded", status: "completed", durationMs, metadata: { provider: "openai", model: output.model, pages: output.pages.length, estimatedCostUsd, reusedVisuals:reusedCount,generatedVisuals,genericVisuals,templateVersion:TRAVEL_POSTER_VERSION } });
     await db.insert(analyticsEvents).values({ visitorId: args.visitorId, tripId: args.tripId, eventName: "ai_usage", status: "completed", durationMs, metadata: { requestType: "travel_poster", model: output.model, inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, reasoningTokens: 0, estimatedCostUsd, actualCostUsd: null, repairAttempt: false } });
@@ -188,7 +184,6 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
 }
 
 export async function createTemplateImageTask(args: { tripId: string; visitorId: string; aspectRatio: TripImageAspectRatio; idempotencyHash: string; lifetimeLimit: number }) {
-  await ensureTripImageTables();
   return withDatabaseTransaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${args.visitorId}))`);
     const [trip] = await tx.select().from(trips).where(eq(trips.id, args.tripId)).limit(1);
@@ -224,7 +219,7 @@ async function remainingCredits(tx: CreditReader, visitorId: string, fallbackGra
 }
 
 export async function listTripImageTasks(tripId: string, visitorId: string | null, ownerId: string, lifetimeLimit: number, userId: string|null=null, ownerUserId:string|null=null) {
-  await ensureTripImageTables(); const db = getDatabase();
+  const db = getDatabase();
   const rows = await db.select().from(tripImageTasks).where(eq(tripImageTasks.tripId, tripId)).orderBy(desc(tripImageTasks.createdAt)).limit(30);
   const canGenerate = Boolean(userId && ownerUserId === userId);
   const [account]=userId?await db.select().from(pointAccounts).where(eq(pointAccounts.userId,userId)).limit(1):[];
@@ -234,7 +229,7 @@ export async function listTripImageTasks(tripId: string, visitorId: string | nul
 }
 
 export async function getImageAdminMetrics(since: Date) {
-  await ensureTripImageTables(); const db = getDatabase();
+  const db = getDatabase();
   const rows = await db.select().from(tripImageTasks).where(and(sql`${tripImageTasks.createdAt} >= ${since}`,eq(tripImageTasks.imageType,"travel_poster")));
   const succeeded = rows.filter((row) => row.status === "succeeded");
   const ratios = Object.entries(rows.reduce<Record<string, number>>((result, row) => ({ ...result, [row.aspectRatio]: (result[row.aspectRatio] || 0) + 1 }), {}));

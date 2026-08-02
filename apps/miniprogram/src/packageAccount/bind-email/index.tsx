@@ -1,2 +1,2 @@
-import {useState}from"react";import{Button,Input,View}from"@tarojs/components";
-export default function BindEmail(){const[email,setEmail]=useState(""),[message,setMessage]=useState("");return <View className="page"><View className="title">绑定已有网页版账号</View><View className="muted">验证邮箱后，网页与小程序会共享攻略、点数和海报。</View><View className="card"><Input className="input" type="text" value={email} onInput={e=>setEmail(e.detail.value)} placeholder="你的登录邮箱"/><Button className="primary" onClick={()=>setMessage("邮箱绑定服务已安全预留，获得AppID后完成真实邮件联调。")}>发送验证邮件</Button>{message&&<View className="muted">{message}</View>}</View></View>}
+import{View}from"@tarojs/components";
+export default function BindEmail(){return <View className="page"><View className="title">绑定邮箱账号</View><View className="card"><View>账户合并正在安全准备中</View><View className="muted" style={{marginTop:"16rpx"}}>如果邮箱已经有一键出发账户，当前版本不会进行部分合并，也不会移动攻略、点数、海报或订单。需要帮助时请使用联系支持入口。</View></View></View>}

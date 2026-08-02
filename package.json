@@ -27,11 +27,14 @@
     "miniapp:typecheck": "pnpm --dir apps/miniprogram typecheck",
     "miniapp:lint": "pnpm --dir apps/miniprogram lint",
     "miniapp:test": "pnpm --dir apps/miniprogram test",
-    "test:miniapp-backend": "tsx scripts/test-miniapp-contracts.ts"
+    "test:miniapp-backend": "tsx scripts/test-miniapp-contracts.ts",
+    "test:miniapp-phase3": "tsx scripts/test-miniapp-phase3.ts",
+    "check:miniapp-network": "node scripts/check-miniapp-network.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
     "@tailwindcss/postcss": "4.3.2",
+    "@vercel/blob": "^2.6.1",
     "drizzle-orm": "^0.45.2",
     "next": "16.2.12",
     "postcss": "^8.5.19",

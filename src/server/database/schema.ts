@@ -76,10 +76,28 @@ export const trips = pgTable("trips", {
   status: text("status", { enum: ["generating", "completed", "failed"] }).notNull().default("generating"),
   inputJson: jsonb("input_json").$type<TripInput>().notNull(),
   currentPlanJson: jsonb("current_plan_json").$type<TripPlan>(),
+  currentVersionId: uuid("current_version_id"),
   version: integer("version").notNull().default(1),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("trips_visitor_updated_idx").on(table.visitorId, table.updatedAt)]);
+
+export const tripVersions = pgTable("trip_versions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tripId: uuid("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  versionNumber: integer("version_number").notNull(),
+  parentVersionId: uuid("parent_version_id"),
+  changeType: text("change_type", { enum: ["initial_generation", "activity_revision", "day_revision", "full_replan", "undo_restore"] }).notNull(),
+  tripPlanSnapshot: jsonb("trip_plan_snapshot").$type<TripPlan>().notNull(),
+  changeSummary: jsonb("change_summary").$type<string[]>().notNull().default([]),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  requestId: text("request_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("trip_versions_trip_number_unique").on(table.tripId, table.versionNumber),
+  uniqueIndex("trip_versions_trip_request_unique").on(table.tripId, table.requestId),
+  index("trip_versions_trip_created_idx").on(table.tripId, table.createdAt),
+]);
 
 export const tripShares = pgTable("trip_shares", {
   id: uuid("id").defaultRandom().primaryKey(), tripId: uuid("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }), createdBy: uuid("created_by").notNull().references(() => users.id, { onDelete: "cascade" }), tokenHash: text("token_hash").notNull(), status: text("status", { enum: ["active", "revoked"] }).notNull().default("active"), optionalExpiresAt: timestamp("optional_expires_at", { withTimezone: true }), revokedAt: timestamp("revoked_at", { withTimezone: true }), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -123,7 +141,8 @@ export const generationJobs = pgTable("generation_jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
   visitorId: uuid("visitor_id").notNull().references(() => visitors.id, { onDelete: "cascade" }),
   tripId: uuid("trip_id").references(() => trips.id, { onDelete: "cascade" }),
-  type: text("type", { enum: ["full_generation", "day_revision"] }).notNull(),
+  type: text("type", { enum: ["full_generation", "day_revision", "full_replan"] }).notNull(),
+  requestId: text("request_id"),
   status: text("status", { enum: ["running", "completed", "failed"] }).notNull(),
   durationMs: integer("duration_ms"),
   errorCode: text("error_code"),
@@ -134,6 +153,10 @@ export const generationJobs = pgTable("generation_jobs", {
   uniqueIndex("generation_jobs_one_running_full_per_visitor")
     .on(table.visitorId)
     .where(sql`${table.status} = 'running' and ${table.type} = 'full_generation'`),
+  uniqueIndex("generation_jobs_trip_request_unique").on(table.tripId, table.requestId),
+  uniqueIndex("generation_jobs_one_running_replan_per_trip")
+    .on(table.tripId)
+    .where(sql`${table.status} = 'running' and ${table.type} = 'full_replan'`),
 ]);
 
 export const feedback = pgTable("feedback", {
@@ -176,6 +199,18 @@ export const tripImageTasks = pgTable("trip_image_tasks", {
   uniqueIndex("trip_image_tasks_cache_unique").on(table.tripId, table.tripVersion, table.imageType, table.aspectRatio, table.templateVersion),
   index("trip_image_tasks_trip_created_idx").on(table.tripId, table.createdAt),
 ]);
+
+export const posterPages = pgTable("poster_pages", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  posterTaskId: uuid("poster_task_id").notNull().references(() => tripImageTasks.id, { onDelete: "cascade" }),
+  tripId: uuid("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  tripVersion: integer("trip_version").notNull(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  pageIndex: integer("page_index").notNull(), storageKey: text("storage_key").notNull(),
+  width: integer("width").notNull(), height: integer("height").notNull(), fileSize: integer("file_size").notNull(),
+  checksum: text("checksum").notNull(), mimeType: text("mime_type").notNull(), templateVersion: text("template_version").notNull(), renderVersion: text("render_version").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [uniqueIndex("poster_pages_task_page_unique").on(table.posterTaskId, table.pageIndex), uniqueIndex("poster_pages_storage_key_unique").on(table.storageKey), index("poster_pages_user_created_idx").on(table.userId, table.createdAt)]);
 
 export const entitlementLedger = pgTable("entitlement_ledger", {
   id: uuid("id").defaultRandom().primaryKey(),

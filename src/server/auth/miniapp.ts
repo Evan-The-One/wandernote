@@ -37,8 +37,12 @@ export async function exchangeWechatCode(code: string) {
   url.searchParams.set("secret", process.env.WECHAT_MINIAPP_APP_SECRET!);
   url.searchParams.set("js_code", code);
   url.searchParams.set("grant_type", "authorization_code");
-  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(8_000) });
+  let response:Response;
+  try{response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(8_000)});}catch(error){if(error instanceof Error&&(error.name==="TimeoutError"||error.name==="AbortError"))throw new HttpError(504,"微信登录响应较慢，请重试","WECHAT_API_TIMEOUT");throw new HttpError(502,"微信登录服务暂时不可用","WECHAT_API_UNAVAILABLE");}
   const payload = await response.json() as { openid?: string; unionid?: string; errcode?: number };
+  if(payload.errcode===40029)throw new HttpError(401,"登录凭证已失效，请重新进入","WECHAT_CODE_INVALID");
+  if(payload.errcode===40125||payload.errcode===40013)throw new HttpError(503,"微信登录配置需要管理员检查","WECHAT_CREDENTIALS_INVALID");
+  if(payload.errcode===45011)throw new HttpError(429,"登录尝试较多，请稍后再试","WECHAT_LOGIN_RATE_LIMITED");
   if (!response.ok || !payload.openid || payload.errcode) throw new HttpError(401, "微信登录失败，请重试", "WECHAT_LOGIN_FAILED");
   return { providerSubjectHash: subjectHash(payload.unionid ? `union:${payload.unionid}` : `open:${payload.openid}`) };
 }
