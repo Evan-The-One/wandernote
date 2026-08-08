@@ -24,6 +24,8 @@ import {
 
 const LEGACY_INPUT_KEY = "wandernote:demo-input";
 const INPUT_KEY = "yijianchufa:trip-input";
+const DRAFT_KEY = "yijianchufa:trip-draft-v2";
+const CONSUMED_DRAFT_KEY = "yijianchufa:trip-draft-consumed";
 
 const inputClass =
   "focus-ring mt-2 min-h-12 w-full rounded-[var(--radius-control)] border border-[var(--border-soft)] bg-white px-4 py-3 text-base text-[var(--text-primary)] shadow-sm placeholder:text-[var(--text-muted)]";
@@ -180,11 +182,12 @@ export function TripForm() {
   const [destinationSelection, setDestinationSelection] = useState<
     TripInput["destination"] | null
   >(null);
-  const [days, setDays] = useState(3);
+  const [days, setDays] = useState(0);
   const [customDaysText, setCustomDaysText] = useState("4");
   const [daysError, setDaysError] = useState("");
   const [customDaysOpen, setCustomDaysOpen] = useState(false);
-  const [style, setStyle] = useState<TripInput["travelStyle"]>("slow");
+  const [style, setStyle] = useState<TripInput["travelStyle"] | null>(null);
+  const [draftHydrated, setDraftHydrated] = useState(false);
   const [dateType, setDateType] =
     useState<TripInput["datePreference"]["type"]>("undecided");
   const [startDate, setStartDate] = useState("");
@@ -281,6 +284,32 @@ export function TripForm() {
   useEffect(() => {
     queueMicrotask(() => {
       try {
+        if (localStorage.getItem(CONSUMED_DRAFT_KEY)) {
+          localStorage.removeItem(CONSUMED_DRAFT_KEY);
+          localStorage.removeItem(DRAFT_KEY);
+          localStorage.removeItem(INPUT_KEY);
+          localStorage.removeItem(LEGACY_INPUT_KEY);
+          setDraftHydrated(true);
+          return;
+        }
+        const partial = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null") as null | {
+          destination?:string;days?:number;style?:TripInput["travelStyle"]|null;priorities?:TripInput["priorities"];
+          detailPreferences?:TripInput["detailPreferences"];departureCity?:string;transport?:TripInput["transportPreference"];
+          requirements?:string;step?:1|2;
+        };
+        if (partial) {
+          setDestination(partial.destination || "");
+          setDays(partial.days || 0);
+          setStyle(partial.style || null);
+          setPriorities(partial.priorities || []);
+          setDetailPreferences(partial.detailPreferences || []);
+          setDepartureCity(partial.departureCity || "");
+          setTransport(partial.transport || "mixed");
+          setRequirements(partial.requirements || "");
+          setStep(partial.step === 2 ? 2 : 1);
+          setDraftHydrated(true);
+          return;
+        }
         const stored = migrateTripInput(
           JSON.parse(
             localStorage.getItem(INPUT_KEY) ||
@@ -288,7 +317,7 @@ export function TripForm() {
               "null",
           ),
         );
-        if (!stored) return;
+        if (!stored) { setDraftHydrated(true); return; }
         setDestination(stored.destination.city);
         setDestinationSelection(stored.destination);
         setDays(stored.days);
@@ -321,9 +350,16 @@ export function TripForm() {
         setRequirements(stored.additionalRequirements || "");
       } catch {
         /* ignore invalid legacy cache */
+      } finally {
+        setDraftHydrated(true);
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!draftHydrated) return;
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({destination,days,style,priorities,detailPreferences,departureCity,transport,requirements,step}));
+  }, [draftHydrated,destination,days,style,priorities,detailPreferences,departureCity,transport,requirements,step]);
 
   useEffect(() => {
     const clear = () => setClearConfirm(true);
@@ -359,11 +395,13 @@ export function TripForm() {
 
   function clearForm() {
     setDestination("");
-    setDays(3);
+    setDestinationSelection(null);
+    setDays(0);
     setCustomDaysText("4");
     setDaysError("");
     setCustomDaysOpen(false);
-    setStyle("slow");
+    setStyle(null);
+    setStep(1);
     setDateType("undecided");
     setStartDate("");
     setApproximateText("");
@@ -390,6 +428,7 @@ export function TripForm() {
     setError("");
     localStorage.removeItem(INPUT_KEY);
     localStorage.removeItem(LEGACY_INPUT_KEY);
+    localStorage.removeItem(DRAFT_KEY);
     const details = document.getElementById(
       "trip-extras",
     ) as HTMLDetailsElement | null;
@@ -450,7 +489,8 @@ export function TripForm() {
 
   function startGeneration(destinationOverride?: TripInput["destination"]) {
     if (submitting) return;
-    if (!Number.isInteger(days) || days < 1 || days > 7) { setDaysError("请输入1～7之间的整数天数"); return; }
+    if (!Number.isInteger(days) || days < 1 || days > 7) { setDaysError("请选择1～7天"); return; }
+    if (!style) { setError("先选择一种喜欢的玩法"); return; }
     if (budgetMode === "custom" && (!Number.isFinite(budgetAmount) || budgetAmount <= 0 || budgetAmount > 1_000_000)) { setBudgetError("请输入1～1,000,000元之间的金额"); return; }
     const identified = identifyDestination(destination);
     const customBudget = budgetMode === "custom";
@@ -511,7 +551,7 @@ export function TripForm() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if(step===1){if(destination.trim())setStep(2);return;}
+    if(step===1){if(!destination.trim()){setError("先告诉我想去哪里");return;}if(days<1){setDaysError("先选择旅行天数");return;}setError("");setStep(2);return;}
     const identified = identifyDestination(destination);
     if (destinationSelection && destinationSelection.city === destination) {
       startGeneration(destinationSelection);
@@ -533,9 +573,9 @@ export function TripForm() {
 
   return (
     <form ref={formRef} data-step={step} onSubmit={submit} className="app-trip-form scroll-mt-3 space-y-3 sm:space-y-4">
-      <div className="flex items-center justify-between px-1">
+      <div className="flex items-center justify-between gap-3 px-1">
         <div><p className="text-sm font-bold text-[var(--brand-primary)]">{step} / 2</p><p className="mt-0.5 text-sm text-[var(--text-secondary)]">{step===1?"先定目的地和时间":"最后选一下节奏和重点"}</p></div>
-        <div className="flex gap-2" aria-label={`当前第${step}步，共2步`}>{[1,2].map(value=><i key={value} className={`h-2.5 rounded-full transition-all ${value===step?"w-8 bg-[var(--brand-primary)]":"w-2.5 bg-[var(--brand-soft)]"}`}/>)}</div>
+        <div className="flex items-center gap-3"><button type="button" onClick={()=>setClearConfirm(true)} className="min-h-10 whitespace-nowrap text-xs font-semibold text-[var(--text-secondary)]">重新开始</button><div className="flex gap-2" aria-label={`当前第${step}步，共2步`}>{[1,2].map(value=><i key={value} className={`h-2.5 rounded-full transition-all ${value===step?"w-8 bg-[var(--brand-primary)]":"w-2.5 bg-[var(--brand-soft)]"}`}/>)}</div></div>
       </div>
       <section className="app-card-primary p-4 sm:min-h-[420px] sm:p-7">
         {step===1&&<div className="animate-[planning-enter_.3s_ease-out]">
@@ -651,7 +691,7 @@ export function TripForm() {
             <label className="mt-3 flex items-center gap-3 text-sm font-semibold"><input type="checkbox" checked={dayTrip} onChange={(event)=>setDayTrip(event.target.checked)} className="h-5 w-5 accent-[#245b46]"/>愿意安排一次周边一日游</label>
           </div>
         </details>
-        <button type="button" disabled={!destination.trim()} onClick={()=>setStep(2)} className="step-next-button btn-primary mt-5 w-full px-5 py-3.5 disabled:opacity-45">继续选玩法</button>
+        <button type="submit" disabled={!destination.trim()||days<1} className="step-next-button btn-primary mt-5 w-full px-5 py-3.5 disabled:opacity-45">继续选玩法</button>
         </div>}
 
         {step===2&&<div className="animate-[planning-enter_.3s_ease-out]">

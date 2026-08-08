@@ -1,7 +1,9 @@
 import sharp from "sharp";
+import {readFile} from "node:fs/promises";
+import {join} from "node:path";
 import type{TravelPosterSpec}from "@/schemas/trip-image";
 
-export const POSTER_RENDER_VERSION="sharp_svg_brand_a_v2";
+export const POSTER_RENDER_VERSION="sharp_svg_brand_icon_v3";
 const WIDTH=1024,HEIGHT=1536;
 const esc=(value:string)=>value.replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[char]!));
 const wrap=(value:string,max:number,lines=2)=>{const chars=[...value.trim()],out:string[]=[];while(chars.length&&out.length<lines)out.push(chars.splice(0,max).join(""));return out};
@@ -11,6 +13,7 @@ function dataBuffer(value:string){const match=/^data:image\/[a-z0-9.+-]+;base64,
 
 export async function renderPosterPages(spec:Extract<TravelPosterSpec,{width:1024}>){
   const outputs:Buffer[]=[];
+  const brandIcon=await sharp(await readFile(join(process.cwd(),"public/brand/icon-64.png"))).resize(42,42).png().toBuffer();
   for(const[pageIndex,page]of spec.pages.entries()){
     let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">${rounded(0,0,WIDTH,HEIGHT,0,"#f6faf5")}`;
     for(const[index,line]of wrap(spec.title,22,2).entries())svg+=text(40,62+index*46,line,42,800,"#174c37");
@@ -33,7 +36,8 @@ export async function renderPosterPages(spec:Extract<TravelPosterSpec,{width:102
     }
     const tips=(spec.preTripAdvice&&pageIndex===spec.pages.length-1?[spec.preTripAdvice.transport,spec.preTripAdvice.accommodation,spec.preTripAdvice.clothing,spec.preTripAdvice.photoSpots,spec.preTripAdvice.food,spec.preTripAdvice.timing]:page.tips).filter(Boolean).slice(0,6);
     svg+=rounded(40,1284,944,188,22,"#eef5ec","#d8e4da")+rounded(56,1298,122,30,15,"#1f6b4f")+text(117,1319,"出发前看一眼",16,800,"#fff","middle");tips.forEach((tip,index)=>{const col=index%3,row=Math.floor(index/3),x=60+col*306,y=1350+row*51;wrap(tip,15,2).forEach((line,n)=>svg+=text(x,y+n*18,line,14,600,"#34443b"));});
-    svg+=text(60,1460,"景点图片为 AI 视觉示意，请以实际现场为准。",12,500,"#68766e")+text(512,1498,"一键出发",20,800,"#245b46","middle")+text(512,1518,"T R I P   R E A D Y",12,600,"#a87930","middle")+text(512,1534,"yjchufa.com",12,500,"#718078","middle")+`</svg>`;
+    svg+=text(60,1460,"景点图片为 AI 视觉示意，请以实际现场为准。",12,500,"#68766e")+text(530,1498,"一键出发",20,800,"#245b46","middle")+text(530,1518,"O N E - C L I C K",12,600,"#a87930","middle")+text(530,1534,"yjchufa.com",12,500,"#718078","middle")+`</svg>`;
+    composites.push({input:brandIcon,left:414,top:1480});
     const output=await sharp(Buffer.from(svg)).composite(composites).jpeg({quality:92,chromaSubsampling:"4:4:4"}).toBuffer();
     const metadata=await sharp(output).metadata();if(metadata.width!==WIDTH||metadata.height!==HEIGHT)throw Object.assign(new Error("海报尺寸校验失败"),{code:"POSTER_RENDER_INVALID"});outputs.push(output);
   }

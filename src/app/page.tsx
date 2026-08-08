@@ -20,10 +20,13 @@ export default async function Home() {
           <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-[var(--brand-primary)] shadow-sm"><i className="h-2 w-2 rounded-full bg-[var(--accent-warm)]"/>AI 私人旅行管家</span>
           <h1 className="app-hero-title mt-3 text-[var(--text-strong)]">不用查攻略<br/><span className="text-[var(--brand-primary)]">告诉我去哪儿</span><br/>行程直接安排好</h1>
           <p className="mt-2 max-w-md text-sm leading-6 text-[var(--text-secondary)] sm:mt-4 sm:text-base sm:leading-7">去哪儿、玩几天、想怎么玩，两步就安排好。</p>
-          <TravelJourneyIllustration className="home-hero-art mt-3 w-full max-w-[500px] drop-shadow-[0_18px_36px_rgba(23,79,59,.08)] sm:mt-6"/>
+          <TravelJourneyIllustration className="home-hero-art home-hero-art-desktop mt-3 w-full max-w-[500px] drop-shadow-[0_18px_36px_rgba(23,79,59,.08)] sm:mt-6"/>
         </div>
         <BetaAccessGate initialOpen={betaOpen}><TripForm /></BetaAccessGate>
       </div>
+    </section>
+    <section className="home-mobile-journey-art app-container pb-4 pt-8" aria-label="准备出发">
+      <TravelJourneyIllustration className="w-full"/>
     </section>
     <section className="app-container py-12 sm:py-16">
       <div className="flex items-end justify-between gap-6"><div><p className="text-sm font-bold text-[var(--warning)]">示例行程</p><h2 className="app-section-title mt-2">先看看生成后的旅行计划</h2><p className="mt-2 text-sm text-[var(--text-secondary)]">用杭州三日行程，看看一键出发会怎样安排。</p></div></div>

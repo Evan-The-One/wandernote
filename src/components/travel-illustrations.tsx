@@ -1,6 +1,16 @@
 export function TravelJourneyIllustration({className=""}:{className?:string}){
   return <svg viewBox="0 0 520 330" role="img" aria-label="山谷、公路和准备出发的旅行者插画" className={className}>
-    <rect width="520" height="330" rx="36" fill="#EEF5EC"/><circle cx="418" cy="67" r="29" fill="#F2C14E"/><path d="M0 222 91 131l60 54 82-101 93 101 55-50 139 106v89H0Z" fill="#DCEAD9"/><path d="m47 238 103-107 78 73 94-121 151 155" fill="none" stroke="#B9DB8A" strokeWidth="42" strokeLinecap="round" strokeLinejoin="round"/><path d="M235 330c12-74 17-107 89-141 29-14 70-21 115-19" fill="none" stroke="#FFFDF8" strokeWidth="48" strokeLinecap="round"/><path d="M235 330c12-74 17-107 89-141 29-14 70-21 115-19" fill="none" stroke="#F2C14E" strokeWidth="3" strokeDasharray="8 14" strokeLinecap="round"/><circle cx="319" cy="190" r="15" fill="#F2C14E"/><path d="M313 204c-10 20-13 39-6 59M320 217l24 13M309 231l-18 25" fill="none" stroke="#174F3B" strokeWidth="9" strokeLinecap="round"/><path d="M302 202c8-9 18-10 25-3" fill="none" stroke="#1F6B4F" strokeWidth="12" strokeLinecap="round"/><rect x="335" y="220" width="27" height="32" rx="7" fill="#F2C14E" stroke="#174F3B" strokeWidth="4"/><path d="M74 241v-48m0 0-13 17m13-17 14 17" fill="none" stroke="#1F6B4F" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"/>
+    <rect width="520" height="330" rx="36" fill="#EEF5EC"/>
+    <circle cx="423" cy="68" r="28" fill="#F2C14E"/>
+    <path d="M0 230 98 137l62 58 86-111 82 104 60-62 132 114v90H0Z" fill="#DCEAD9"/>
+    <path d="M0 258 80 191l70 55 73-70 76 64 68-72 153 107v55H0Z" fill="#B9DB8A" opacity=".72"/>
+    <path d="M228 340c12-82 26-119 101-153 31-14 70-20 117-15" fill="none" stroke="#FFFDF8" strokeWidth="50" strokeLinecap="round"/>
+    <path d="M228 340c12-82 26-119 101-153 31-14 70-20 117-15" fill="none" stroke="#F2C14E" strokeWidth="3" strokeDasharray="8 14" strokeLinecap="round"/>
+    <circle cx="320" cy="193" r="15" fill="#F2C14E"/>
+    <path d="M314 207c-9 19-12 38-5 57M321 220l23 13M310 233l-17 24" fill="none" stroke="#174F3B" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M303 204c7-9 17-10 24-3" fill="none" stroke="#1F6B4F" strokeWidth="11" strokeLinecap="round"/>
+    <rect x="335" y="222" width="27" height="31" rx="7" fill="#F2C14E" stroke="#174F3B" strokeWidth="4"/>
+    <path d="M82 239v-46m0 0-13 16m13-16 13 16" fill="none" stroke="#1F6B4F" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>;
 }
 

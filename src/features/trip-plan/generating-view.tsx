@@ -108,6 +108,10 @@ export function GeneratingView() {
           payload.tripId,
         );
         window.sessionStorage.removeItem("yjchufa:generation-key");
+        window.localStorage.removeItem("yijianchufa:trip-input");
+        window.localStorage.removeItem("wandernote:demo-input");
+        window.localStorage.removeItem("yijianchufa:trip-draft-v2");
+        window.localStorage.setItem("yijianchufa:trip-draft-consumed", String(Date.now()));
         router.replace(`/trip/${payload.tripId}`);
       } catch (cause) {
         setError(

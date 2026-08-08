@@ -31,6 +31,7 @@
     "test:miniapp-phase3": "tsx scripts/test-miniapp-phase3.ts",
     "test:brand-theme": "node scripts/test-brand-theme.mjs",
     "test:app-shell": "node scripts/test-app-shell.mjs",
+    "test:poster-read-trips": "node scripts/test-poster-read-and-trips.mjs",
     "check:miniapp-network": "node scripts/check-miniapp-network.mjs"
   },
   "dependencies": {

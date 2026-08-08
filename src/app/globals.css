@@ -68,6 +68,7 @@ button:disabled { cursor: not-allowed; }
 .desktop-nav a.is-active { color:var(--brand-primary-deep); background:var(--brand-soft); }
 .desktop-nav svg { width:19px; height:19px; }
 .mobile-route-list { display:none; }
+.home-mobile-journey-art { display:none; }
 .choice-icon { display:inline-grid; width:30px; height:30px; place-items:center; border-radius:11px; color:var(--brand-primary-deep); background:var(--background-soft); }
 .choice-icon-bolt,.choice-icon-camera { color:#8a6518; background:var(--warning-soft); }
 .choice-icon-cloud { color:#356a78; background:var(--info-soft); }
@@ -78,6 +79,12 @@ button:disabled { cursor: not-allowed; }
 .app-section-title { font-size:clamp(1.35rem,5vw,2rem); line-height:1.25; letter-spacing:-.025em; font-weight:700; }
 .app-card-primary { border:1px solid rgba(216,228,218,.75); border-radius:24px; background:#fff; box-shadow:0 18px 50px rgba(23,79,59,.1); }
 .app-card-secondary { border:1px solid var(--border-soft); border-radius:17px; background:rgba(255,255,255,.9); }
+.trip-status-badge { display:inline-flex; min-width:max-content; height:30px; flex-shrink:0; align-items:center; justify-content:center; border-radius:999px; padding:0 11px; white-space:nowrap; word-break:keep-all; font-size:12px; font-weight:700; }
+.trip-status-badge.is-completed { color:var(--brand-primary-deep); background:var(--success-soft); }
+.trip-status-badge.is-incomplete { color:#665b48; background:#f3efe5; }
+.trip-status-badge.is-generating { color:#356a78; background:var(--info-soft); }
+.trip-status-badge.is-failed { color:var(--error); background:var(--error-soft); }
+.trip-card-menu > summary::-webkit-details-marker { display:none; }
 .icon-bubble { display:grid; width:46px; height:46px; place-items:center; border-radius:16px; color:var(--brand-primary-deep); background:var(--brand-soft); }
 .icon-bubble.is-warm { color:#805e16; background:var(--warning-soft); }
 .icon-bubble.is-blue { color:#356a78; background:var(--info-soft); }
@@ -177,7 +184,9 @@ select:focus-visible {
   .app-hero-title { font-size:clamp(1.85rem,8.3vw,2.15rem); }
   #plan { padding-top:12px; }
   #plan > .app-container { gap:10px; }
-  .home-hero-art { height:80px; object-fit:contain; }
+  .home-hero-art-desktop { display:none; }
+  .home-mobile-journey-art { display:block; }
+  .home-mobile-journey-art svg { max-height:190px; }
   #plan:has(.app-trip-form[data-step="2"]) .home-hero { display:none; }
   .app-trip-form { scroll-margin-top:8px; padding-bottom:12px; }
   .app-trip-form[data-step="1"],.app-trip-form[data-step="2"] { padding-bottom:calc(var(--mobile-actionbar-height) + env(safe-area-inset-bottom) + 28px); }

@@ -15,6 +15,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
   openGraph: { title: "一键出发", description: "不用查攻略，一键直接出发。", type: "website", locale: "zh_CN", siteName: "一键出发", url: "/" },
   twitter: { card: "summary", title: "一键出发", description: "不用查攻略，一键直接出发。" },
+  icons: {
+    icon: [{ url: "/brand/icon-32.png", sizes: "32x32", type: "image/png" }, { url: "/brand/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/brand/icon-192.png", sizes: "192x192", type: "image/png" }],
+  },
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

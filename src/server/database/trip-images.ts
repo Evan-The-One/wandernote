@@ -14,7 +14,7 @@ import {POSTER_RENDER_VERSION,renderPosterPages} from "@/server/posters/render";
 import {deletePoster,posterStorageConfigured,storePrivatePoster} from "@/server/posters/storage";
 
 export const PREMIUM_IMAGE_TEMPLATE_VERSION = "classic_timeline_v1";
-export const TRAVEL_POSTER_VERSION = "brand_a_v6";
+export const TRAVEL_POSTER_VERSION = "brand_a_icon_v7";
 const CREDIT_TYPE = "premium_trip_image";
 
 function compact(value: string, max: number) { return value.replace(/\s+/g, " ").trim().slice(0, max); }
