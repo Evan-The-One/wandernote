@@ -14,7 +14,7 @@ import {POSTER_RENDER_VERSION,renderPosterPages} from "@/server/posters/render";
 import {deletePoster,posterStorageConfigured,storePrivatePoster} from "@/server/posters/storage";
 
 export const PREMIUM_IMAGE_TEMPLATE_VERSION = "classic_timeline_v1";
-export const TRAVEL_POSTER_VERSION = "oneclick_travel_advice_icons_v9";
+export const TRAVEL_POSTER_VERSION = "oneclick_travel_semantic_qr_v10";
 const CREDIT_TYPE = "premium_trip_image";
 
 function compact(value: string, max: number) { return value.replace(/\s+/g, " ").trim().slice(0, max); }
@@ -34,7 +34,7 @@ function serializeTask(row: typeof tripImageTasks.$inferSelect) {
   return { id: row.id, tripId: row.tripId, tripVersion: row.tripVersion, imageType: row.imageType, aspectRatio: row.aspectRatio, templateVersion: row.templateVersion, provider: row.provider, status: row.status, output: output?.success ? output.data : null, failureCode: row.failureCode, createdAt: row.createdAt.toISOString(), completedAt: row.completedAt?.toISOString() ?? null };
 }
 
-const POSTER_PROMPT_VERSION = "semantic_activity_visual_v3";
+const POSTER_PROMPT_VERSION = "semantic_activity_visual_v4";
 const VISUAL_STYLE_VERSION = "realistic_editorial_v2";
 type PosterCategory = "attraction" | "food" | "hotel" | "transport" | "rest" | "shopping" | "entertainment";
 function categoryFor(visualCategory:GenericVisualCategory|null,type:string):PosterCategory {
@@ -67,7 +67,7 @@ async function loadSharp(){
 }
 async function cropContactSheet(dataUrl:string,count:number){const sharp=await loadSharp(),input=Buffer.from(dataUrl.split(",")[1]!,"base64"),columns=Math.min(3,count),rows=Math.ceil(count/columns),width=Math.floor(1024/columns),height=Math.floor(1024/rows);const images:string[]=[];for(let index=0;index<count;index++){const left=(index%columns)*width,top=Math.floor(index/columns)*height;const buffer=await sharp(input).extract({left,top,width:index%columns===columns-1?1024-left:width,height:Math.floor(index/columns)===rows-1?1024-top:height}).resize(420,280,{fit:"cover"}).webp({quality:72}).toBuffer();images.push(`data:image/webp;base64,${buffer.toString("base64")}`);}return images;}
 async function loadVisualCache() {
-  const assets=await getDatabase().select().from(placeVisualAssets).where(eq(placeVisualAssets.reviewStatus,"approved")).orderBy(desc(placeVisualAssets.updatedAt)).limit(500);
+  const assets=await getDatabase().select().from(placeVisualAssets).where(and(eq(placeVisualAssets.reviewStatus,"approved"),eq(placeVisualAssets.visualStyleVersion,VISUAL_STYLE_VERSION),eq(placeVisualAssets.promptVersion,POSTER_PROMPT_VERSION))).orderBy(desc(placeVisualAssets.updatedAt)).limit(500);
   const cache=new Map<string,{dataUrl:string;category:PosterCategory;altText:string}>();
   for(const asset of assets){const category=asset.activityCategory as PosterCategory,entry={dataUrl:asset.assetDataUrl,category,altText:`${asset.canonicalPlaceName}视觉示意`};const generic=asset.isGeneric&&asset.canonicalPlaceName.startsWith("__generic_")?asset.canonicalPlaceName.slice(10) as GenericVisualCategory:undefined;for(const name of [asset.canonicalPlaceName,...asset.aliases])cache.set(visualKey(asset.destination,name,category,asset.imageModel,generic),entry);}
   const rows=await getDatabase().select({outputJson:tripImageTasks.outputJson}).from(tripImageTasks).where(and(eq(tripImageTasks.imageType,"travel_poster"),eq(tripImageTasks.templateVersion,TRAVEL_POSTER_VERSION),eq(tripImageTasks.status,"succeeded"))).orderBy(desc(tripImageTasks.createdAt)).limit(80);

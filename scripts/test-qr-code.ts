@@ -4,7 +4,7 @@ import jsQR from "jsqr";
 import { PNG } from "pngjs";
 
 async function main() {
-  for (const value of ["https://www.yjchufa.com", "https://www.yjchufa.com/trip/b7c59dda-a1dd-4493-ba29-8798752b4b87"]) {
+  for (const value of ["https://www.yjchufa.com", "https://www.yjchufa.com/?utm_source=poster&utm_medium=qr&utm_campaign=share", "https://www.yjchufa.com/trip/b7c59dda-a1dd-4493-ba29-8798752b4b87"]) {
     const png = PNG.sync.read(await QRCode.toBuffer(value, { errorCorrectionLevel: "M", margin: 4, width: 320 }));
     const decoded = jsQR(new Uint8ClampedArray(png.data), png.width, png.height);
     assert.equal(decoded?.data, value);

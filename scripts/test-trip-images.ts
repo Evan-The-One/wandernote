@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { buildPremiumImagePagePlan, posterAdviceLayout } from "../src/features/trip-plan/premium-image-renderer";
 import { posterPointCost } from "../src/config/commerce";
 import { normalizePlaceName } from "../src/server/database/trip-images";
-import { classifyActivityVisual, genericVisualCandidates, genericVisualCategories, genericVisualCounts, isAllowedVisualFallback } from "../src/server/images/generic-visuals";
+import { classifyActivityVisual, genericVisualAssetAudit, genericVisualCandidates, genericVisualCategories, genericVisualCounts, isAllowedVisualFallback } from "../src/server/images/generic-visuals";
 
 function spec(daysCount: number, ratio: TripImageAspectRatio, activities = 4) {
   return tripImageTemplateSpecSchema.parse({
@@ -55,6 +55,9 @@ assert.equal(classifyActivityVisual({name:"回酒店休息与取行李",type:"ho
 assert.equal(classifyActivityVisual({name:"办理入住",type:"hotel"}).visualCategory,"hotel_checkin");
 assert.equal(classifyActivityVisual({name:"昆山出发自驾前往杭州西湖湖滨一带酒店",type:"transport",note:"抵达后办理入住"}).visualCategory,"self_drive_departure");
 assert.equal(classifyActivityVisual({name:"湖滨步行街",type:"shopping",note:"沿街慢走"}).visualCategory,"walking_street");
+assert.equal(classifyActivityVisual({name:"南京西路",type:"meal",note:"附近可以顺路吃晚餐"}).visualCategory,"walking_street","具体街区标题必须优先于错误的活动类型或描述");
+assert.equal(classifyActivityVisual({name:"城隍庙商圈",type:"meal",note:"最后再用餐"}).visualCategory,"walking_street");
+assert.equal(classifyActivityVisual({name:"外滩散步",type:"meal",note:"沿途餐厅很多"}).visualCategory,"city_stroll");
 assert.equal(classifyActivityVisual({name:"河坊街",type:"attraction",note:"适合慢逛、看老字号和顺路解决晚餐"}).visualCategory,"historic_street");
 assert.equal(classifyActivityVisual({name:"河坊街附近晚餐",type:"meal",note:"吃完直接返程"}).visualCategory,"dinner_generic");
 assert.equal(classifyActivityVisual({name:"回酒店取行李",type:"hotel"}).visualCategory,"luggage_pickup");
@@ -62,5 +65,13 @@ assert.equal(isAllowedVisualFallback("self_drive_departure","hotel_room"),false)
 assert.equal(isAllowedVisualFallback("walking_street","hotel_room"),false);
 assert.equal(isAllowedVisualFallback("lunch_generic","hotel_room"),false);
 const counts=genericVisualCounts();
-assert.equal(counts.hotel_room,3);assert.equal(counts.self_drive_departure,3);assert.equal(counts.walking_street,3);
+assert.equal(counts.hotel_room,2);assert.equal(counts.lunch_generic,3);assert.equal(counts.dinner_generic,2);assert.equal(counts.self_drive_departure,3);assert.equal(counts.walking_street,3);
+const auditedAssets=genericVisualAssetAudit();
+for(const category of ["lunch_generic","dinner_generic","breakfast_generic","hotel_room","hotel_checkin","luggage_pickup"] as const){
+  const candidates=genericVisualCandidates(category);assert.ok(candidates.length>0,`${category} 必须有可用中性图`);
+  assert.ok(candidates.every(asset=>asset.humanPresence==="none"&&asset.status==="approved"&&asset.suitableForGenericReuse&&asset.suitableForSolo),`${category} 默认候选不得有人物`);
+}
+for(const key of ["dinner_generic_1","dinner_generic_2","dinner_generic_3","lunch_generic_1","lunch_generic_2","hotel_checkin_1","hotel_checkin_2","luggage_pickup_1","luggage_pickup_2","hotel_room_3","breakfast_generic_2","rest_generic_1"]){
+  assert.equal(auditedAssets.find(asset=>asset.key===key)?.status,"disabled",`${key} 必须停用但保留历史文件`);
+}
 for(const category of genericVisualCategories)for(const candidate of genericVisualCandidates(category))assert.ok(existsSync(`public/poster-assets/generic-real-v2/${candidate.key}.webp`),`缺少真实通用素材 ${candidate.key}`);
