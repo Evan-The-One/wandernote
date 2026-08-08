@@ -52,7 +52,7 @@ const timelinePosterPageSchema = z.object({
   pageNumber: z.number().int().positive(), dayRange: z.string().max(24), days: z.array(timelinePosterDaySchema).min(1).max(2), tips: z.array(z.string().max(64)).min(1).max(6),
 });
 export const timelinePosterV2SpecSchema = z.object({
-  kind: z.literal("travel_poster"), version: z.enum(["shaoxing_timeline_v2","readable_visuals_v3","readable_visuals_v3_1","realistic_generic_visuals_v4","semantic_visuals_v5","semantic_visuals_v5_1","brand_a_v6","brand_a_icon_v7","oneclick_travel_cjk_v8"]), tripId: z.string().uuid(), tripVersion: z.number().int().positive(), aspectRatio: z.literal("3:4"),
+  kind: z.literal("travel_poster"), version: z.enum(["shaoxing_timeline_v2","readable_visuals_v3","readable_visuals_v3_1","realistic_generic_visuals_v4","semantic_visuals_v5","semantic_visuals_v5_1","brand_a_v6","brand_a_icon_v7","oneclick_travel_cjk_v8","oneclick_travel_advice_icons_v9"]), tripId: z.string().uuid(), tripVersion: z.number().int().positive(), aspectRatio: z.literal("3:4"),
   width: z.literal(1024), height: z.literal(1536), title: z.string().max(70), subtitle: z.string().max(90), destination: z.string().max(60), daysCount: z.number().int().min(1).max(7),
   pages: z.array(timelinePosterPageSchema).min(1).max(4), model: z.string().max(80), quality: z.enum(["low", "medium", "high"]), estimatedCostUsd: z.number().nonnegative(),
   preTripAdvice: z.object({ transport:z.string().max(36),accommodation:z.string().max(36),clothing:z.string().max(36),photoSpots:z.string().max(36),food:z.string().max(36),timing:z.string().max(36) }).optional(),

@@ -8,8 +8,8 @@ import { trackEvent } from "@/features/analytics/client";
 import { PosterExampleGallery } from "./poster-example-gallery";
 
 type ApiPayload = { tasks: unknown[]; remaining: number; requiredPoints?:number|null; paymentsEnabled?:boolean; authenticated?: boolean; task?: unknown; error?: { message?: string } };
-const CURRENT_POSTER_VERSION="oneclick_travel_cjk_v8";
-const SERVER_POSTER_VERSIONS=[CURRENT_POSTER_VERSION,"brand_a_icon_v7","brand_a_v6"];
+const CURRENT_POSTER_VERSION="oneclick_travel_advice_icons_v9";
+const SERVER_POSTER_VERSIONS=[CURRENT_POSTER_VERSION,"oneclick_travel_cjk_v8","brand_a_icon_v7","brand_a_v6"];
 function download(blob: Blob, name: string) { const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = name; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1500); }
 
 export function PremiumTripImages({ tripId, tripVersion, canEdit, destination, daysCount, placement = "top" }: { tripId: string; tripVersion: number; canEdit: boolean; destination: string; daysCount: number; placement?: "top" | "bottom" }) {

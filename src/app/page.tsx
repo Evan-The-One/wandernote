@@ -3,8 +3,22 @@ import { TripForm } from "@/features/trip-input/trip-form";
 import { HangzhouSamplePreview } from "@/features/trip-plan/hangzhou-sample-preview";
 import { hasBetaAccess } from "@/server/auth/visitor";
 import { serverConfig } from "@/server/config";
-import {TravelJourneyIllustration} from "@/components/travel-illustrations";
 import {AppIcon,type AppIconName} from "@/components/app-icons";
+import {posterExamples} from "@/config/poster-examples";
+import Image from "next/image";
+
+function HomePosterShowcase({mobile=false}:{mobile?:boolean}){
+  const example=posterExamples[0];
+  if(!example)return null;
+  return <section className={mobile?"home-poster-showcase-mobile app-container pb-5 pt-4":"home-poster-showcase-desktop mt-8"} aria-label="旅行海报示例">
+    <div className="overflow-hidden rounded-[24px] border border-[var(--border-soft)] bg-white p-3 shadow-[0_16px_38px_rgba(23,79,59,.08)] sm:p-4">
+      <div className="grid grid-cols-[124px_1fr] items-center gap-4 sm:grid-cols-[156px_1fr]">
+        <Image src={example.thumbnailAsset} alt={`${example.title}旅行海报示例`} width={1024} height={1536} className="h-auto w-full rounded-[16px] border border-[var(--border-soft)]" sizes={mobile?"124px":"156px"}/>
+        <div className="min-w-0 pr-1"><p className="text-xs font-bold text-[var(--warning)]">生成后的效果</p><h2 className="mt-1.5 text-lg font-bold leading-7 text-[var(--text-strong)]">看看生成后的旅行海报</h2><p className="mt-1.5 text-sm leading-6 text-[var(--text-secondary)]">行程规划好之后，还能生成清晰、适合保存分享的专属海报。</p><a href="/sample-plan" className="mt-3 inline-flex min-h-11 items-center font-semibold text-[var(--brand-primary)]">看看完整示例 <span aria-hidden="true" className="ml-1">→</span></a></div>
+      </div>
+    </div>
+  </section>;
+}
 
 export default async function Home() {
   const betaOpen = await hasBetaAccess(serverConfig.betaAccessCode);
@@ -20,15 +34,13 @@ export default async function Home() {
           <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-[var(--brand-primary)] shadow-sm"><i className="h-2 w-2 rounded-full bg-[var(--accent-warm)]"/>AI 私人旅行管家</span>
           <h1 className="app-hero-title mt-3 text-[var(--text-strong)]">不用查攻略<br/><span className="text-[var(--brand-primary)]">告诉我去哪儿</span><br/>行程直接安排好</h1>
           <p className="mt-2 max-w-md text-sm leading-6 text-[var(--text-secondary)] sm:mt-4 sm:text-base sm:leading-7">去哪儿、玩几天、想怎么玩，两步就安排好。</p>
-          <TravelJourneyIllustration className="home-hero-art home-hero-art-desktop mt-3 w-full max-w-[500px] drop-shadow-[0_18px_36px_rgba(23,79,59,.08)] sm:mt-6"/>
+          <HomePosterShowcase/>
         </div>
         <BetaAccessGate initialOpen={betaOpen}><TripForm /></BetaAccessGate>
       </div>
     </section>
-    <section className="home-mobile-journey-art app-container pb-4 pt-8" aria-label="准备出发">
-      <TravelJourneyIllustration className="w-full"/>
-    </section>
-    <section className="app-container py-12 sm:py-16">
+    <HomePosterShowcase mobile/>
+    <section className="app-container py-8 sm:py-14">
       <div className="flex items-end justify-between gap-6"><div><p className="text-sm font-bold text-[var(--warning)]">示例行程</p><h2 className="app-section-title mt-2">先看看生成后的旅行计划</h2><p className="mt-2 text-sm text-[var(--text-secondary)]">用杭州三日行程，看看一键出发会怎样安排。</p></div></div>
       <HangzhouSamplePreview />
     </section>
