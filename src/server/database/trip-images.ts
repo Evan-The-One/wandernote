@@ -11,10 +11,10 @@ import { classifyActivityVisual, genericVisualCandidates, genericVisualDataUrl, 
 import { posterPointCost } from "@/config/commerce";
 import { sanitizeUnrequestedHotels } from "@/server/validation/trip-plan-quality";
 import {POSTER_RENDER_VERSION,renderPosterPages} from "@/server/posters/render";
-import {posterStorageConfigured,storePrivatePoster} from "@/server/posters/storage";
+import {deletePoster,posterStorageConfigured,storePrivatePoster} from "@/server/posters/storage";
 
 export const PREMIUM_IMAGE_TEMPLATE_VERSION = "classic_timeline_v1";
-export const TRAVEL_POSTER_VERSION = "semantic_visuals_v5_1";
+export const TRAVEL_POSTER_VERSION = "brand_a_v6";
 const CREDIT_TYPE = "premium_trip_image";
 
 function compact(value: string, max: number) { return value.replace(/\s+/g, " ").trim().slice(0, max); }
@@ -112,6 +112,7 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
   if (prepared.existing) {const [account]=await db.select().from(pointAccounts).where(eq(pointAccounts.userId,args.userId)).limit(1);return { task: serializeTask(prepared.existing), reused: true, remaining:account?.availablePoints??0, requiredPoints: prepared.existing.outputJson ? 0 : null };}
   if (!prepared.trip || !prepared.task || !prepared.creditKey || !prepared.points) throw new HttpError(500, "海报任务创建失败", "IMAGE_TASK_ERROR");
   const started = performance.now();
+  const storedKeys:string[]=[];
   try {
     const input=tripInputSchema.parse(prepared.trip.inputJson);const plan=sanitizeUnrequestedHotels(tripPlanSchema.parse(prepared.trip.currentPlanJson),input).plan; const days = posterDays(plan); const provider = createOpenAIImageProvider();
     if (!provider.enabled) throw Object.assign(new Error("图片服务尚未配置"), { code: "IMAGE_PROVIDER_DISABLED" });
@@ -165,8 +166,9 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
     if(!("width" in output))throw Object.assign(new Error("当前模板无法服务端渲染"),{code:"POSTER_RENDER_UNSUPPORTED"});
     const rendered=await renderPosterPages(output),pageRows=[] as Array<typeof posterPages.$inferInsert>;
     for(const[pageIndex,jpeg]of rendered.entries()){
-      const checksum=createHash("sha256").update(jpeg).digest("hex"),storageKey=`posters/${args.userId}/${prepared.task.id}/page-${pageIndex+1}-${checksum.slice(0,16)}.jpg`;
+      const checksum=createHash("sha256").update(jpeg).digest("hex"),ownerKey=createHash("sha256").update(args.userId).digest("hex").slice(0,24),storageKey=`posters/${ownerKey}/${args.tripId}/${prepared.task.id}/page-${String(pageIndex+1).padStart(2,"0")}-${checksum.slice(0,16)}.jpg`;
       await storePrivatePoster(storageKey,jpeg);
+      storedKeys.push(storageKey);
       pageRows.push({posterTaskId:prepared.task.id,tripId:args.tripId,tripVersion:prepared.trip.version,userId:args.userId,pageIndex,width:1024,height:1536,fileSize:jpeg.byteLength,checksum,mimeType:"image/jpeg",templateVersion:TRAVEL_POSTER_VERSION,renderVersion:POSTER_RENDER_VERSION,storageKey});
     }
     const durationMs = Math.round(performance.now() - started);
@@ -176,6 +178,7 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
     await db.insert(analyticsEvents).values({ visitorId: args.visitorId, tripId: args.tripId, eventName: "ai_usage", status: "completed", durationMs, metadata: { requestType: "travel_poster", model: output.model, inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, reasoningTokens: 0, estimatedCostUsd, actualCostUsd: null, repairAttempt: false } });
     const [account]=await db.select().from(pointAccounts).where(eq(pointAccounts.userId,args.userId)).limit(1);return { task: serializeTask(saved), reused: false, remaining:account?.availablePoints??0, requiredPoints:prepared.points };
   } catch (error) {
+    await Promise.all(storedKeys.map(storageKey=>deletePoster(storageKey).catch(()=>undefined)));
     const code = typeof error === "object" && error && "code" in error ? String(error.code) : "IMAGE_PROVIDER_ERROR";
     await db.update(tripImageTasks).set({ status: "failed", failureCode: code, durationMs: Math.round(performance.now() - started), completedAt: new Date() }).where(eq(tripImageTasks.id, prepared.task.id));
     await withDatabaseTransaction(async tx=>{await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${args.userId}))`);const [existing]=await tx.select().from(pointLedger).where(eq(pointLedger.businessKey,`${prepared.creditKey}:${prepared.task.id}:release`)).limit(1);if(existing)return;const [account]=await tx.select().from(pointAccounts).where(eq(pointAccounts.userId,args.userId)).limit(1);if(!account)return;const released=Math.min(prepared.points,account.reservedPoints);const balance=account.availablePoints+released;await tx.update(pointAccounts).set({availablePoints:balance,reservedPoints:account.reservedPoints-released,updatedAt:new Date()}).where(eq(pointAccounts.userId,args.userId));await tx.insert(pointLedger).values({userId:args.userId,type:"poster_release",amount:released,balanceAfter:balance,businessKey:`${prepared.creditKey}:${prepared.task.id}:release`,tripId:args.tripId,taskId:prepared.task.id,metadata:{points:released}});});

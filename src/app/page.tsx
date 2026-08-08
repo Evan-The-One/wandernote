@@ -19,7 +19,7 @@ export default async function Home() {
         <div className="home-hero px-1 pt-1 lg:sticky lg:top-28 lg:self-start">
           <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-[var(--brand-primary)] shadow-sm"><i className="h-2 w-2 rounded-full bg-[var(--accent-warm)]"/>AI 私人旅行管家</span>
           <h1 className="app-hero-title mt-3 text-[var(--text-strong)]">不用查攻略<br/><span className="text-[var(--brand-primary)]">告诉我去哪儿</span><br/>行程直接安排好</h1>
-          <p className="mt-2 max-w-md text-sm leading-6 text-[var(--text-secondary)] sm:mt-4 sm:text-base sm:leading-7">少填一点，早点出发。三步生成一份可以直接照着玩的旅行计划。</p>
+          <p className="mt-2 max-w-md text-sm leading-6 text-[var(--text-secondary)] sm:mt-4 sm:text-base sm:leading-7">去哪儿、玩几天、想怎么玩，两步就安排好。</p>
           <TravelJourneyIllustration className="home-hero-art mt-3 w-full max-w-[500px] drop-shadow-[0_18px_36px_rgba(23,79,59,.08)] sm:mt-6"/>
         </div>
         <BetaAccessGate initialOpen={betaOpen}><TripForm /></BetaAccessGate>

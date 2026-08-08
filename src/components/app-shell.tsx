@@ -2,7 +2,6 @@
 import Link from "next/link";
 import {usePathname,useSearchParams} from "next/navigation";
 import {BrandMark} from "./brand-mark";
-import {HeaderActions} from "./header-actions";
 import {SiteFooter} from "./site-footer";
 import {AppIcon,type AppIconName} from "./app-icons";
 
@@ -13,13 +12,11 @@ const tabs:{label:string;href:string;icon:AppIconName;match:(path:string,query:s
 ];
 
 export function AppShell({children,contactEmail}:{children:React.ReactNode;contactEmail?:string}){
- const pathname=usePathname();const search=useSearchParams();const admin=pathname.startsWith("/admin");const readonly=pathname.startsWith("/trip/")&&search.get("share")==="1";const query=search.get("tab")||"";
- const auxiliary=["/login","/about","/privacy","/terms","/points-rules","/refund-policy","/cookies","/ai-notice","/auth/verified"].some(path=>pathname===path||pathname.startsWith(`${path}/`));
+ const pathname=usePathname();const search=useSearchParams();const admin=pathname.startsWith("/admin");const query=search.get("tab")||"";
  if(admin)return <>{children}</>;
- return <div className={`app-shell ${auxiliary?"is-auxiliary":""}`}>
-   <header className="desktop-header"><div className="app-container flex h-[72px] items-center justify-between"><BrandMark href="/"/><nav className="desktop-nav" aria-label="主要导航">{tabs.map(tab=><Link key={tab.label} href={tab.href} className={tab.match(pathname,query)?"is-active":""}><AppIcon name={tab.icon}/><span>{tab.label}</span></Link>)}</nav><HeaderActions/></div></header>
+ return <div className="app-shell">
+   <header className="desktop-header"><div className="app-container flex h-[72px] items-center justify-between"><BrandMark href="/"/><nav className="desktop-nav" aria-label="主要导航">{tabs.map(tab=>{const active=tab.match(pathname,query);return <Link key={tab.label} href={tab.href} aria-current={active?"page":undefined} className={active?"is-active":""}><AppIcon name={tab.icon}/><span>{tab.label}</span></Link>})}</nav></div></header>
    <div className="app-content">{children}</div>
    <div className="desktop-footer"><SiteFooter contactEmail={contactEmail}/></div>
-   {!readonly&&!auxiliary&&<nav className="mobile-tab-bar" aria-label="主要导航">{tabs.map(tab=>{const active=tab.match(pathname,query);return <Link key={tab.label} href={tab.href} aria-current={active?"page":undefined} className={active?"is-active":""}><span className="tab-icon"><AppIcon name={tab.icon}/></span><span>{tab.label}</span></Link>})}</nav>}
  </div>;
 }

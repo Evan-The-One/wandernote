@@ -176,7 +176,7 @@ export function TripForm() {
   const destinationRef = useRef<HTMLInputElement>(null);
   const minDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [destination, setDestination] = useState("");
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [destinationSelection, setDestinationSelection] = useState<
     TripInput["destination"] | null
   >(null);
@@ -236,6 +236,21 @@ export function TripForm() {
     city: string;
     nearby: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (!inspirationsExpanded) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setInspirationsExpanded(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+      document.getElementById("trip-inspiration-expand")?.focus();
+    };
+  }, [inspirationsExpanded]);
 
   useEffect(()=>{
     if(step===1)return;
@@ -497,7 +512,6 @@ export function TripForm() {
   function submit(event: FormEvent) {
     event.preventDefault();
     if(step===1){if(destination.trim())setStep(2);return;}
-    if(step===2){setStep(3);return;}
     const identified = identifyDestination(destination);
     if (destinationSelection && destinationSelection.city === destination) {
       startGeneration(destinationSelection);
@@ -520,13 +534,15 @@ export function TripForm() {
   return (
     <form ref={formRef} data-step={step} onSubmit={submit} className="app-trip-form scroll-mt-3 space-y-3 sm:space-y-4">
       <div className="flex items-center justify-between px-1">
-        <div><p className="text-sm font-bold text-[var(--brand-primary)]">{step} / 3</p><p className="mt-0.5 text-sm text-[var(--text-secondary)]">{step===1?"先选目的地":step===2?"再决定玩多久":"最后选个喜欢的玩法"}</p></div>
-        <div className="flex gap-2" aria-label={`当前第${step}步，共3步`}>{[1,2,3].map(value=><i key={value} className={`h-2.5 rounded-full transition-all ${value===step?"w-8 bg-[var(--brand-primary)]":"w-2.5 bg-[var(--brand-soft)]"}`}/>)}</div>
+        <div><p className="text-sm font-bold text-[var(--brand-primary)]">{step} / 2</p><p className="mt-0.5 text-sm text-[var(--text-secondary)]">{step===1?"先定目的地和时间":"最后选一下节奏和重点"}</p></div>
+        <div className="flex gap-2" aria-label={`当前第${step}步，共2步`}>{[1,2].map(value=><i key={value} className={`h-2.5 rounded-full transition-all ${value===step?"w-8 bg-[var(--brand-primary)]":"w-2.5 bg-[var(--brand-soft)]"}`}/>)}</div>
       </div>
       <section className="app-card-primary p-4 sm:min-h-[420px] sm:p-7">
         {step===1&&<div className="animate-[planning-enter_.3s_ease-out]">
-        <label className={`block ${coreQuestionClass}`}>
-          去哪儿？ <span className="text-[#c55e3d]">*</span>
+        <h2 className={coreQuestionClass}>去哪儿，玩几天？</h2>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">先定目的地和时间，其他交给我们。</p>
+        <label className="mt-4 block font-semibold">
+          目的地 <span className="text-[#c55e3d]">*</span>
           <span className="mt-2 flex items-center gap-2">
             <input
               ref={destinationRef}
@@ -556,32 +572,9 @@ export function TripForm() {
             </button>
           </span>
         </label>
-        <div className="mt-4 rounded-2xl bg-[#f4f5f0] p-4">
+        <div className="mt-3 rounded-2xl bg-[#f4f5f0] p-3 sm:p-4">
           <p className="text-xs font-bold text-[#617068]">旅行灵感</p>
-          <div className="mt-3 space-y-3">
-            {travelInspirations
-              .slice(0, inspirationsExpanded ? travelInspirations.length : 2)
-              .map((group) => (
-                <div
-                  key={group.category}
-                  className="flex items-center gap-2 overflow-x-auto"
-                >
-                  <span className="w-20 shrink-0 text-xs text-[#7b847e]">
-                    {group.category}
-                  </span>
-                  {group.cities.slice(0,inspirationsExpanded?group.cities.length:3).map((city) => (
-                    <button
-                      key={city}
-                      type="button"
-                      onClick={() => setDestination(city)}
-                      className="focus-ring shrink-0 rounded-full border border-black/8 bg-white px-3 py-1.5 text-sm font-semibold hover:border-[#245b46]/40"
-                    >
-                      {city}
-                    </button>
-                  ))}
-                </div>
-              ))}
-          </div>
+          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">{travelInspirations.slice(0,2).flatMap(group=>group.cities.slice(0,3)).map(city=><button key={city} type="button" onClick={()=>setDestination(city)} className="focus-ring shrink-0 rounded-full border border-black/8 bg-white px-3 py-1.5 text-sm font-semibold hover:border-[#245b46]/40">{city}</button>)}</div>
           <button
             id="trip-inspiration-expand"
             type="button"
@@ -589,9 +582,12 @@ export function TripForm() {
             onClick={() => setInspirationsExpanded((value) => !value)}
             className="mt-3 text-sm font-bold text-[#245b46]"
           >
-            {inspirationsExpanded ? "收起更多灵感" : "展开更多灵感"}
+            更多旅行灵感
           </button>
-          <div className={inspirationsExpanded ? "" : "hidden"}>
+          <div className={inspirationsExpanded ? "inspiration-sheet" : "hidden"} role="dialog" aria-modal="true" aria-label="更多旅行灵感" onMouseDown={(event)=>{if(event.target===event.currentTarget)setInspirationsExpanded(false)}}>
+            <div className="inspiration-sheet-panel" onMouseDown={(event)=>event.stopPropagation()}>
+            <div className="flex items-center justify-between"><strong className="text-lg">更多旅行灵感</strong><button type="button" onClick={()=>setInspirationsExpanded(false)} className="btn-secondary min-h-11 min-w-11 rounded-full" aria-label="关闭旅行灵感">×</button></div>
+            <div className="mt-4 space-y-3">{travelInspirations.map(group=><div key={group.category}><p className="text-xs font-bold text-[var(--text-secondary)]">{group.category}</p><div className="mt-2 flex flex-wrap gap-2">{group.cities.map(city=><button key={city} type="button" onClick={()=>{setDestination(city);setInspirationsExpanded(false)}} className="rounded-full border border-[var(--border-soft)] bg-white px-3 py-2 text-sm font-semibold">{city}</button>)}</div></div>)}</div>
             <DestinationRecommender
               openRequest={recommenderRequest}
               days={days}
@@ -599,16 +595,12 @@ export function TripForm() {
               onDepartureCity={setDepartureCity}
               onChoose={setDestination}
             />
+            </div>
           </div>
         </div>
-        <button type="button" disabled={!destination.trim()} onClick={()=>setStep(2)} className="step-next-button btn-primary mt-7 w-full px-5 py-3.5 disabled:opacity-45">选好了，继续</button>
-        </div>}
-
-        {step===2&&<div className="animate-[planning-enter_.3s_ease-out]">
-          <p className={coreQuestionClass}>
-            玩几天？ <span className="text-[#c55e3d]">*</span>
-          </p>
-          <div className="mt-3 grid grid-cols-4 gap-1.5 sm:gap-2">
+        <div className="mt-4">
+          <p className="font-semibold">天数 <span className="text-[#c55e3d]">*</span></p>
+          <div className="mt-2 grid grid-cols-4 gap-1.5 sm:gap-2">
             {[1, 2, 3].map((value) => (
               <button
                 key={value}
@@ -650,10 +642,19 @@ export function TripForm() {
               {daysError && <span className="mt-2 block text-xs font-semibold text-red-700">{daysError}</span>}
             </label>
           )}
-          <div className="mt-8 grid grid-cols-[.72fr_1.28fr] gap-3"><button type="button" onClick={()=>setStep(1)} className="btn-secondary px-4">上一步</button><button type="button" onClick={()=>setStep(3)} className="btn-primary px-4">继续选玩法</button></div>
+        </div>
+        <details className="departure-extras mt-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--background-soft)] px-3 py-2">
+          <summary className="focus-ring min-h-11 cursor-pointer list-none py-2 font-semibold text-[var(--brand-primary-deep)]">补充出发信息（可选）</summary>
+          <div className="pb-2 pt-1">
+            <label className="block text-sm font-semibold">出发城市<input value={departureCity} onChange={(event)=>setDepartureCity(event.target.value)} className={inputClass} placeholder="例如：上海"/></label>
+            <div className="mt-3 flex flex-wrap gap-2">{transportOptions.map((item)=><button key={item.value} type="button" onClick={()=>setTransport(item.value)} className={`min-h-10 rounded-full border px-3 py-1.5 text-sm font-semibold ${transport===item.value?selectedCard:plainCard}`}>{item.label}</button>)}</div>
+            <label className="mt-3 flex items-center gap-3 text-sm font-semibold"><input type="checkbox" checked={dayTrip} onChange={(event)=>setDayTrip(event.target.checked)} className="h-5 w-5 accent-[#245b46]"/>愿意安排一次周边一日游</label>
+          </div>
+        </details>
+        <button type="button" disabled={!destination.trim()} onClick={()=>setStep(2)} className="step-next-button btn-primary mt-5 w-full px-5 py-3.5 disabled:opacity-45">继续选玩法</button>
         </div>}
 
-        {step===3&&<div className="animate-[planning-enter_.3s_ease-out]">
+        {step===2&&<div className="animate-[planning-enter_.3s_ease-out]">
           <p className={coreQuestionClass}>
             想怎么玩？ <span className="text-[#c55e3d]">*</span>
           </p>
@@ -752,11 +753,11 @@ export function TripForm() {
               )}
             </section>
           </div>
-          <button type="button" onClick={()=>setStep(2)} className="btn-ghost mt-6 inline-flex min-h-11 items-center px-2">← 返回上一步</button>
+          <button type="button" onClick={()=>setStep(1)} className="btn-ghost mt-5 inline-flex min-h-11 items-center px-2">修改目的地和天数</button>
         </div>}
       </section>
 
-      {step===3&&<details
+      {step===2&&<details
         id="trip-extras"
         className="card group rounded-[2rem] p-3 sm:p-4"
       >
@@ -971,41 +972,6 @@ export function TripForm() {
             )}
           </section>
 
-          <section>
-            <h3 className="font-bold">出发地与交通</h3>
-            <label className="mt-3 block text-sm font-semibold">
-              出发城市
-              <input
-                value={departureCity}
-                onChange={(event) => setDepartureCity(event.target.value)}
-                className={inputClass}
-                placeholder="选填"
-              />
-              <span className="mt-2 block text-xs font-normal text-[#707a74]">用于估算去返程时间和大交通安排</span>
-            </label>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {transportOptions.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => setTransport(item.value)}
-                  className={`min-h-11 rounded-full border px-4 py-2 text-[15px] font-semibold sm:text-base ${transport === item.value ? selectedCard : plainCard}`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            <label className="mt-4 flex items-center gap-3 text-sm font-semibold">
-              <input
-                type="checkbox"
-                checked={dayTrip}
-                onChange={(event) => setDayTrip(event.target.checked)}
-                className="h-5 w-5 accent-[#245b46]"
-              />
-              愿意安排一次目的地周边一日游
-            </label>
-          </section>
-
           <label className="block font-semibold">
             补充要求
             <textarea
@@ -1027,7 +993,7 @@ export function TripForm() {
           {error}
         </p>
       )}
-      {step===3&&<div className="mobile-action-bar rounded-[1.6rem] border border-[var(--border-soft)] bg-[color:rgba(246,250,245,.96)] p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+      {step===2&&<div className="mobile-action-bar rounded-[1.6rem] border border-[var(--border-soft)] bg-[color:rgba(246,250,245,.96)] p-3 shadow-xl backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
         <button
           type="submit"
           disabled={submitting}
@@ -1040,7 +1006,7 @@ export function TripForm() {
               className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white"
             />
           )}
-          {submitting ? "正在准备你的旅行……" : "一键生成我的定制旅行"}
+          {submitting ? "正在准备你的旅行……" : "一键生成行程"}
         </button>
         <p className="mt-2 text-center text-xs text-[var(--text-secondary)]">
           {generationAccessMode === "tester_unlimited"
