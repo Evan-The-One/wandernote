@@ -23,7 +23,7 @@ assert.match(web,/\.btn-destructive/);
 assert.match(brand,/\/brand\/icon-192\.png/);
 assert.match(brand,/BrandLogo/);
 assert.match(miniBrand,/assets\/brand\/icon-192\.png/);
-assert.match(miniBrand,/ONE-CLICK/);
+assert.match(miniBrand,/OneClick Travel/);
 for(const size of [32,64,192,512])assert((await stat(`public/brand/icon-${size}.png`)).size>500);
 const manifest=JSON.parse(await readFile("public/manifest.webmanifest","utf8"));
 assert.equal(manifest.icons.length,2);

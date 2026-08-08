@@ -7,7 +7,7 @@ function BrandContents({ align = "start", size = "header" }: Pick<BrandMarkProps
   const centered = align === "center";
   return <span className={`inline-flex items-center gap-2.5 ${centered ? "justify-center" : "justify-start"}`}>
     <BrandIcon className={size === "header" ? "h-9 w-9" : "h-8 w-8"} />
-    <span className="flex flex-col items-center"><span className={`${size === "header" ? "text-lg" : "text-base"} whitespace-nowrap font-bold leading-none tracking-[-.02em] text-[var(--text-strong)]`}>一键出发</span><span className={`${size === "header" ? "mt-1.5 text-[8px]" : "mt-1 text-[7px]"} whitespace-nowrap font-semibold leading-none tracking-[0.22em] text-[var(--warning)]`}>ONE-CLICK</span></span>
+    <span className="flex flex-col items-center"><span className={`${size === "header" ? "text-lg" : "text-base"} whitespace-nowrap font-bold leading-none tracking-[-.02em] text-[var(--text-strong)]`}>一键出发</span><span className={`${size === "header" ? "mt-1.5 text-[8px]" : "mt-1 text-[7px]"} whitespace-nowrap font-semibold leading-none tracking-[0.08em] text-[var(--warning)]`}>OneClick Travel</span></span>
   </span>;
 }
 

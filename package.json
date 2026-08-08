@@ -32,13 +32,16 @@
     "test:brand-theme": "node scripts/test-brand-theme.mjs",
     "test:app-shell": "node scripts/test-app-shell.mjs",
     "test:poster-read-trips": "node scripts/test-poster-read-and-trips.mjs",
+    "test:poster-cjk": "tsx scripts/test-poster-cjk-render.ts",
     "check:miniapp-network": "node scripts/check-miniapp-network.mjs"
   },
   "dependencies": {
+    "@fontsource/noto-sans-sc": "^5.3.0",
     "@neondatabase/serverless": "^1.1.0",
     "@tailwindcss/postcss": "4.3.2",
     "@vercel/blob": "^2.6.1",
     "drizzle-orm": "^0.45.2",
+    "fontkit": "^2.0.4",
     "next": "16.2.12",
     "postcss": "^8.5.19",
     "qrcode": "^1.5.4",
@@ -48,6 +51,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/fontkit": "^2.0.9",
     "@types/node": "^24.10.0",
     "@types/pngjs": "^6.0.5",
     "@types/qrcode": "^1.5.6",

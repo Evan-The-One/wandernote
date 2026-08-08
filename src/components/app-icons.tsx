@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 
-export type AppIconName = "depart" | "trips" | "account" | "pin" | "calendar" | "sparkles" | "route" | "poster" | "points" | "support" | "share" | "edit" | "chevron";
+export type AppIconName = "depart" | "trips" | "account" | "pin" | "calendar" | "sparkles" | "route" | "poster" | "points" | "support" | "share" | "edit" | "reset" | "chevron";
 
 export function AppIcon({name,className="h-5 w-5",...props}:{name:AppIconName;className?:string}&SVGProps<SVGSVGElement>){
   const paths:Record<AppIconName,React.ReactNode>={
@@ -16,6 +16,7 @@ export function AppIcon({name,className="h-5 w-5",...props}:{name:AppIconName;cl
     support:<><path d="M5 15v-4a7 7 0 0 1 14 0v4"/><path d="M5 12H3.5A1.5 1.5 0 0 0 2 13.5v2A1.5 1.5 0 0 0 3.5 17H5v-5ZM19 12h1.5a1.5 1.5 0 0 1 1.5 1.5v2a1.5 1.5 0 0 1-1.5 1.5H19v-5ZM19 17c0 2-1.5 3-4 3"/></>,
     share:<><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></>,
     edit:<><path d="m14 5 5 5M4 20l1.2-5L16 4.2a2 2 0 0 1 2.8 0l1 1a2 2 0 0 1 0 2.8L9 18.8 4 20Z"/></>,
+    reset:<><path d="M5.5 8.5A7.5 7.5 0 1 1 4.8 15"/><path d="M5.5 4v4.5H10"/></>,
     chevron:<path d="m9 6 6 6-6 6"/>,
   };
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{paths[name]}</svg>;

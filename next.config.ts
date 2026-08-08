@@ -5,11 +5,13 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
   productionBrowserSourceMaps: false,
-  serverExternalPackages: ["sharp"],
+  serverExternalPackages: ["sharp", "fontkit", "@fontsource/noto-sans-sc"],
   outputFileTracingIncludes: {
     "/api/trips/*/images": [
       "./node_modules/.pnpm/@img+sharp-linux-x64@0.35.3/node_modules/@img/sharp-linux-x64/**/*",
       "./node_modules/.pnpm/@img+sharp-libvips-linux-x64@1.3.2/node_modules/@img/sharp-libvips-linux-x64/**/*",
+      "./node_modules/@fontsource/noto-sans-sc/*.css",
+      "./node_modules/@fontsource/noto-sans-sc/files/*.woff2",
     ],
   },
   async headers() {

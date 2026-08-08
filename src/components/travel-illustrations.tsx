@@ -1,16 +1,19 @@
 export function TravelJourneyIllustration({className=""}:{className?:string}){
-  return <svg viewBox="0 0 520 330" role="img" aria-label="山谷、公路和准备出发的旅行者插画" className={className}>
-    <rect width="520" height="330" rx="36" fill="#EEF5EC"/>
-    <circle cx="423" cy="68" r="28" fill="#F2C14E"/>
-    <path d="M0 230 98 137l62 58 86-111 82 104 60-62 132 114v90H0Z" fill="#DCEAD9"/>
-    <path d="M0 258 80 191l70 55 73-70 76 64 68-72 153 107v55H0Z" fill="#B9DB8A" opacity=".72"/>
-    <path d="M228 340c12-82 26-119 101-153 31-14 70-20 117-15" fill="none" stroke="#FFFDF8" strokeWidth="50" strokeLinecap="round"/>
-    <path d="M228 340c12-82 26-119 101-153 31-14 70-20 117-15" fill="none" stroke="#F2C14E" strokeWidth="3" strokeDasharray="8 14" strokeLinecap="round"/>
-    <circle cx="320" cy="193" r="15" fill="#F2C14E"/>
-    <path d="M314 207c-9 19-12 38-5 57M321 220l23 13M310 233l-17 24" fill="none" stroke="#174F3B" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M303 204c7-9 17-10 24-3" fill="none" stroke="#1F6B4F" strokeWidth="11" strokeLinecap="round"/>
-    <rect x="335" y="222" width="27" height="31" rx="7" fill="#F2C14E" stroke="#174F3B" strokeWidth="4"/>
-    <path d="M82 239v-46m0 0-13 16m13-16 13 16" fill="none" stroke="#1F6B4F" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round"/>
+  return <svg viewBox="0 0 520 300" role="img" aria-label="旅行者沿着已规划好的路线轻松出发" className={className}>
+    <rect width="520" height="300" rx="34" fill="#EEF5EC"/>
+    <circle cx="429" cy="55" r="25" fill="#F2C14E"/>
+    <path d="M0 224 94 132l57 52 78-88 70 73 78-92 143 144v79H0Z" fill="#DCEAD9"/>
+    <path d="M0 255 95 187l62 43 76-61 65 51 72-60 150 88v52H0Z" fill="#B9DB8A" opacity=".82"/>
+    <path d="M76 286C132 239 185 243 232 258c57 19 66-47 122-66 32-11 62-8 98 1" fill="none" stroke="#FFFDF8" strokeWidth="42" strokeLinecap="round"/>
+    <path d="M76 286C132 239 185 243 232 258c57 19 66-47 122-66 32-11 62-8 98 1" fill="none" stroke="#E4B33D" strokeWidth="3" strokeDasharray="7 12" strokeLinecap="round"/>
+    <circle cx="82" cy="282" r="10" fill="#F2C14E" stroke="#174F3B" strokeWidth="4"/>
+    <circle cx="450" cy="193" r="10" fill="#FFFDF8" stroke="#174F3B" strokeWidth="4"/>
+    <path d="M437 161h33l-8 12 8 12h-33v-24Zm0 0v45" fill="#FFFDF8" stroke="#1F6B4F" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    <circle cx="318" cy="194" r="14" fill="#F2C14E"/>
+    <path d="M311 208c-8 18-9 36-2 53m10-42 20 13m-30 3-17 21" fill="none" stroke="#174F3B" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M303 207c7-9 17-10 25-2" fill="none" stroke="#1F6B4F" strokeWidth="10" strokeLinecap="round"/>
+    <rect x="334" y="224" width="26" height="30" rx="7" fill="#F2C14E" stroke="#174F3B" strokeWidth="4"/>
+    <path d="M341 224v-5c0-4 3-7 6-7s6 3 6 7v5" fill="none" stroke="#174F3B" strokeWidth="3"/>
   </svg>;
 }
 

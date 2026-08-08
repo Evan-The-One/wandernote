@@ -21,6 +21,7 @@ import {
   nearbyCityOptions,
   randomDestinationCities,
 } from "./destination-config";
+import { AppIcon } from "@/components/app-icons";
 
 const LEGACY_INPUT_KEY = "wandernote:demo-input";
 const INPUT_KEY = "yijianchufa:trip-input";
@@ -575,7 +576,7 @@ export function TripForm() {
     <form ref={formRef} data-step={step} onSubmit={submit} className="app-trip-form scroll-mt-3 space-y-3 sm:space-y-4">
       <div className="flex items-center justify-between gap-3 px-1">
         <div><p className="text-sm font-bold text-[var(--brand-primary)]">{step} / 2</p><p className="mt-0.5 text-sm text-[var(--text-secondary)]">{step===1?"先定目的地和时间":"最后选一下节奏和重点"}</p></div>
-        <div className="flex items-center gap-3"><button type="button" onClick={()=>setClearConfirm(true)} className="min-h-10 whitespace-nowrap text-xs font-semibold text-[var(--text-secondary)]">重新开始</button><div className="flex gap-2" aria-label={`当前第${step}步，共2步`}>{[1,2].map(value=><i key={value} className={`h-2.5 rounded-full transition-all ${value===step?"w-8 bg-[var(--brand-primary)]":"w-2.5 bg-[var(--brand-soft)]"}`}/>)}</div></div>
+        <div className="flex items-center gap-3"><button type="button" onClick={()=>setClearConfirm(true)} className="focus-ring inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-xs font-semibold text-[var(--text-secondary)]"><AppIcon name="reset" className="h-4 w-4"/>清空选择</button><div className="flex gap-2" aria-label={`当前第${step}步，共2步`}>{[1,2].map(value=><i key={value} className={`h-2.5 rounded-full transition-all ${value===step?"w-8 bg-[var(--brand-primary)]":"w-2.5 bg-[var(--brand-soft)]"}`}/>)}</div></div>
       </div>
       <section className="app-card-primary p-4 sm:min-h-[420px] sm:p-7">
         {step===1&&<div className="animate-[planning-enter_.3s_ease-out]">
@@ -793,7 +794,7 @@ export function TripForm() {
               )}
             </section>
           </div>
-          <button type="button" onClick={()=>setStep(1)} className="btn-ghost mt-5 inline-flex min-h-11 items-center px-2">修改目的地和天数</button>
+          <button type="button" onClick={()=>setStep(1)} className="btn-ghost mt-5 inline-flex min-h-11 items-center px-2">← 返回上一步</button>
         </div>}
       </section>
 
@@ -1196,7 +1197,7 @@ export function TripForm() {
           aria-modal="true"
         >
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
-            <h2 className="text-xl font-bold">确定清空当前选择吗？</h2>
+            <h2 className="text-xl font-bold">清空当前选择并重新开始？</h2>
             <p className="mt-2 text-sm text-[#65706a]">
               只清除首页草稿，不会删除已生成攻略。
             </p>
@@ -1213,7 +1214,7 @@ export function TripForm() {
                 onClick={clearForm}
                 className="rounded-full bg-[#a34838] px-5 py-2.5 font-semibold text-white"
               >
-                确认清空
+                清空
               </button>
             </div>
           </div>
