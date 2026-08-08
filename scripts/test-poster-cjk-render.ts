@@ -16,7 +16,7 @@ const activities=[
   ["14:00","灵隐寺","留出时间安静参观古寺"],
 ] as const;
 const output=travelPosterSpecSchema.parse({
-  kind:"travel_poster",version:"oneclick_travel_semantic_qr_v10",tripId:"00000000-0000-4000-8000-000000000001",tripVersion:1,aspectRatio:"3:4",width:1024,height:1536,
+  kind:"travel_poster",version:"oneclick_travel_semantic_qr_v11",tripId:"00000000-0000-4000-8000-000000000001",tripVersion:1,aspectRatio:"3:4",width:1024,height:1536,
   title:"杭州一日轻松旅行",subtitle:"从湖边走到山林",destination:"杭州",daysCount:1,model:"test",quality:"low",estimatedCostUsd:0,
   pages:[{pageNumber:1,dayRange:"Day 1",tips:["穿舒适的鞋","出发前确认开放时间","傍晚注意保暖"],days:[{dayNumber:1,date:null,title:"湖边与山林",city:"杭州",tips:["傍晚注意保暖"],activities:activities.map(([time,name,note],index)=>({time,name,note,category:index===1?"food":"attraction",visualAsset:{id:`00000000-0000-4000-8000-00000000000${index+2}`,cacheKey:String(index+1).repeat(40),dataUrl,category:index===1?"food":"attraction",altText:name,reused:false}}))}]}],
   preTripAdvice:{transport:"市区以步行和公交为主",accommodation:"西湖湖滨一带住宿",clothing:"穿舒适的鞋",photoSpots:"湖边和山门适合拍照",food:"午餐尝尝杭州家常菜",timing:"出发前确认开放时间"},

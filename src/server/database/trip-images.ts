@@ -14,7 +14,7 @@ import {POSTER_RENDER_VERSION,renderPosterPages} from "@/server/posters/render";
 import {deletePoster,posterStorageConfigured,storePrivatePoster} from "@/server/posters/storage";
 
 export const PREMIUM_IMAGE_TEMPLATE_VERSION = "classic_timeline_v1";
-export const TRAVEL_POSTER_VERSION = "oneclick_travel_semantic_qr_v10";
+export const TRAVEL_POSTER_VERSION = "oneclick_travel_semantic_qr_v11";
 const CREDIT_TYPE = "premium_trip_image";
 
 function compact(value: string, max: number) { return value.replace(/\s+/g, " ").trim().slice(0, max); }
@@ -34,7 +34,7 @@ function serializeTask(row: typeof tripImageTasks.$inferSelect) {
   return { id: row.id, tripId: row.tripId, tripVersion: row.tripVersion, imageType: row.imageType, aspectRatio: row.aspectRatio, templateVersion: row.templateVersion, provider: row.provider, status: row.status, output: output?.success ? output.data : null, failureCode: row.failureCode, createdAt: row.createdAt.toISOString(), completedAt: row.completedAt?.toISOString() ?? null };
 }
 
-const POSTER_PROMPT_VERSION = "semantic_activity_visual_v4";
+const POSTER_PROMPT_VERSION = "semantic_activity_visual_v5";
 const VISUAL_STYLE_VERSION = "realistic_editorial_v2";
 type PosterCategory = "attraction" | "food" | "hotel" | "transport" | "rest" | "shopping" | "entertainment";
 function categoryFor(visualCategory:GenericVisualCategory|null,type:string):PosterCategory {
@@ -60,7 +60,7 @@ export function normalizePlaceName(value:string){return value.normalize("NFKC").
 function isGenericCategory(category:PosterCategory){return !["attraction","entertainment"].includes(category);}
 function assetName(name:string,category:PosterCategory,generic?:GenericVisualCategory){return isGenericCategory(category)?`__generic_${generic||category}`:name;}
 function visualKey(destination:string,name:string,category:PosterCategory,model:string,generic?:GenericVisualCategory,variant=""){return createHash("sha1").update(["CN",generic?"GLOBAL":destination,normalizePlaceName(assetName(name,category,generic)),category,generic||"",variant,VISUAL_STYLE_VERSION,model,POSTER_PROMPT_VERSION].join("|")).digest("hex");}
-function visualPrompt(destination:string,items:Array<{name:string;category:PosterCategory}>){const subjects={attraction:"place-specific landmark, street, museum or natural scenery",food:"local food or dining atmosphere",hotel:"clean calm hotel room or check-in atmosphere",transport:"travel transport scene with luggage, road, train or aircraft as appropriate",rest:"quiet tasteful rest scene",shopping:"local shopping street or market atmosphere",entertainment:"local evening or entertainment atmosphere"},columns=Math.min(3,items.length),rows=Math.ceil(items.length/columns);return `Create a clean contact sheet of ${items.length} separate travel editorial photographs for ${destination}, China, arranged in an exact ${columns}-column grid with ${rows} equal rows, in this exact left-to-right then top-to-bottom order: ${items.map((item,index)=>`panel ${index+1}: ${item.name}, ${subjects[item.category]}`).join("; ")}. Every panel must be a distinct, self-contained realistic travel scene with simple composition, natural light and a clear subject. No panel may visually bleed into another. STRICT: no words, labels, letters, numbers, logos, watermarks, captions, UI, readable signs, borders, frames, close-up faces, unrelated city landmarks, childish cartoon, cyberpunk or heavy watercolor. Do not add panel numbers. The server will crop the equal grid into separate 3:2 thumbnails.`;}
+function visualPrompt(destination:string,item:{name:string;category:PosterCategory}){const subjects={attraction:"the actual place-specific landmark, museum, park or natural scenery",food:"local food or neutral dining atmosphere",hotel:"clean calm hotel room or check-in atmosphere",transport:"travel transport scene with luggage, road, train or aircraft as appropriate",rest:"quiet tasteful rest scene",shopping:"the actual local shopping street, district or market atmosphere",entertainment:"local evening or entertainment atmosphere"};return `Create one realistic horizontal travel editorial photograph for the itinerary activity “${item.name}” in ${destination}, China. The image must depict ${subjects[item.category]} and must be semantically specific to this activity, not another activity in the itinerary. Simple composition, natural light, clear subject, 3:2 framing. STRICT: no contact sheet, collage, split panels, words, labels, letters, numbers, logos, watermarks, captions, UI, readable signs, close-up faces, unrelated landmarks, childish cartoon, cyberpunk or heavy watercolor.`;}
 async function loadSharp(){
   try{return (await import("sharp")).default;}
   catch{throw Object.assign(new Error("海报图片处理服务暂时不可用"),{code:"IMAGE_PROCESSING_UNAVAILABLE"});}
@@ -150,14 +150,14 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
         missing.push(activity);
       }
       if(!missing.length)continue;
-      const generated=await provider.generatePosterBackground({prompt:visualPrompt(plan.destination.city,missing),size:"1024x1024",quality:"low",externalId:`poster:${prepared.task.id}:day:${day.dayNumber}`});estimatedCostUsd+=generated.estimatedCostUsd;
-      const crops=await cropContactSheet(generated.dataUrl,missing.length);
       for(let index=0;index<missing.length;index++){
-        const activity=missing[index]!,contentHash=createHash("sha256").update(crops[index]!).digest("hex");
+        const activity=missing[index]!;
+        const generated=await provider.generatePosterBackground({prompt:visualPrompt(plan.destination.city,activity),size:"1024x1024",quality:"low",externalId:`poster:${prepared.task.id}:day:${day.dayNumber}:activity:${index+1}`});estimatedCostUsd+=generated.estimatedCostUsd;
+        const [crop]=await cropContactSheet(generated.dataUrl,1),contentHash=createHash("sha256").update(crop!).digest("hex");
         if(usedContentHashes.has(contentHash))throw Object.assign(new Error("生成了重复活动视觉"),{code:"POSTER_DUPLICATE_VISUAL"});
-        const key=visualKey(plan.destination.city,activity.name,activity.category,model,undefined,contentHash.slice(0,12)),asset={dataUrl:crops[index]!,category:activity.category,altText:`${activity.name} AI视觉示意`,reused:false,cacheKey:key,contentHash};
+        const key=visualKey(plan.destination.city,activity.name,activity.category,model,undefined,contentHash.slice(0,12)),asset={dataUrl:crop!,category:activity.category,altText:`${activity.name} AI视觉示意`,reused:false,cacheKey:key,contentHash};
         results.set(`${day.dayNumber}:${activity.time}:${activity.name}`,asset);usedContentHashes.add(contentHash);usedVisualKeys.add(key);generatedVisuals++;
-        await saveVisualAsset({destination:plan.destination.city,name:activity.name,category:activity.category,model,dataUrl:crops[index]!,cost:generated.estimatedCostUsd/missing.length});
+        await saveVisualAsset({destination:plan.destination.city,name:activity.name,category:activity.category,model,dataUrl:crop!,cost:generated.estimatedCostUsd});
       }
     }
     const hydratedDays=days.map(day=>({...day,activities:day.activities.map(activity=>{const result=results.get(`${day.dayNumber}:${activity.time}:${activity.name}`);if(!result)throw Object.assign(new Error("活动图片缺失"),{code:"POSTER_VISUAL_MISSING"});return {time:activity.time,name:activity.name,note:activity.note,category:activity.category,visualAsset:{id:randomUUID(),cacheKey:result.cacheKey,dataUrl:result.dataUrl,category:result.category,altText:result.altText,reused:result.reused}};})}));

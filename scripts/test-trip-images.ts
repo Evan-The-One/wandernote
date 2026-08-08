@@ -53,6 +53,7 @@ assert.equal(classifyActivityVisual({name:"人民广场附近午餐",type:"meal"
 assert.equal(classifyActivityVisual({name:"外滩附近晚餐",type:"meal"}).visualCategory,"dinner_generic");
 assert.equal(classifyActivityVisual({name:"回酒店休息与取行李",type:"hotel"}).visualCategory,"luggage_pickup");
 assert.equal(classifyActivityVisual({name:"办理入住",type:"hotel"}).visualCategory,"hotel_checkin");
+assert.equal(classifyActivityVisual({name:"上海人民广场附近酒店入住休整",type:"rest"}).visualCategory,"hotel_checkin");
 assert.equal(classifyActivityVisual({name:"昆山出发自驾前往杭州西湖湖滨一带酒店",type:"transport",note:"抵达后办理入住"}).visualCategory,"self_drive_departure");
 assert.equal(classifyActivityVisual({name:"湖滨步行街",type:"shopping",note:"沿街慢走"}).visualCategory,"walking_street");
 assert.equal(classifyActivityVisual({name:"南京西路",type:"meal",note:"附近可以顺路吃晚餐"}).visualCategory,"walking_street","具体街区标题必须优先于错误的活动类型或描述");

@@ -106,7 +106,7 @@ export function classifyActivityVisual(input: ActivityVisualInput): ActivityVisu
   else if (/高铁|动车|火车|铁路|火车站/.test(name)) visualCategory = "train_travel";
   else if (/飞机|机场|航班|候机/.test(name)) visualCategory = "airplane_travel";
   else if (/取行李|取回行李|寄存行李|整理行李|收拾行李|退房|返程准备/.test(name)) visualCategory = "luggage_pickup";
-  else if (/办理入住|酒店前台|入住酒店|先入住|到酒店放行李|抵达住宿地/.test(name)) visualCategory = "hotel_checkin";
+  else if (/办理入住|酒店前台|入住酒店|酒店入住|入住休整|先入住|到酒店放行李|抵达住宿地/.test(name)) visualCategory = "hotel_checkin";
   else if (/回酒店休息|酒店稍作休息|入住后休息|返回住宿地|晚上回酒店|酒店休息|午休/.test(name)) visualCategory = "hotel_room";
   else if (/步行街|商业街|商圈|夜间逛街|沿街慢走|南京西路|湖滨步行街|城隍庙商圈|(?:路|大道)$/.test(name)) visualCategory = "walking_street";
   else if (/老城厢|梧桐街区|历史文化街区|古城街道|老街|胡同|(?:坊|巷|弄|街)$/.test(name)) visualCategory = "historic_street";
@@ -118,7 +118,7 @@ export function classifyActivityVisual(input: ActivityVisualInput): ActivityVisu
   // Strong actions in notes can supplement an ambiguous title, but never outrank a concrete title match above.
   else if (/自驾|开车|驾车|高速/.test(text) && /出发|启程|前往|返程|回程|在途|车程/.test(text)) visualCategory = "self_drive_departure";
   else if (/取行李|取回行李|寄存行李|整理行李|收拾行李|退房|返程准备/.test(text)) visualCategory = "luggage_pickup";
-  else if (/办理入住|酒店前台|入住酒店|先入住|到酒店放行李|抵达住宿地/.test(text)) visualCategory = "hotel_checkin";
+  else if (/办理入住|酒店前台|入住酒店|酒店入住|入住休整|先入住|到酒店放行李|抵达住宿地/.test(text)) visualCategory = "hotel_checkin";
   else if (/回酒店休息|酒店稍作休息|入住后休息|返回住宿地|晚上回酒店|酒店休息|午休/.test(text)) visualCategory = "hotel_room";
   else if (/晚餐|晚饭|夜宵|夜间用餐/.test(text)) visualCategory = "dinner_generic";
   else if (/午餐|中饭|中午用餐|午间小吃/.test(text)) visualCategory = "lunch_generic";
