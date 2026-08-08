@@ -25,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params; const [visitor,user] = await Promise.all([ensureVisitor(),currentUser()]);
     if(!user) throw new HttpError(401,"登录后可生成旅行海报","LOGIN_REQUIRED");
     await assertAiRequestAllowed(request, visitor.visitorId, "travel_poster");
-    const result = await createTravelPosterTask({ tripId: id, visitorId: visitor.visitorId, userId:user.id, aspectRatio: body.data.aspectRatio, idempotencyHash: hashIdempotency(body.data.idempotencyKey), lifetimeLimit: serverConfig.freeLifetimePremiumImageLimit });
+    const result = await createTravelPosterTask({ tripId: id, visitorId: visitor.visitorId, userId:user.id, aspectRatio: body.data.aspectRatio, idempotencyHash: hashIdempotency(body.data.idempotencyKey), lifetimeLimit: serverConfig.freeLifetimePremiumImageLimit, quotedTripVersion:body.data.quotedTripVersion, quotedPageCount:body.data.quotedPageCount, layoutPlanHash:body.data.layoutPlanHash });
     return Response.json(result, { status: result.reused ? 200 : 201 });
   } catch (error) { return apiError(error); }
 }

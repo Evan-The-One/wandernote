@@ -6,6 +6,9 @@ export const tripImageCreateSchema = z.object({
   aspectRatio: tripImageAspectRatioSchema,
   imageType: z.literal("travel_poster").default("travel_poster"),
   idempotencyKey: z.string().trim().min(16).max(100),
+  quotedTripVersion: z.number().int().positive(),
+  quotedPageCount: z.number().int().positive().max(14),
+  layoutPlanHash: z.string().length(64),
 });
 
 const templateActivitySchema = z.object({
@@ -41,22 +44,24 @@ const posterVisualAssetSchema = z.object({
   category: z.enum(["attraction", "food", "hotel", "transport", "rest", "shopping", "entertainment"]), altText: z.string().max(80), reused: z.boolean(),
 });
 const timelinePosterActivitySchema = z.object({
+  sourceActivityId: z.string().min(1).max(100).optional(),
   time: z.string().max(11), name: z.string().max(36), note: z.string().max(64), category: posterVisualAssetSchema.shape.category,
   visualAsset: posterVisualAssetSchema,
 });
 const timelinePosterDaySchema = z.object({
   dayNumber: z.number().int().min(1).max(7), date: z.string().nullable(), title: z.string().max(42), city: z.string().max(32),
-  activities: z.array(timelinePosterActivitySchema).min(1).max(7), tips: z.array(z.string().max(56)).max(4),
+  continuation: z.boolean().optional(), activities: z.array(timelinePosterActivitySchema).min(1).max(12), tips: z.array(z.string().max(56)).max(4),
 });
 const timelinePosterPageSchema = z.object({
-  pageNumber: z.number().int().positive(), dayRange: z.string().max(24), days: z.array(timelinePosterDaySchema).min(1).max(2), tips: z.array(z.string().max(64)).min(1).max(6),
+  pageNumber: z.number().int().positive(), dayRange: z.string().max(24), layoutMode: z.enum(["standard","compact","dense","continuation"]).optional(), days: z.array(timelinePosterDaySchema).min(1).max(2), tips: z.array(z.string().max(64)).min(1).max(6),
 });
 export const timelinePosterV2SpecSchema = z.object({
-  kind: z.literal("travel_poster"), version: z.enum(["shaoxing_timeline_v2","readable_visuals_v3","readable_visuals_v3_1","realistic_generic_visuals_v4","semantic_visuals_v5","semantic_visuals_v5_1","brand_a_v6","brand_a_icon_v7","oneclick_travel_cjk_v8","oneclick_travel_advice_icons_v9","oneclick_travel_semantic_qr_v10","oneclick_travel_semantic_qr_v11"]), tripId: z.string().uuid(), tripVersion: z.number().int().positive(), aspectRatio: z.literal("3:4"),
+  kind: z.literal("travel_poster"), version: z.enum(["shaoxing_timeline_v2","readable_visuals_v3","readable_visuals_v3_1","realistic_generic_visuals_v4","semantic_visuals_v5","semantic_visuals_v5_1","brand_a_v6","brand_a_icon_v7","oneclick_travel_cjk_v8","oneclick_travel_advice_icons_v9","oneclick_travel_semantic_qr_v10","oneclick_travel_semantic_qr_v11","oneclick_travel_dynamic_layout_v12"]), tripId: z.string().uuid(), tripVersion: z.number().int().positive(), aspectRatio: z.literal("3:4"),
   width: z.literal(1024), height: z.literal(1536), title: z.string().max(70), subtitle: z.string().max(90), destination: z.string().max(60), daysCount: z.number().int().min(1).max(7),
-  pages: z.array(timelinePosterPageSchema).min(1).max(4), model: z.string().max(80), quality: z.enum(["low", "medium", "high"]), estimatedCostUsd: z.number().nonnegative(),
+  pages: z.array(timelinePosterPageSchema).min(1).max(14), model: z.string().max(80), quality: z.enum(["low", "medium", "high"]), estimatedCostUsd: z.number().nonnegative(),
+  layoutAudit: z.object({layoutPlanHash:z.string().length(64),expectedActivityIds:z.array(z.string().min(1)),renderedActivityIds:z.array(z.string().min(1)),estimatedHeights:z.array(z.number().nonnegative())}).optional(),
   preTripAdvice: z.object({ transport:z.string().max(36),accommodation:z.string().max(36),clothing:z.string().max(36),photoSpots:z.string().max(36),food:z.string().max(36),timing:z.string().max(36) }).optional(),
-}).superRefine((value,context)=>{const days=value.pages.flatMap(page=>page.days);if(value.pages.length!==Math.ceil(value.daysCount/2))context.addIssue({code:"custom",path:["pages"],message:"海报页数必须按每页最多2天拆分"});if(days.length!==value.daysCount)context.addIssue({code:"custom",path:["pages"],message:"海报必须覆盖全部天数"});if(value.daysCount===2&&value.pages[0]?.days.length!==2)context.addIssue({code:"custom",path:["pages",0,"days"],message:"2天海报必须为左右双栏"});const ids=days.flatMap(day=>day.activities.map(activity=>activity.visualAsset.id));if(new Set(ids).size!==ids.length)context.addIssue({code:"custom",path:["pages"],message:"每个活动必须使用独立视觉资源ID"});value.pages.forEach((page,index)=>{if(page.pageNumber!==index+1)context.addIssue({code:"custom",path:["pages",index,"pageNumber"],message:"页码必须连续"});});});
+}).superRefine((value,context)=>{const days=value.pages.flatMap(page=>page.days),dynamic=value.version==="oneclick_travel_dynamic_layout_v12";if(!dynamic&&value.pages.length!==Math.ceil(value.daysCount/2))context.addIssue({code:"custom",path:["pages"],message:"海报页数必须按每页最多2天拆分"});if(new Set(days.map(day=>day.dayNumber)).size!==value.daysCount)context.addIssue({code:"custom",path:["pages"],message:"海报必须覆盖全部天数"});if(!dynamic&&value.daysCount===2&&value.pages[0]?.days.length!==2)context.addIssue({code:"custom",path:["pages",0,"days"],message:"2天海报必须为左右双栏"});const ids=days.flatMap(day=>day.activities.map(activity=>activity.visualAsset.id));if(new Set(ids).size!==ids.length)context.addIssue({code:"custom",path:["pages"],message:"每个活动必须使用独立视觉资源ID"});if(dynamic){if(!value.layoutAudit)context.addIssue({code:"custom",path:["layoutAudit"],message:"动态分页必须包含完整性审计"});else if(value.layoutAudit.expectedActivityIds.join("|")!==value.layoutAudit.renderedActivityIds.join("|"))context.addIssue({code:"custom",path:["layoutAudit"],message:"活动完整性审计未通过"});}value.pages.forEach((page,index)=>{if(page.pageNumber!==index+1)context.addIssue({code:"custom",path:["pages",index,"pageNumber"],message:"页码必须连续"});});});
 export const travelPosterSpecSchema = z.union([travelPosterV1SpecSchema, timelinePosterV2SpecSchema]);
 export const tripImageOutputSchema = z.union([tripImageTemplateSpecSchema, travelPosterSpecSchema]);
 export const tripImageTaskSchema = z.object({

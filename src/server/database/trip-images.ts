@@ -8,13 +8,13 @@ import { HttpError } from "@/server/http";
 import { createOpenAIImageProvider, staticCityAtmosphere } from "@/server/images/provider";
 import { resolvePreTripAdvice } from "@/features/trip-plan/pre-trip-advice";
 import { classifyActivityVisual, genericVisualCandidates, genericVisualDataUrl, type GenericVisualCategory } from "@/server/images/generic-visuals";
-import { posterPointCost } from "@/config/commerce";
+import {planPosterLayout,validatePosterCompleteness} from "@/server/posters/layout";
 import { sanitizeUnrequestedHotels } from "@/server/validation/trip-plan-quality";
 import {POSTER_RENDER_VERSION,renderPosterPages} from "@/server/posters/render";
 import {deletePoster,posterStorageConfigured,storePrivatePoster} from "@/server/posters/storage";
 
 export const PREMIUM_IMAGE_TEMPLATE_VERSION = "classic_timeline_v1";
-export const TRAVEL_POSTER_VERSION = "oneclick_travel_semantic_qr_v11";
+export const TRAVEL_POSTER_VERSION = "oneclick_travel_dynamic_layout_v12";
 const CREDIT_TYPE = "premium_trip_image";
 
 function compact(value: string, max: number) { return value.replace(/\s+/g, " ").trim().slice(0, max); }
@@ -48,14 +48,14 @@ function categoryFor(visualCategory:GenericVisualCategory|null,type:string):Post
 function cleanNote(value:string){return compact(value.replace(/根据你的需求|综合考虑|代表性地点|核心体验|高含金量|方便后续|也更适合/g,""),32);}
 function posterDays(plan: ReturnType<typeof tripPlanSchema.parse>) {
   return plan.days.map((day) => {
-    const merged=day.activities.reduce<typeof day.activities>((items,activity)=>{if(items.length>=6&&activity.type==="rest")return items;return [...items,activity]},[]).slice(0,6);
+    const merged=day.activities;
     return { dayNumber:day.dayNumber,date:day.date,title:compact(day.title||day.theme,42),city:compact(day.activities.find(a=>a.area)?.area||plan.destination.city,32),tips:day.dayTips.slice(0,2).map(t=>compact(t,56)),activities:merged.map((activity,index)=>{
       const classification=classifyActivityVisual({name:activity.name,type:activity.type,note:activity.reason,area:activity.area,previousName:merged[index-1]?.name,nextName:merged[index+1]?.name,dayTheme:day.theme});
-      return {time:activity.startTime===activity.endTime?activity.startTime:`${activity.startTime}–${activity.endTime}`,name:compact(activity.name,36),note:cleanNote(activity.reason),category:categoryFor(classification.visualCategory,activity.type),visualCategory:classification.visualCategory};
+      return {id:activity.id,time:activity.startTime===activity.endTime?activity.startTime:`${activity.startTime}–${activity.endTime}`,name:compact(activity.name,36),note:cleanNote(activity.reason),category:categoryFor(classification.visualCategory,activity.type),visualCategory:classification.visualCategory};
     }) };
   });
 }
-function splitPosterPages<T>(days:T[]){const pages:T[][]=[];for(let index=0;index<days.length;index+=2)pages.push(days.slice(index,index+2));return pages;}
+export function quoteTravelPoster(rawPlan:unknown,rawInput?:unknown){const parsed=tripPlanSchema.parse(rawPlan),plan=rawInput?sanitizeUnrequestedHotels(parsed,tripInputSchema.parse(rawInput)).plan:parsed,days=posterDays(plan),layout=planPosterLayout(days);return{pageCount:layout.pageCount,requiredPoints:layout.pageCount,layoutPlanHash:layout.layoutPlanHash,totalActivityCount:layout.totalActivityCount};}
 export function normalizePlaceName(value:string){return value.normalize("NFKC").toLowerCase().replace(/[·•\s（）()\-—_]/g,"").replace(/^(中国|[一-龥]{2,8}(省|市|自治区))/,"").replace(/(景区|风景区|旅游区|博物馆馆区|游客中心)$/g,"");}
 function isGenericCategory(category:PosterCategory){return !["attraction","entertainment"].includes(category);}
 function assetName(name:string,category:PosterCategory,generic?:GenericVisualCategory){return isGenericCategory(category)?`__generic_${generic||category}`:name;}
@@ -84,7 +84,7 @@ async function saveVisualAsset(args:{destination:string;name:string;category:Pos
   if(!approved)throw Object.assign(new Error("活动视觉未通过清晰度检查"),{code:"POSTER_VISUAL_QUALITY_FAILED"});
 }
 
-export async function createTravelPosterTask(args: { tripId: string; visitorId: string; userId: string; aspectRatio: TripImageAspectRatio; idempotencyHash: string; lifetimeLimit: number }) {
+export async function createTravelPosterTask(args: { tripId: string; visitorId: string; userId: string; aspectRatio: TripImageAspectRatio; idempotencyHash: string; lifetimeLimit: number; quotedTripVersion:number; quotedPageCount:number; layoutPlanHash:string }) {
   const db = getDatabase();
   const prepared = await withDatabaseTransaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${args.userId}))`);
@@ -97,7 +97,9 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
     const [cached] = await tx.select().from(tripImageTasks).where(and(eq(tripImageTasks.tripId, args.tripId), eq(tripImageTasks.tripVersion, trip.version), eq(tripImageTasks.imageType, "travel_poster"), eq(tripImageTasks.aspectRatio, args.aspectRatio), eq(tripImageTasks.templateVersion, TRAVEL_POSTER_VERSION),sql`${tripImageTasks.status} in ('running','succeeded')`)).limit(1);
     if (cached) return { existing: cached, trip: null };
     if(!posterStorageConfigured())throw new HttpError(503,"海报私有存储尚未配置，暂时不会扣除点数","POSTER_STORAGE_UNAVAILABLE");
-    const points = posterPointCost(tripPlanSchema.parse(trip.currentPlanJson).days.length);
+    const safePlan=sanitizeUnrequestedHotels(tripPlanSchema.parse(trip.currentPlanJson),tripInputSchema.parse(trip.inputJson)).plan,layoutPlan=planPosterLayout(posterDays(safePlan));
+    if(args.quotedTripVersion!==trip.version||args.quotedPageCount!==layoutPlan.pageCount||args.layoutPlanHash!==layoutPlan.layoutPlanHash)throw new HttpError(409,"行程已更新，请确认新的海报页数和点数","POSTER_QUOTE_STALE");
+    const points = layoutPlan.pageCount;
     await tx.insert(pointAccounts).values({userId:args.userId}).onConflictDoNothing({target:pointAccounts.userId});
     const [account]=await tx.select().from(pointAccounts).where(eq(pointAccounts.userId,args.userId)).limit(1);
     if(!account||account.availablePoints<points)throw new HttpError(402,`生成这份海报需要${points}点，当前点数不足`,"INSUFFICIENT_POINTS");
@@ -107,14 +109,14 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
     const balance=account.availablePoints-points;
     await tx.update(pointAccounts).set({availablePoints:balance,reservedPoints:account.reservedPoints+points,updatedAt:new Date()}).where(eq(pointAccounts.userId,args.userId));
     await tx.insert(pointLedger).values({userId:args.userId,type:"poster_reserve",amount:-points,balanceAfter:balance,businessKey:`${creditKey}:${task.id}:reserve`,tripId:args.tripId,taskId:task.id,metadata:{points,templateVersion:TRAVEL_POSTER_VERSION}});
-    return { existing: null, trip, task, creditKey, points };
+    return { existing: null, trip, task, creditKey, points, layoutPlan };
   });
   if (prepared.existing) {const [account]=await db.select().from(pointAccounts).where(eq(pointAccounts.userId,args.userId)).limit(1);return { task: serializeTask(prepared.existing), reused: true, remaining:account?.availablePoints??0, requiredPoints: prepared.existing.outputJson ? 0 : null };}
   if (!prepared.trip || !prepared.task || !prepared.creditKey || !prepared.points) throw new HttpError(500, "海报任务创建失败", "IMAGE_TASK_ERROR");
   const started = performance.now();
   const storedKeys:string[]=[];
   try {
-    const input=tripInputSchema.parse(prepared.trip.inputJson);const plan=sanitizeUnrequestedHotels(tripPlanSchema.parse(prepared.trip.currentPlanJson),input).plan; const days = posterDays(plan); const provider = createOpenAIImageProvider();
+    const input=tripInputSchema.parse(prepared.trip.inputJson);const plan=sanitizeUnrequestedHotels(tripPlanSchema.parse(prepared.trip.currentPlanJson),input).plan; const days = posterDays(plan); const layoutPlan=planPosterLayout(days);if(layoutPlan.layoutPlanHash!==prepared.layoutPlan?.layoutPlanHash)throw Object.assign(new Error("海报布局报价已失效"),{code:"POSTER_QUOTE_STALE"});const initialAudit=validatePosterCompleteness(layoutPlan);if(!initialAudit.valid)throw Object.assign(new Error("海报活动完整性检查未通过"),{code:"POSTER_ACTIVITY_AUDIT_FAILED"}); const provider = createOpenAIImageProvider();
     if (!provider.enabled) throw Object.assign(new Error("图片服务尚未配置"), { code: "IMAGE_PROVIDER_DISABLED" });
     const model=process.env.OPENAI_IMAGE_MODEL||"gpt-image-2";const cache=await loadVisualCache();let estimatedCostUsd=0;let reusedCount=0;let generatedVisuals=0;let genericVisuals=0;
     type SelectedVisual={dataUrl:string;category:PosterCategory;altText:string;reused:boolean;cacheKey:string;contentHash:string};
@@ -122,7 +124,7 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
     for(const day of days){
       const missing:typeof day.activities=[];
       for(const activity of day.activities){
-        const resultKey=`${day.dayNumber}:${activity.time}:${activity.name}`;
+        const resultKey=activity.id;
         if(activity.visualCategory){
           const visualCategory=activity.visualCategory,candidates=genericVisualCandidates(visualCategory);
           let selected:SelectedVisual|undefined;
@@ -156,15 +158,15 @@ export async function createTravelPosterTask(args: { tripId: string; visitorId: 
         const [crop]=await cropContactSheet(generated.dataUrl,1),contentHash=createHash("sha256").update(crop!).digest("hex");
         if(usedContentHashes.has(contentHash))throw Object.assign(new Error("生成了重复活动视觉"),{code:"POSTER_DUPLICATE_VISUAL"});
         const key=visualKey(plan.destination.city,activity.name,activity.category,model,undefined,contentHash.slice(0,12)),asset={dataUrl:crop!,category:activity.category,altText:`${activity.name} AI视觉示意`,reused:false,cacheKey:key,contentHash};
-        results.set(`${day.dayNumber}:${activity.time}:${activity.name}`,asset);usedContentHashes.add(contentHash);usedVisualKeys.add(key);generatedVisuals++;
+        results.set(activity.id,asset);usedContentHashes.add(contentHash);usedVisualKeys.add(key);generatedVisuals++;
         await saveVisualAsset({destination:plan.destination.city,name:activity.name,category:activity.category,model,dataUrl:crop!,cost:generated.estimatedCostUsd});
       }
     }
-    const hydratedDays=days.map(day=>({...day,activities:day.activities.map(activity=>{const result=results.get(`${day.dayNumber}:${activity.time}:${activity.name}`);if(!result)throw Object.assign(new Error("活动图片缺失"),{code:"POSTER_VISUAL_MISSING"});return {time:activity.time,name:activity.name,note:activity.note,category:activity.category,visualAsset:{id:randomUUID(),cacheKey:result.cacheKey,dataUrl:result.dataUrl,category:result.category,altText:result.altText,reused:result.reused}};})}));
-    const hydratedPages=splitPosterPages(hydratedDays).map((page,index)=>({pageNumber:index+1,dayRange:`DAY ${page[0]!.dayNumber}${page.length>1?`–${page.at(-1)!.dayNumber}`:""}`,days:page,tips:[...new Set(page.flatMap(day=>day.tips))].slice(0,6).concat("景点图片为 AI 视觉示意，请以实际现场为准。").slice(0,6)}));
-    const output = travelPosterSpecSchema.parse({ kind:"travel_poster",version:TRAVEL_POSTER_VERSION,tripId:args.tripId,tripVersion:prepared.trip.version,aspectRatio:"3:4",width:1024,height:1536,title:compact(plan.title,70),subtitle:compact(plan.summary,90),destination:plan.destination.city,daysCount:days.length,pages:hydratedPages,preTripAdvice:resolvePreTripAdvice(plan,prepared.trip.inputJson),model,quality:"low",estimatedCostUsd });
+    const hydratedById=new Map(days.flatMap(day=>day.activities).map(activity=>{const result=results.get(activity.id);if(!result)throw Object.assign(new Error("活动图片缺失"),{code:"POSTER_VISUAL_MISSING"});return[activity.id,{sourceActivityId:activity.id,time:activity.time,name:activity.name,note:activity.note,category:activity.category,visualAsset:{id:randomUUID(),cacheKey:result.cacheKey,dataUrl:result.dataUrl,category:result.category,altText:result.altText,reused:result.reused}}] as const;}));
+    const hydratedPages=layoutPlan.pages.map(page=>{const dayNumbers=[...new Set(page.days.map(day=>day.dayNumber))];return{pageNumber:page.pageNumber,layoutMode:page.layoutMode,dayRange:`DAY ${dayNumbers[0]}${dayNumbers.length>1?`–${dayNumbers.at(-1)}`:""}`,days:page.days.map(day=>({...day,activities:day.activities.map(activity=>hydratedById.get(activity.id)!)})),tips:[...new Set(page.days.flatMap(day=>day.tips))].slice(0,5).concat("景点图片为 AI 视觉示意，请以实际现场为准。").slice(0,6)}});
+    const output = travelPosterSpecSchema.parse({ kind:"travel_poster",version:TRAVEL_POSTER_VERSION,tripId:args.tripId,tripVersion:prepared.trip.version,aspectRatio:"3:4",width:1024,height:1536,title:compact(plan.title,70),subtitle:compact(plan.summary,90),destination:plan.destination.city,daysCount:days.length,pages:hydratedPages,layoutAudit:{layoutPlanHash:layoutPlan.layoutPlanHash,expectedActivityIds:layoutPlan.expectedActivityIds,renderedActivityIds:layoutPlan.renderedActivityIds,estimatedHeights:layoutPlan.estimatedHeights},preTripAdvice:resolvePreTripAdvice(plan,prepared.trip.inputJson),model,quality:"low",estimatedCostUsd });
     if(!("width" in output))throw Object.assign(new Error("当前模板无法服务端渲染"),{code:"POSTER_RENDER_UNSUPPORTED"});
-    const rendered=await renderPosterPages(output),pageRows=[] as Array<typeof posterPages.$inferInsert>;
+    const finalAudit=validatePosterCompleteness(layoutPlan),outputActivityIds=output.pages.flatMap(page=>page.days.flatMap(day=>day.activities.map(activity=>activity.sourceActivityId)));if(!finalAudit.valid||outputActivityIds.join("|")!==layoutPlan.expectedActivityIds.join("|"))throw Object.assign(new Error("海报活动完整性检查未通过"),{code:"POSTER_ACTIVITY_AUDIT_FAILED"});const rendered=await renderPosterPages(output);if(rendered.length!==layoutPlan.pageCount)throw Object.assign(new Error("海报页数与报价不一致"),{code:"POSTER_PAGE_COUNT_MISMATCH"});const pageRows=[] as Array<typeof posterPages.$inferInsert>;
     for(const[pageIndex,jpeg]of rendered.entries()){
       const checksum=createHash("sha256").update(jpeg).digest("hex"),ownerKey=createHash("sha256").update(args.userId).digest("hex").slice(0,24),storageKey=`posters/${ownerKey}/${args.tripId}/${prepared.task.id}/page-${String(pageIndex+1).padStart(2,"0")}-${checksum.slice(0,16)}.jpg`;
       await storePrivatePoster(storageKey,jpeg);
@@ -226,9 +228,8 @@ export async function listTripImageTasks(tripId: string, visitorId: string | nul
   const rows = await db.select().from(tripImageTasks).where(eq(tripImageTasks.tripId, tripId)).orderBy(desc(tripImageTasks.createdAt)).limit(30);
   const canGenerate = Boolean(userId && ownerUserId === userId);
   const [account]=userId?await db.select().from(pointAccounts).where(eq(pointAccounts.userId,userId)).limit(1):[];
-  const trip=rows[0]?.outputJson?tripImageOutputSchema.safeParse(rows[0].outputJson):null;
-  const requiredPoints=trip?.success&&"kind" in trip.data&&trip.data.kind==="travel_poster"?posterPointCost(trip.data.daysCount):null;
-  return { tasks: rows.map(serializeTask), canGenerate, authenticated:Boolean(userId), remaining: canGenerate ? account?.availablePoints??0 : 0, requiredPoints, paymentsEnabled:process.env.PAYMENTS_ENABLED==="true" };
+  const [trip]=await db.select({version:trips.version,currentPlanJson:trips.currentPlanJson,inputJson:trips.inputJson}).from(trips).where(eq(trips.id,tripId)).limit(1);const quote=trip?.currentPlanJson?quoteTravelPoster(trip.currentPlanJson,trip.inputJson):null;
+  return { tasks: rows.map(serializeTask), canGenerate, authenticated:Boolean(userId), remaining: canGenerate ? account?.availablePoints??0 : 0, requiredPoints:quote?.requiredPoints??null,pageCount:quote?.pageCount??null,layoutPlanHash:quote?.layoutPlanHash??null,quotedTripVersion:trip?.version??null,paymentsEnabled:process.env.PAYMENTS_ENABLED==="true" };
 }
 
 export async function getImageAdminMetrics(since: Date) {

@@ -4,8 +4,9 @@ import {join} from "node:path";
 import type{TravelPosterSpec}from "@/schemas/trip-image";
 import {assertPosterTextAudit,outlinedText} from "./font-paths";
 import QRCode from "qrcode";
+import {POSTER_LAYOUT_TOKENS} from "./layout";
 
-export const POSTER_RENDER_VERSION="sharp_svg_outlined_cjk_qr_v6";
+export const POSTER_RENDER_VERSION="sharp_svg_dynamic_layout_qr_v7";
 export const POSTER_QR_URL="https://www.yjchufa.com/?utm_source=poster&utm_medium=qr&utm_campaign=share";
 const WIDTH=1024,HEIGHT=1536;
 const wrap=(value:string,max:number,lines=2)=>{const chars=[...value.trim()],out:string[]=[];while(chars.length&&out.length<lines)out.push(chars.splice(0,max).join(""));return out};
@@ -35,7 +36,7 @@ export async function renderPosterPages(spec:Extract<TravelPosterSpec,{width:102
     for(const[index,line]of wrap(spec.title,22,2).entries())svg+=text(40,62+index*46,line,42,800,"#174c37");
     svg+=text(40,142,`${spec.destination} · ${spec.daysCount}天 · ${page.dayRange}`,18,600,"#68766e")+text(984,52,`${pageIndex+1} / ${spec.pages.length}`,16,700,"#a87930","end");
     svg+=rounded(40,150,92,8,4,"#f2c14e");
-    const columns=page.days.length,gap=18,left=24,cardWidth=columns===2?(WIDTH-left*2-gap)/2:WIDTH-left*2,top=172,bottom=1266,cardHeight=bottom-top;
+    const columns=page.days.length,gap=18,left=24,cardWidth=columns===2?(WIDTH-left*2-gap)/2:WIDTH-left*2,top=POSTER_LAYOUT_TOKENS.contentTop,bottom=POSTER_LAYOUT_TOKENS.finalContentBottom,cardHeight=bottom-top;
     const composites:Array<{input:Buffer;left:number;top:number}>=[];
     for(const[column,day]of page.days.entries()){
       const x=Math.round(left+column*(cardWidth+gap));svg+=rounded(x,top,Math.round(cardWidth),cardHeight,22,"#ffffff","#d8e4da")+rounded(x+8,top+8,Math.round(cardWidth-16),66,16,"#1f6b4f");
@@ -50,8 +51,9 @@ export async function renderPosterPages(spec:Extract<TravelPosterSpec,{width:102
         const visual=await sharp(dataBuffer(activity.visualAsset.dataUrl)).resize(imageW,imageH,{fit:"cover"}).jpeg({quality:86}).toBuffer();composites.push({input:visual,left:imageX,top:rowY+9});
       }
     }
-    const tips=(spec.preTripAdvice&&pageIndex===spec.pages.length-1?[spec.preTripAdvice.transport,spec.preTripAdvice.accommodation,spec.preTripAdvice.clothing,spec.preTripAdvice.photoSpots,spec.preTripAdvice.food,spec.preTripAdvice.timing]:page.tips).filter(Boolean).slice(0,6);
-    svg+=rounded(40,1284,944,170,22,"#eef5ec","#d8e4da")+rounded(56,1298,122,30,15,"#1f6b4f")+text(117,1319,"出发前看一眼",16,800,"#fff","middle");tips.forEach((tip,index)=>{const col=index%3,row=Math.floor(index/3),x=58+col*306,y=1338+row*58;svg+=rounded(x,y,30,30,10,index%2===0?"#dcead9":"#fff2d9")+adviceIcon(index,x+1,y+1)+text(x+39,y+13,adviceLabels[index]||"旅行提醒",14,800,"#245b46");wrap(tip,15,2).forEach((line,n)=>svg+=text(x+39,y+33+n*16,line,12,500,"#526159"));});
+    const isFinalPage=pageIndex===spec.pages.length-1;
+    if(isFinalPage){const tips=(spec.preTripAdvice?[spec.preTripAdvice.transport,spec.preTripAdvice.accommodation,spec.preTripAdvice.clothing,spec.preTripAdvice.photoSpots,spec.preTripAdvice.food,spec.preTripAdvice.timing]:page.tips).filter(Boolean).slice(0,6);svg+=rounded(40,1284,944,170,22,"#eef5ec","#d8e4da")+rounded(56,1298,122,30,15,"#1f6b4f")+text(117,1319,"出发前看一眼",16,800,"#fff","middle");tips.forEach((tip,index)=>{const col=index%3,row=Math.floor(index/3),x=58+col*306,y=1338+row*58;svg+=rounded(x,y,30,30,10,index%2===0?"#dcead9":"#fff2d9")+adviceIcon(index,x+1,y+1)+text(x+39,y+13,adviceLabels[index]||"旅行提醒",14,800,"#245b46");wrap(tip,15,2).forEach((line,n)=>svg+=text(x+39,y+33+n*16,line,12,500,"#526159"));});}
+    else svg+=rounded(40,1302,944,58,18,"#eef5ec","#d8e4da")+text(512,1338,"行程继续到下一页 · 已保留全部活动",15,700,"#526159","middle");
     svg+=text(60,1471,"景点图片为 AI 视觉示意，请以实际现场为准。",12,500,"#68766e")+text(530,1498,"一键出发",20,800,"#245b46","middle")+text(530,1518,"OneClick Travel",12,600,"#a87930","middle")+text(530,1534,"yjchufa.com",12,500,"#718078","middle");
     if(qrCode)svg+=text(882,1496,"扫码安排旅行",13,700,"#245b46","end");
     svg+=`</svg>`;
