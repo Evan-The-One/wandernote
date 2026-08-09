@@ -4,18 +4,13 @@ import { HangzhouSamplePreview } from "@/features/trip-plan/hangzhou-sample-prev
 import { hasBetaAccess } from "@/server/auth/visitor";
 import { serverConfig } from "@/server/config";
 import {AppIcon,type AppIconName} from "@/components/app-icons";
-import {posterExamples} from "@/config/poster-examples";
-import Image from "next/image";
+import {PosterExampleGallery} from "@/features/trip-plan/poster-example-gallery";
 
 function HomePosterShowcase({mobile=false}:{mobile?:boolean}){
-  const example=posterExamples[0];
-  if(!example)return null;
   return <section className={mobile?"home-poster-showcase-mobile app-container pb-5 pt-4":"home-poster-showcase-desktop mt-8"} aria-label="旅行海报示例">
     <div className="overflow-hidden rounded-[24px] border border-[var(--border-soft)] bg-white p-3 shadow-[0_16px_38px_rgba(23,79,59,.08)] sm:p-4">
-      <div className="grid grid-cols-[124px_1fr] items-center gap-4 sm:grid-cols-[156px_1fr]">
-        <Image src={example.thumbnailAsset} alt={`${example.title}旅行海报示例`} width={1024} height={1536} className="h-auto w-full rounded-[16px] border border-[var(--border-soft)]" sizes={mobile?"124px":"156px"}/>
-        <div className="min-w-0 pr-1"><p className="text-xs font-bold text-[var(--warning)]">生成后的效果</p><h2 className="mt-1.5 text-lg font-bold leading-7 text-[var(--text-strong)]">看看生成后的旅行海报</h2><p className="mt-1.5 text-sm leading-6 text-[var(--text-secondary)]">行程规划好之后，还能生成清晰、适合保存分享的专属海报。</p><a href="/sample-plan" className="mt-3 inline-flex min-h-11 items-center font-semibold text-[var(--brand-primary)]">看看完整示例 <span aria-hidden="true" className="ml-1">→</span></a></div>
-      </div>
+      <p className="text-xs font-bold text-[var(--warning)]">旅行海报示例</p>
+      <PosterExampleGallery context="home" />
     </div>
   </section>;
 }

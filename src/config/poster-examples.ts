@@ -25,4 +25,16 @@ export const posterExamples: PosterExample[] = [
     enabled: true,
     createdAt: "2026-07-18",
   },
+  {
+    id: "suzhou-two-day",
+    title: "苏州2日轻松玩",
+    subtitle: "苏州示例",
+    days: 2,
+    destination: "苏州",
+    thumbnailAsset: "/examples/suzhou-travel-poster-example.jpg",
+    fullAsset: "/examples/suzhou-travel-poster-example.jpg",
+    sortOrder: 20,
+    enabled: true,
+    createdAt: "2026-08-09",
+  },
 ].filter((item) => item.enabled).sort((a, b) => a.sortOrder - b.sortOrder);

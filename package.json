@@ -32,6 +32,7 @@
     "test:brand-theme": "node scripts/test-brand-theme.mjs",
     "test:app-shell": "node scripts/test-app-shell.mjs",
     "test:poster-read-trips": "node scripts/test-poster-read-and-trips.mjs",
+    "test:poster-examples": "node scripts/test-poster-examples.mjs",
     "test:poster-cjk": "tsx scripts/test-poster-cjk-render.ts",
     "check:miniapp-network": "node scripts/check-miniapp-network.mjs"
   },
