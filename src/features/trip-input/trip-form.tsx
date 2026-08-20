@@ -539,10 +539,11 @@ export function TripForm() {
     }
     setSubmitting(true);
     setError("");
-    trackEvent("generate_clicked", {
+    trackEvent("trip_generate_clicked", {
       pageName: "home",
-      metadata: { style: result.data.travelStyle, days: result.data.days },
+      metadata: { pace: result.data.travelStyle, days: result.data.days },
     });
+    trackEvent("generate_clicked", {pageName:"home",metadata:{style:result.data.travelStyle,days:result.data.days}});
     window.localStorage.setItem(INPUT_KEY, JSON.stringify(result.data));
     window.localStorage.setItem(LEGACY_INPUT_KEY, JSON.stringify(result.data));
     window.localStorage.removeItem("wandernote:generated-plan");
@@ -552,7 +553,7 @@ export function TripForm() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if(step===1){if(!destination.trim()){setError("先告诉我想去哪里");return;}if(days<1){setDaysError("先选择旅行天数");return;}setError("");setStep(2);return;}
+    if(step===1){trackEvent("trip_step1_started",{pageName:"home"});if(!destination.trim()){setError("先告诉我想去哪里");return;}if(days<1){setDaysError("先选择旅行天数");return;}trackEvent("destination_selected",{pageName:"home"});trackEvent("days_selected",{pageName:"home",metadata:{days}});trackEvent("trip_step1_completed",{pageName:"home",metadata:{days}});trackEvent("trip_step2_started",{pageName:"home"});setError("");setStep(2);return;}
     const identified = identifyDestination(destination);
     if (destinationSelection && destinationSelection.city === destination) {
       startGeneration(destinationSelection);

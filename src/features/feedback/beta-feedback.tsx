@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 const ratings = [["helpful", "很有帮助"], ["usable", "基本可用"], ["not_helpful", "不太有用"]] as const;
-const tags = [["too_full", "行程太满"], ["bad_route", "路线不合理"], ["inaccurate_place", "地点不准确"], ["bad_budget", "预算不合理"], ["preference_mismatch", "不符合偏好"], ["other", "其他"]] as const;
+const tags = [["bad_route", "行程不合理"], ["time_issue", "时间安排问题"], ["image_mismatch", "图片不匹配"], ["poster_issue", "海报问题"], ["unclear_operation", "操作不清楚"], ["other", "其他建议"]] as const;
 
 export function BetaFeedback({ tripId }: { tripId: string }) {
   const [rating, setRating] = useState<typeof ratings[number][0] | null>(null); const [selected, setSelected] = useState<string[]>([]); const [comment, setComment] = useState(""); const [status, setStatus] = useState("");

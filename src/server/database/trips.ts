@@ -158,6 +158,6 @@ export async function finishRevisionJob(jobId: string, code: string, durationMs:
   await getDatabase().update(generationJobs).set({ status: "failed", errorCode: code, durationMs, completedAt: new Date() }).where(eq(generationJobs.id, jobId));
 }
 
-export async function saveFeedback(tripId: string, visitorId: string, rating: "helpful" | "usable" | "not_helpful", issueTags: string[], comment: string | null) {
-  await getDatabase().insert(feedback).values({ tripId, visitorId, rating, issueTagsJson: issueTags, comment });
+export async function saveFeedback(tripId: string, visitorId: string, rating: "helpful" | "usable" | "not_helpful", issueTags: string[], comment: string | null,feedbackType="trip",posterTaskId:string|null=null) {
+  await getDatabase().insert(feedback).values({ tripId, visitorId, rating, issueTagsJson: issueTags, comment,feedbackType,posterTaskId });
 }

@@ -166,8 +166,12 @@ export const feedback = pgTable("feedback", {
   rating: text("rating", { enum: ["helpful", "usable", "not_helpful"] }).notNull(),
   issueTagsJson: jsonb("issue_tags_json").$type<string[]>().notNull().default([]),
   comment: text("comment"),
+  feedbackType: text("feedback_type").notNull().default("trip"),
+  posterTaskId: uuid("poster_task_id"),
+  status: text("status", { enum: ["new", "reviewing", "resolved"] }).notNull().default("new"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [index("feedback_trip_idx").on(table.tripId)]);
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("feedback_trip_idx").on(table.tripId),index("feedback_status_created_idx").on(table.status,table.createdAt)]);
 
 export const analyticsEvents = pgTable("analytics_events", {
   id: uuid("id").defaultRandom().primaryKey(), visitorId: uuid("visitor_id").notNull().references(() => visitors.id, { onDelete: "cascade" }),

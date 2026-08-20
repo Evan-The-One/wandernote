@@ -26,6 +26,7 @@ export async function POST(request: Request) {
   const requestId = randomBytes(6).toString("hex");
   let stage = "request_validation";
   let created: { tripId: string; jobId: string } | null = null;
+  let analyticsVisitorId: string | null = null;
   let principalType: "anonymous" | "user" = "anonymous";
   try {
     if (!serverConfig.aiEnabled) throw new HttpError(503, "AI生成服务暂时关闭，请稍后再来", "AI_DISABLED");
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
     if (!input.success) throw new HttpError(400, "旅行需求格式无效，请检查填写内容", "INVALID_TRIP_INPUT");
     stage = "visitor_identity";
     const { visitorId } = await databaseStage(() => ensureVisitor());
+    analyticsVisitorId=visitorId;
     const user = await databaseStage(() => currentUser());
     const access = await databaseStage(() => resolveGenerationAccess(user?.id));
     principalType = user ? "user" : "anonymous";
@@ -58,11 +60,12 @@ export async function POST(request: Request) {
     const persistedPlan = { ...plan, tripId: created.tripId, status: "completed" as const, updatedAt: new Date().toISOString() };
     stage = "database_persist";
     await databaseStage(() => completeTrip(created!.tripId, created!.jobId, persistedPlan, Math.round(performance.now() - startedAt)));
+    await recordAnalyticsEvent({visitorId,tripId:created.tripId,eventName:"trip_generation_succeeded",status:"completed",durationMs:Math.round(performance.now()-startedAt),metadata:{days:input.data.days,pace:input.data.travelStyle}}).catch(()=>undefined);
     console.info("trip_generation_completed", JSON.stringify({ requestId, generationJobId:created.jobId, tripId:created.tripId, principalType, durationMs:Math.round(performance.now()-startedAt) }));
     return Response.json({ tripId: created.tripId, requestId }, { status: 201, headers:{"x-request-id":requestId} });
   } catch (error) {
     const code=error instanceof HttpError ? error.code : "GENERATION_UNKNOWN";
-    if (created) await failJob(created.tripId, created.jobId, code, Math.round(performance.now() - startedAt)).catch(() => undefined);
+    if (created) {await failJob(created.tripId, created.jobId, code, Math.round(performance.now() - startedAt)).catch(() => undefined);if(analyticsVisitorId)await recordAnalyticsEvent({visitorId:analyticsVisitorId,tripId:created.tripId,eventName:"trip_generation_failed",status:"failed",durationMs:Math.round(performance.now()-startedAt),errorCategory:code,metadata:{failureCode:code}}).catch(()=>undefined);}
     console.warn("trip_generation_failed",JSON.stringify({requestId,generationJobId:created?.jobId||null,tripId:created?.tripId||null,principalType,stage,errorCode:code,durationMs:Math.round(performance.now()-startedAt)}));
     return apiError(error,{requestId,stage});
   }

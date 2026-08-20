@@ -1,0 +1,35 @@
+import {createHash} from "node:crypto";
+import {desc,gte} from "drizzle-orm";
+import {hasAdminAccess} from "@/server/auth/admin";
+import {getDatabase} from "@/server/database/client";
+import {analyticsEvents,feedback,generationJobs,tripImageTasks,trips,users} from "@/server/database/schema";
+
+const funnelSteps=[
+  ["home_view","访问首页"],["trip_step1_started","开始填写"],["trip_step1_completed","完成 Step 1"],["trip_step2_started","进入 Step 2"],["trip_generate_clicked","点击生成"],["trip_generation_succeeded","生成成功"],["trip_viewed","查看结果"],["poster_examples_viewed","查看海报示例"],["poster_quote_viewed","查看海报报价"],["poster_generation_confirmed","确认生成海报"],["poster_generation_succeeded","海报生成成功"],
+] as const;
+const percentile=(values:number[],ratio:number)=>values.length?[...values].sort((a,b)=>a-b)[Math.min(values.length-1,Math.floor((values.length-1)*ratio))]!:0;
+const hash=(value:string)=>createHash("sha256").update(value).digest("hex").slice(0,12);
+
+export async function GET(){
+  if(!await hasAdminAccess())return Response.json({error:"未授权"},{status:401});
+  const now=Date.now(),since=new Date(now-30*86_400_000),db=getDatabase();
+  const[events,jobs,posterTasks,tripRows,feedbackRows,userRows]=await Promise.all([
+    db.select().from(analyticsEvents).where(gte(analyticsEvents.createdAt,since)).orderBy(desc(analyticsEvents.createdAt)).limit(20_000),
+    db.select().from(generationJobs).where(gte(generationJobs.createdAt,since)).orderBy(desc(generationJobs.createdAt)).limit(10_000),
+    db.select().from(tripImageTasks).where(gte(tripImageTasks.createdAt,since)).orderBy(desc(tripImageTasks.createdAt)).limit(5_000),
+    db.select({id:trips.id,userId:trips.userId,visitorId:trips.visitorId,status:trips.status,createdAt:trips.createdAt,updatedAt:trips.updatedAt}).from(trips).where(gte(trips.createdAt,since)).limit(10_000),
+    db.select({tripId:feedback.tripId,createdAt:feedback.createdAt}).from(feedback).where(gte(feedback.createdAt,since)).limit(5_000),
+    db.select({id:users.id,createdAt:users.createdAt,lastLoginAt:users.lastLoginAt}).from(users).where(gte(users.createdAt,since)).limit(5_000),
+  ]);
+  const ranges=[1,7,30].map(days=>{
+    const start=now-days*86_400_000,scoped=events.filter(item=>item.createdAt.getTime()>=start);
+    const visitorsFor=(names:string[])=>new Set(scoped.filter(item=>names.includes(item.eventName)).map(item=>item.visitorId)).size;
+    const steps=funnelSteps.map(([event,label],index)=>{const legacy:string=event==="home_view"?"page_view":event==="trip_generate_clicked"?"generate_clicked":event==="poster_examples_viewed"?"poster_example_impression":event==="poster_generation_confirmed"?"poster_generation_started":event;const count=visitorsFor([event,legacy]);const previous=index===0?count:visitorsFor([funnelSteps[index-1]![0]]);return{event,label,count,fromPrevious:previous?count/previous:0}});
+    const get=(event:string)=>steps.find(item=>item.event===event)?.count||0,home=get("home_view"),tripSuccess=get("trip_generation_succeeded"),quote=get("poster_quote_viewed"),posterSuccess=get("poster_generation_succeeded");
+    return{days,steps,homeToTrip:home?tripSuccess/home:0,tripToQuote:tripSuccess?quote/tripSuccess:0,quoteToPoster:quote?posterSuccess/quote:0};
+  });
+  const health=[1,7].map(days=>{const start=now-days*86_400_000,scopedJobs=jobs.filter(item=>item.createdAt.getTime()>=start),full=scopedJobs.filter(item=>item.type==="full_generation"),revision=scopedJobs.filter(item=>item.type==="day_revision"),posters=posterTasks.filter(item=>item.createdAt.getTime()>=start),posterDurations=posters.map(item=>item.durationMs||0).filter(Boolean),tripDurations=full.map(item=>item.durationMs||0).filter(Boolean);const usage=events.filter(item=>item.createdAt.getTime()>=start&&item.eventName==="ai_usage");const cost=(needle:string)=>usage.filter(item=>String(item.metadata.requestType||"").includes(needle)).reduce((sum,item)=>sum+Number(item.metadata.estimatedCostUsd||0),0);return{days,trip:{requests:full.length,succeeded:full.filter(item=>item.status==="completed").length,failed:full.filter(item=>item.status==="failed").length,successRate:full.length?full.filter(item=>item.status==="completed").length/full.length:0,p50Ms:percentile(tripDurations,.5),p95Ms:percentile(tripDurations,.95)},revision:{requests:revision.length,successRate:revision.length?revision.filter(item=>item.status==="completed").length/revision.length:0},poster:{quotes:events.filter(item=>item.createdAt.getTime()>=start&&item.eventName==="poster_quote_viewed").length,requests:posters.length,succeeded:posters.filter(item=>item.status==="succeeded").length,failed:posters.filter(item=>item.status==="failed").length,successRate:posters.length?posters.filter(item=>item.status==="succeeded").length/posters.length:0,averagePages:posters.length?posters.reduce((sum,item)=>sum+Number(item.outputJson?.pageCount||0),0)/posters.length:0,p50Ms:percentile(posterDurations,.5),p95Ms:percentile(posterDurations,.95)},visual:{cacheHit:events.filter(item=>item.createdAt.getTime()>=start&&item.eventName==="visual_cache_hit").length,generated:events.filter(item=>item.createdAt.getTime()>=start&&item.eventName==="visual_generated").length,fallback:events.filter(item=>item.createdAt.getTime()>=start&&item.eventName==="visual_fallback_used").length},cost:{trip:cost("trip_plan"),poster:posters.reduce((sum,item)=>sum+Number(item.estimatedCostUsd||0),0),total:usage.reduce((sum,item)=>sum+Number(item.metadata.estimatedCostUsd||0),0)+posters.reduce((sum,item)=>sum+Number(item.estimatedCostUsd||0),0)}}});
+  const principals=new Map<string,Date[]>();for(const event of events){const key=event.visitorId;const dates=principals.get(key)||[];dates.push(event.createdAt);principals.set(key,dates)}const newUsers=userRows.length,returnedNextDay=[...principals.values()].filter(dates=>dates.some(first=>dates.some(next=>next.getTime()-first.getTime()>=86_400_000&&next.getTime()-first.getTime()<2*86_400_000))).length,returnedSevenDays=[...principals.values()].filter(dates=>Math.max(...dates.map(d=>d.getTime()))-Math.min(...dates.map(d=>d.getTime()))>=86_400_000).length;const groupedTrips=new Map<string,number>();for(const trip of tripRows){const key=trip.userId||trip.visitorId;groupedTrips.set(key,(groupedTrips.get(key)||0)+1)}const tripCreators=groupedTrips.size,secondTrip=[...groupedTrips.values()].filter(count=>count>=2).length;
+  const betaUsers=userRows.slice(0,100).map(user=>{const owned=tripRows.filter(trip=>trip.userId===user.id),ids=new Set(owned.map(trip=>trip.id));return{userHash:hash(user.id),trips:owned.length,succeeded:owned.filter(trip=>trip.status==="completed").length,failed:owned.filter(trip=>trip.status==="failed").length,posters:posterTasks.filter(task=>ids.has(task.tripId)).length,feedback:feedbackRows.filter(item=>ids.has(item.tripId)).length,lastActiveAt:user.lastLoginAt?.toISOString()||user.createdAt.toISOString()}});
+  return Response.json({ranges,health,retention:{newUsers,returnedNextDay,returnedSevenDays,secondTripRate:tripCreators?secondTrip/tripCreators:0},betaUsers});
+}

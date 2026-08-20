@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+import {BetaDashboard} from "./beta-dashboard";
 
 type Data = {
   metrics: Record<string, number>;
@@ -166,6 +167,7 @@ export function AnalyticsAdmin({
       <p className="mt-2 text-sm text-[#707a74]">
         近30天数据，埋点只记录白名单字段。
       </p>
+      <BetaDashboard />
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         {data &&
           Object.entries(data.metrics).map(([key, value]) => (

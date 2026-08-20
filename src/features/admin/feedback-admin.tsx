@@ -13,6 +13,8 @@ type Row = {
   dayNumber: number | null;
   destination: string;
   style: string;
+  status: "new"|"reviewing"|"resolved";
+  posterTaskId:string|null;
 };
 type Data = {
   stats: {
@@ -253,7 +255,7 @@ export function FeedbackAdmin({
                 <td className="p-3">{row.dayNumber ?? "—"}</td>
                 <td className="p-3">{ratingLabel[row.rating] || "其他"}</td>
                 <td className="p-3">{row.tags.join("、") || "—"}</td>
-                <td className="max-w-64 p-3">{row.comment || "—"}</td>
+                <td className="max-w-64 p-3"><p>{row.comment || "—"}</p><select aria-label="反馈处理状态" value={row.status} onChange={async event=>{const status=event.target.value;const response=await fetch("/api/admin/feedback",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:row.id,status})});if(response.ok)setData(current=>current?{...current,rows:current.rows.map(item=>item.id===row.id?{...item,status:status as Row["status"]}:item)}:current);}} className="mt-2 rounded-lg border px-2 py-1 text-xs"><option value="new">新反馈</option><option value="reviewing">处理中</option><option value="resolved">已解决</option></select>{row.posterTaskId&&<p className="mt-1 text-xs text-[#65706a]">关联海报</p>}</td>
                 <td className="p-3">
                   <a
                     href={`/trip/${row.tripId}`}
