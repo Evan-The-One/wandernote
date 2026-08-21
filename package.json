@@ -24,6 +24,7 @@
     "test:revisions": "node scripts/test-day-revisions.mjs",
     "test:closed-beta-revisions": "tsx scripts/test-closed-beta-revisions.ts",
     "test:closed-beta-resilience": "tsx scripts/test-closed-beta-resilience.ts",
+    "test:web-trip-sharing": "tsx scripts/test-web-trip-sharing.ts",
     "miniapp:dev": "pnpm --dir apps/miniprogram dev:weapp",
     "miniapp:build": "pnpm --dir apps/miniprogram build:weapp",
     "miniapp:typecheck": "pnpm --dir apps/miniprogram typecheck",

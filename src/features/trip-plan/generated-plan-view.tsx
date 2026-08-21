@@ -11,13 +11,14 @@ import { sanitizeUserFacingData } from "@/lib/sanitize-user-facing-text";
 
 type TripPayload = { tripId: string; status: string; input: TripInput; plan: TripPlan | null; version: number; canEdit: boolean; canUndo: boolean; error?: { message?: string } };
 
-export function GeneratedPlanView({ tripId }: { tripId: string }) {
+export function GeneratedPlanView({ tripId, shareToken }: { tripId: string; shareToken?: string }) {
   const [data, setData] = useState<TripPayload | null>(null); const [error, setError] = useState("");
   const [revisionDay, setRevisionDay] = useState<DayPlan | null>(null); const [notice, setNotice] = useState<string[] | undefined>(); const [undoing, setUndoing] = useState(false);
   const [highlightedActivityIds,setHighlightedActivityIds]=useState<string[]>([]);
   const load = useCallback(async () => {
     try {
-      const response = await fetch(`/api/trips/${tripId}`, { cache: "no-store" }); const payload = await response.json() as TripPayload;
+      const query = shareToken ? `?share=${encodeURIComponent(shareToken)}` : "";
+      const response = await fetch(`/api/trips/${tripId}${query}`, { cache: "no-store" }); const payload = await response.json() as TripPayload;
       if (!response.ok) throw new Error(payload.error?.message || "无法读取这份攻略");
       const input = tripInputSchema.parse(payload.input); const plan = payload.plan ? sanitizeUserFacingData(tripPlanSchema.parse(payload.plan)) : null;
       setData({ ...payload, input, plan });
@@ -26,7 +27,7 @@ export function GeneratedPlanView({ tripId }: { tripId: string }) {
       try { const cached = JSON.parse(localStorage.getItem(`wandernote:trip:${tripId}`) || "null") as { input?: unknown; plan?: unknown; version?: number } | null; const input = tripInputSchema.safeParse(cached?.input); const plan = tripPlanSchema.safeParse(cached?.plan); if (input.success && plan.success) { setData({ tripId, status: "completed", input: input.data, plan: sanitizeUserFacingData(plan.data), version: cached?.version || 1, canEdit: false, canUndo: false }); setError("网络暂时不可用，当前显示浏览器缓存，只读模式下不会覆盖服务器数据。"); return; } } catch { /* ignore invalid cache */ }
       setError(cause instanceof Error ? cause.message : "无法读取这份攻略");
     }
-  }, [tripId]);
+  }, [tripId, shareToken]);
   useEffect(() => { queueMicrotask(() => void load()); }, [load]);
   useEffect(() => { const refresh=()=>void load(); window.addEventListener("yjchufa-auth-completed",refresh); return()=>window.removeEventListener("yjchufa-auth-completed",refresh); }, [load]);
 

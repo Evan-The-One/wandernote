@@ -92,7 +92,13 @@ export function TripPlanView({
   async function share() {
     if (!tripId) return;
     trackEvent("share_clicked", { pageName: "trip", tripId });
-    const url = `https://www.yjchufa.com/trip/${encodeURIComponent(tripId)}`;
+    const response = await fetch(`/api/trips/${encodeURIComponent(tripId)}/share`, { method: "POST" });
+    const payload = await response.json() as { url?: string; error?: { message?: string } };
+    if (!response.ok || !payload.url) {
+      setCopied(false);
+      return;
+    }
+    const url = payload.url;
     if (navigator.share) {
       try {
         await navigator.share({
