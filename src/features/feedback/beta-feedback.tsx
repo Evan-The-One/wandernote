@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackEvent } from "@/features/analytics/client";
 
 const ratings = [["helpful", "很有帮助"], ["usable", "基本可用"], ["not_helpful", "不太有用"]] as const;
 const tags = [["bad_route", "行程不合理"], ["time_issue", "时间安排问题"], ["image_mismatch", "图片不匹配"], ["poster_issue", "海报问题"], ["unclear_operation", "操作不清楚"], ["other", "其他建议"]] as const;
@@ -12,7 +13,10 @@ export function BetaFeedback({ tripId }: { tripId: string }) {
     setStatus("提交中…");
     try {
       const response = await fetch(`/api/trips/${tripId}/feedback`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rating, issueTags: selected, comment: comment.trim() || null }) });
-      setStatus(response.ok ? "谢谢，你的反馈已经保存。" : "提交失败，请稍后重试。");
+      if (response.ok) {
+        trackEvent("feedback_submitted", { pageName: "trip", tripId, metadata: { rating, tagCount: selected.length } });
+        setStatus("谢谢，你的反馈已经保存。");
+      } else setStatus("提交失败，请稍后重试。");
     } catch {
       setStatus("网络不可用，请稍后重试。");
     }

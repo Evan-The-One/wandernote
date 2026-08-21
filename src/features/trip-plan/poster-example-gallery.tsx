@@ -23,14 +23,14 @@ export function PosterExampleGallery({ tripId, compact = false, context = "trip"
     const trigger = triggerRef.current;
     window.requestAnimationFrame(() => trigger?.focus());
   }
-  useEffect(() => { trackEvent("poster_example_impression", { pageName: context, tripId, metadata: { count: posterExamples.length } }); }, [context, tripId]);
+  useEffect(() => { trackEvent("poster_examples_viewed", { pageName: context, tripId, metadata: { count: posterExamples.length } }); }, [context, tripId]);
   useEffect(() => {
     if (active === null) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     closeRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { setActive(null); trackEvent("poster_example_modal_close", { pageName: context, tripId }); restoreTriggerFocus(); }
+      if (event.key === "Escape") { setActive(null); restoreTriggerFocus(); }
       if (event.key === "ArrowRight") setActive((value) => value === null ? 0 : Math.min(value + 1, posterExamples.length - 1));
       if (event.key === "ArrowLeft") setActive((value) => value === null ? 0 : Math.max(value - 1, 0));
       if (event.key === "Tab" && dialogRef.current) {
@@ -44,13 +44,13 @@ export function PosterExampleGallery({ tripId, compact = false, context = "trip"
     window.addEventListener("keydown", onKey);
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = previousOverflow; };
   }, [active, context, tripId]);
-  function close() { setActive(null); trackEvent("poster_example_modal_close", { pageName: context, tripId }); restoreTriggerFocus(); }
+  function close() { setActive(null); restoreTriggerFocus(); }
   if (!posterExamples.length) return null;
   return <>
     <div className={context === "home" ? "" : "mt-5"}>
       {heading && !compact && <><h3 className="text-sm font-bold text-[#245b46]">{context === "home" ? "看看生成后的样子" : "看看示例"}</h3>{context === "home" && <p className="mt-1 text-xs text-[#707a74]">行程规划好后，还可以生成这样一张专属旅行海报。</p>}</>}
       <div className={`poster-example-grid mt-3 flex snap-x gap-3 overflow-x-auto pb-1 min-[375px]:grid min-[375px]:grid-cols-2 min-[375px]:overflow-visible min-[375px]:pb-0 ${compact ? "is-compact" : ""}`}>
-        {posterExamples.map((example, index) => <button key={example.id} ref={(node) => { if (active === index) triggerRef.current = node; }} type="button" onClick={(event) => { triggerRef.current = event.currentTarget; setActive(index); trackEvent("poster_example_thumbnail_click", { pageName: context, tripId, metadata: { exampleId: example.id } }); trackEvent("poster_example_modal_open", { pageName: context, tripId }); }} className="poster-example-card w-[64vw] shrink-0 snap-start min-[375px]:w-auto" aria-label={`查看${example.destination}旅行海报高清示例`}>
+        {posterExamples.map((example, index) => <button key={example.id} ref={(node) => { if (active === index) triggerRef.current = node; }} type="button" onClick={(event) => { triggerRef.current = event.currentTarget; setActive(index); trackEvent("poster_example_opened", { pageName: context, tripId, metadata: { exampleId: example.id } }); }} className="poster-example-card w-[64vw] shrink-0 snap-start min-[375px]:w-auto" aria-label={`查看${example.destination}旅行海报高清示例`}>
           <span className="poster-example-image-wrap">
             {failed[example.id] ? <span className="poster-example-fallback"><span>示例海报暂时无法显示</span><span onClick={(event) => { event.stopPropagation(); setFailed((value) => ({ ...value, [example.id]: 0 })); }} className="mt-2 underline">重新加载</span></span> : <Image key={`${example.id}-${failed[example.id] ?? 0}`} src={example.thumbnailAsset} width={320} height={480} alt={`一键出发${example.destination}旅行海报示例`} className="h-auto w-full object-contain" sizes={context === "home" ? "(max-width: 374px) 64vw, (max-width: 767px) 44vw, 190px" : "(max-width: 374px) 64vw, (max-width: 767px) 44vw, 180px"} loading="lazy" quality={75} onError={() => setFailed((value) => ({ ...value, [example.id]: (value[example.id] ?? 0) + 1 }))} />}
           </span>
